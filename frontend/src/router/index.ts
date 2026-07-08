@@ -7,6 +7,7 @@ import SetupView from '../views/auth/SetupView.vue'
 import BranchLifecycleView from '../views/BranchLifecycleView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import TaskPlanningView from '../views/TaskPlanningView.vue'
+import TimelineView from '../views/TimelineView.vue'
 import WorkspaceSettingsView from '../views/WorkspaceSettingsView.vue'
 
 export const router = createRouter({
@@ -43,6 +44,11 @@ export const router = createRouter({
           path: 'branches',
           name: 'branches',
           component: BranchLifecycleView,
+        },
+        {
+          path: 'timeline',
+          name: 'timeline',
+          component: TimelineView,
         },
       ],
     },

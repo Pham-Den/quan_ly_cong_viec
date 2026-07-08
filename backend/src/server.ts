@@ -6,6 +6,7 @@ import { registerBranchRoutes } from './branches/routes.js'
 import { createPrismaClient } from './db.js'
 import type { AppEnv } from './env.js'
 import { registerPlanningRoutes } from './planning/routes.js'
+import { registerTimelineRoutes } from './timeline/routes.js'
 import { registerWorkspaceRoutes } from './workspace/routes.js'
 
 export function buildServer(env: AppEnv) {
@@ -37,6 +38,7 @@ export function buildServer(env: AppEnv) {
   registerWorkspaceRoutes(app, { env, prisma })
   registerPlanningRoutes(app, { env, prisma })
   registerBranchRoutes(app, { env, prisma })
+  registerTimelineRoutes(app, { env, prisma })
 
   return app
 }

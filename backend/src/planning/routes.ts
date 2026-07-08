@@ -214,7 +214,7 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
       return
     }
 
-    return context.prisma.note.create({
+    const note = await context.prisma.note.create({
       data: {
         projectId,
         content,
@@ -222,6 +222,21 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
         status: 'NEW',
       },
     })
+
+    if (projectId) {
+      await context.prisma.timelineEvent.create({
+        data: {
+          projectId,
+          createdById: request.authUser?.id,
+          eventType: 'NOTE_CREATED',
+          title: 'Them note inbox',
+          description: content,
+          metadataJson: JSON.stringify({ noteId: note.id, source: note.source }),
+        },
+      })
+    }
+
+    return note
   })
 
   app.patch('/api/notes/:noteId', { preHandler: requireAuth }, async (request, reply) => {
@@ -251,13 +266,28 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
       return reply.code(400).send({ message: 'Can nhap noi dung note.' })
     }
 
-    return context.prisma.note.update({
+    const updatedNote = await context.prisma.note.update({
       where: { id: note.id },
       data: {
         content,
         source: nullableText(body.source),
       },
     })
+
+    if (note.projectId) {
+      await context.prisma.timelineEvent.create({
+        data: {
+          projectId: note.projectId,
+          createdById: request.authUser?.id,
+          eventType: 'NOTE_UPDATED',
+          title: 'Cap nhat note inbox',
+          description: content,
+          metadataJson: JSON.stringify({ noteId: note.id }),
+        },
+      })
+    }
+
+    return updatedNote
   })
 
   app.post('/api/notes/:noteId/archive', { preHandler: requireAuth }, async (request, reply) => {
@@ -284,10 +314,25 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
       return reply.code(400).send({ message: 'Note da chuyen thanh task, khong the luu tru lai.' })
     }
 
-    return context.prisma.note.update({
+    const archivedNote = await context.prisma.note.update({
       where: { id: note.id },
       data: { status: 'ARCHIVED' },
     })
+
+    if (note.projectId) {
+      await context.prisma.timelineEvent.create({
+        data: {
+          projectId: note.projectId,
+          createdById: request.authUser?.id,
+          eventType: 'NOTE_ARCHIVED',
+          title: 'Luu tru note inbox',
+          description: note.content,
+          metadataJson: JSON.stringify({ noteId: note.id, previousStatus: note.status }),
+        },
+      })
+    }
+
+    return archivedNote
   })
 
   app.post('/api/notes/:noteId/convert-to-task', { preHandler: requireAuth }, async (request, reply) => {
@@ -362,10 +407,22 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
       data: {
         projectId: project.id,
         taskId: task.id,
+        createdById: request.authUser?.id,
         eventType: 'TASK_CREATED',
         title: `Tao task ${task.code}`,
         description: `Task duoc tao tu note inbox.`,
         metadataJson: JSON.stringify({ sourceNoteId: note.id }),
+      },
+    })
+    await context.prisma.timelineEvent.create({
+      data: {
+        projectId: project.id,
+        taskId: task.id,
+        createdById: request.authUser?.id,
+        eventType: 'NOTE_CONVERTED',
+        title: 'Chuyen note thanh task',
+        description: note.content,
+        metadataJson: JSON.stringify({ sourceNoteId: note.id, taskId: task.id }),
       },
     })
 
@@ -478,6 +535,7 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
       data: {
         projectId: project.id,
         taskId: task.id,
+        createdById: request.authUser?.id,
         eventType: 'TASK_CREATED',
         title: `Tao task ${task.code}`,
         description: 'Task duoc tao thu cong.',
@@ -524,11 +582,15 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
     })
 
     if (nextStatus !== task.status) {
+      const eventType =
+        nextStatus === 'BLOCKED' ? 'TASK_BLOCKED' : task.status === 'BLOCKED' ? 'TASK_UNBLOCKED' : 'TASK_STATUS_CHANGED'
+
       await context.prisma.timelineEvent.create({
         data: {
           projectId: task.projectId,
           taskId: task.id,
-          eventType: 'TASK_STATUS_CHANGED',
+          createdById: request.authUser?.id,
+          eventType,
           title: `Doi trang thai ${task.code}`,
           description: `${task.status} -> ${nextStatus}`,
           metadataJson: JSON.stringify({ from: task.status, to: nextStatus }),
@@ -560,6 +622,7 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
       data: {
         projectId: task.projectId,
         taskId: task.id,
+        createdById: request.authUser?.id,
         eventType: 'TASK_READY_PROD',
         title: `Danh dau san sang main ${task.code}`,
         description: 'Day la tin hieu lap ke hoach, khong phai dieu kien bat buoc de done.',

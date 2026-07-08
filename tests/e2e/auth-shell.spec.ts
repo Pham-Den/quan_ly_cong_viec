@@ -122,4 +122,12 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
 
   await page.getByRole('menuitem', { name: 'All Tasks' }).click()
   await expect(page.getByText('DONE')).toBeVisible()
+
+  await page.getByRole('menuitem', { name: 'Timeline' }).click()
+  await expect(page.getByRole('heading', { name: 'Timeline' })).toBeVisible()
+  await expect(page.getByText(/merged vao main/)).toBeVisible()
+  await page.getByPlaceholder('Ví dụ: Cần kiểm tra lại case export').fill('Review Phase 7')
+  await page.getByLabel('Nội dung').fill('Timeline đã ghi được note, task, branch và comment.')
+  await page.getByRole('button', { name: 'Thêm ghi chú' }).click()
+  await expect(page.getByText('Review Phase 7')).toBeVisible()
 })

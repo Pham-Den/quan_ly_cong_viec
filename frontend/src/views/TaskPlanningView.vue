@@ -525,12 +525,15 @@ onMounted(refreshPlanning)
       </a-space>
     </a-form>
 
-    <a-divider v-if="editingTask">Timeline</a-divider>
-    <a-timeline v-if="editingTask">
-      <a-timeline-item v-for="event in editingTask.timelineEvents ?? []" :key="event.id">
-        <strong>{{ event.title }}</strong>
-        <div class="muted-text">{{ event.description }}</div>
-      </a-timeline-item>
-    </a-timeline>
+    <a-tabs v-if="editingTask" class="timeline-list">
+      <a-tab-pane key="timeline" tab="Timeline">
+        <a-timeline>
+          <a-timeline-item v-for="event in editingTask.timelineEvents ?? []" :key="event.id">
+            <strong>{{ event.title }}</strong>
+            <div class="muted-text">{{ event.description }}</div>
+          </a-timeline-item>
+        </a-timeline>
+      </a-tab-pane>
+    </a-tabs>
   </a-drawer>
 </template>

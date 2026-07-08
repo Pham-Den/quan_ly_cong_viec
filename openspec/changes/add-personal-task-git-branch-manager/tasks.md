@@ -91,13 +91,13 @@
 
 ## 7. Timeline And Audit
 
-- [ ] 7.1 Implement timeline query API with project, task, branch, event type, and date filters.
-- [ ] 7.2 Implement timeline comment API.
-- [ ] 7.3 Build timeline page with compact filters and event list.
-- [ ] 7.4 Add timeline tab to task detail drawer.
-- [ ] 7.5 Add timeline tab to branch detail drawer.
-- [ ] 7.6 Verify all important note, task, branch, link, release merge, main merge, comment, blocked, and unblocked events are recorded.
-- [ ] 7.7 Stop for user review before moving to work visibility implementation.
+- [x] 7.1 Implement timeline query API with project, task, branch, event type, and date filters.
+- [x] 7.2 Implement timeline comment API.
+- [x] 7.3 Build timeline page with compact filters and event list.
+- [x] 7.4 Add timeline tab to task detail drawer.
+- [x] 7.5 Add timeline tab to branch detail drawer.
+- [x] 7.6 Verify all important note, task, branch, link, release merge, main merge, comment, blocked, and unblocked events are recorded.
+- [x] 7.7 Stop for user review before moving to work visibility implementation.
 
 ## 8. Work Visibility
 

@@ -267,6 +267,32 @@ body {
   color: #98a2b3;
 }
 
+.timeline-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.68fr) minmax(320px, 0.32fr);
+  gap: 16px;
+}
+
+.timeline-list {
+  margin-top: 12px;
+}
+
+.timeline-event {
+  display: grid;
+  gap: 6px;
+}
+
+.timeline-event-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.timeline-description {
+  white-space: pre-wrap;
+}
+
 @media (max-width: 900px) {
   .app-sidebar {
     display: none;
@@ -312,6 +338,10 @@ body {
   }
 
   .planning-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .timeline-grid {
     grid-template-columns: 1fr;
   }
 

@@ -602,13 +602,16 @@ onMounted(refreshBranches)
         </template>
       </a-list>
 
-      <a-divider>Timeline</a-divider>
-      <a-timeline>
-        <a-timeline-item v-for="event in editingBranch.timelineEvents ?? []" :key="event.id">
-          <strong>{{ event.title }}</strong>
-          <div class="muted-text">{{ event.description }}</div>
-        </a-timeline-item>
-      </a-timeline>
+      <a-tabs class="timeline-list">
+        <a-tab-pane key="timeline" tab="Timeline">
+          <a-timeline>
+            <a-timeline-item v-for="event in editingBranch.timelineEvents ?? []" :key="event.id">
+              <strong>{{ event.title }}</strong>
+              <div class="muted-text">{{ event.description }}</div>
+            </a-timeline-item>
+          </a-timeline>
+        </a-tab-pane>
+      </a-tabs>
     </template>
   </a-drawer>
 </template>
