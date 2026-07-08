@@ -37,6 +37,17 @@ type RepositoryBody = {
   defaultBranch?: unknown
   productionBranch?: unknown
   releaseBranchPattern?: unknown
+  trustSourceBranch?: unknown
+  developBranch?: unknown
+  featureNamePattern?: unknown
+  hotfixNamePattern?: unknown
+  featurePlannedTargets?: unknown
+  hotfixPlannedTargets?: unknown
+  allowCheckoutSourceOverride?: unknown
+  allowDirectTaskBranchMainMerge?: unknown
+  activeReleaseBranchName?: unknown
+  activeReleaseStartDate?: unknown
+  activeReleaseEndDate?: unknown
   makeDefault?: unknown
 }
 
@@ -52,6 +63,18 @@ function nullableText(value: unknown) {
   const nextValue = text(value)
 
   return nextValue || null
+}
+
+function dateOrNull(value: unknown) {
+  const nextValue = text(value)
+
+  if (!nextValue) {
+    return null
+  }
+
+  const date = new Date(nextValue)
+
+  return Number.isNaN(date.getTime()) ? null : date
 }
 
 function code(value: unknown) {
@@ -74,9 +97,26 @@ function publicRepository(repository: {
   defaultBranch: string
   productionBranch: string
   releaseBranchPattern: string
+  trustSourceBranch: string
+  developBranch: string
+  featureNamePattern: string
+  hotfixNamePattern: string
+  featurePlannedTargets: string
+  hotfixPlannedTargets: string
+  allowCheckoutSourceOverride: boolean
+  allowDirectTaskBranchMainMerge: boolean
   createdAt: Date
   updatedAt: Date
+  releaseCycles?: Array<{
+    id: string
+    name: string
+    status: string
+    startDate: Date | null
+    endDate: Date | null
+  }>
 }) {
+  const activeReleaseCycle = repository.releaseCycles?.[0] ?? null
+
   return {
     id: repository.id,
     projectId: repository.projectId,
@@ -89,9 +129,134 @@ function publicRepository(repository: {
     defaultBranch: repository.defaultBranch,
     productionBranch: repository.productionBranch,
     releaseBranchPattern: repository.releaseBranchPattern,
+    trustSourceBranch: repository.trustSourceBranch,
+    developBranch: repository.developBranch,
+    featureNamePattern: repository.featureNamePattern,
+    hotfixNamePattern: repository.hotfixNamePattern,
+    featurePlannedTargets: repository.featurePlannedTargets,
+    hotfixPlannedTargets: repository.hotfixPlannedTargets,
+    allowCheckoutSourceOverride: repository.allowCheckoutSourceOverride,
+    allowDirectTaskBranchMainMerge: repository.allowDirectTaskBranchMainMerge,
+    activeReleaseCycle,
     createdAt: repository.createdAt,
     updatedAt: repository.updatedAt,
   }
+}
+
+function todayReleaseName(pattern: string) {
+  const date = new Date()
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = String(date.getFullYear())
+
+  return pattern.replace('DD', day).replace('MM', month).replace('YYYY', year)
+}
+
+async function ensureReleaseBranchRecord(
+  prisma: AppPrismaClient,
+  repository: {
+    id: string
+    projectId: string
+    productionBranch: string
+  },
+  releaseCycle: {
+    id: string
+    name: string
+  },
+) {
+  const existingBranch = await prisma.branch.findUnique({
+    where: {
+      repositoryId_name: {
+        repositoryId: repository.id,
+        name: releaseCycle.name,
+      },
+    },
+  })
+  const branchData = {
+    branchType: 'RELEASE',
+    checkoutSourceBranch: repository.productionBranch,
+    baseBranch: repository.productionBranch,
+    intendedMergeTarget: repository.productionBranch,
+    releaseCycleId: releaseCycle.id,
+    releaseCycleDate: dateOrNull(releaseCycle.name.replace(/^release\//, '')),
+    generatedCheckoutCommand: `git fetch origin && git checkout ${repository.productionBranch} && git pull origin ${repository.productionBranch} && git checkout -b ${releaseCycle.name}`,
+  }
+
+  if (existingBranch) {
+    if (existingBranch.branchType !== 'RELEASE') {
+      throw new Error('RELEASE_BRANCH_NAME_CONFLICT')
+    }
+
+    await prisma.branch.update({
+      where: { id: existingBranch.id },
+      data: {
+        ...branchData,
+        status: existingBranch.status === 'MERGED_MAIN' ? existingBranch.status : 'MERGED_RELEASE',
+      },
+    })
+    return
+  }
+
+  const branch = await prisma.branch.create({
+    data: {
+      repositoryId: repository.id,
+      name: releaseCycle.name,
+      status: 'MERGED_RELEASE',
+      ...branchData,
+    },
+  })
+
+  await prisma.branch.update({
+    where: { id: branch.id },
+    data: { lineageId: branch.id },
+  })
+}
+
+async function setActiveReleaseCycle(
+  prisma: AppPrismaClient,
+  repository: {
+    id: string
+    projectId: string
+    releaseBranchPattern: string
+    productionBranch: string
+  },
+  body: RepositoryBody,
+) {
+  const releaseBranchName = text(body.activeReleaseBranchName) || todayReleaseName(repository.releaseBranchPattern)
+
+  await prisma.releaseCycle.updateMany({
+    where: {
+      repositoryId: repository.id,
+      status: 'ACTIVE',
+      name: { not: releaseBranchName },
+    },
+    data: { status: 'CLOSED' },
+  })
+
+  const releaseCycle = await prisma.releaseCycle.upsert({
+    where: {
+      repositoryId_name: {
+        repositoryId: repository.id,
+        name: releaseBranchName,
+      },
+    },
+    create: {
+      repositoryId: repository.id,
+      name: releaseBranchName,
+      status: 'ACTIVE',
+      startDate: dateOrNull(body.activeReleaseStartDate),
+      endDate: dateOrNull(body.activeReleaseEndDate),
+    },
+    update: {
+      status: 'ACTIVE',
+      startDate: dateOrNull(body.activeReleaseStartDate),
+      endDate: dateOrNull(body.activeReleaseEndDate),
+    },
+  })
+
+  await ensureReleaseBranchRecord(prisma, repository, releaseCycle)
+
+  return releaseCycle
 }
 
 async function ensureProject(prisma: AppPrismaClient, projectId: string, userId: string, reply: FastifyReply) {
@@ -344,6 +509,13 @@ export function registerWorkspaceRoutes(app: FastifyInstance, context: Workspace
     const repositories = await context.prisma.repository.findMany({
       where: { projectId: project.id },
       orderBy: [{ createdAt: 'asc' }],
+      include: {
+        releaseCycles: {
+          where: { status: 'ACTIVE' },
+          orderBy: { updatedAt: 'desc' },
+          take: 1,
+        },
+      },
     })
 
     return repositories.map(publicRepository)
@@ -384,8 +556,26 @@ export function registerWorkspaceRoutes(app: FastifyInstance, context: Workspace
         defaultBranch: text(body.defaultBranch) || 'main',
         productionBranch: text(body.productionBranch) || 'main',
         releaseBranchPattern: text(body.releaseBranchPattern) || 'release/DDMMYYYY',
+        trustSourceBranch: text(body.trustSourceBranch) || text(body.defaultBranch) || 'main',
+        developBranch: text(body.developBranch) || 'develop',
+        featureNamePattern: text(body.featureNamePattern) || 'feature/{jiraCode}',
+        hotfixNamePattern: text(body.hotfixNamePattern) || 'hotfix/{jiraCode}-{date}',
+        featurePlannedTargets: text(body.featurePlannedTargets) || '{develop},{activeRelease},{production}',
+        hotfixPlannedTargets: text(body.hotfixPlannedTargets) || '{activeRelease},{production}',
+        allowCheckoutSourceOverride: body.allowCheckoutSourceOverride === true,
+        allowDirectTaskBranchMainMerge: body.allowDirectTaskBranchMainMerge === true,
       },
     })
+
+    try {
+      await setActiveReleaseCycle(context.prisma, repository, body)
+    } catch (error) {
+      if (error instanceof Error && error.message === 'RELEASE_BRANCH_NAME_CONFLICT') {
+        return reply.code(400).send({ message: 'Ten release branch dang duoc dung boi branch khac.' })
+      }
+
+      throw error
+    }
 
     if (!project.defaultRepoId || body.makeDefault === true) {
       await context.prisma.project.update({
@@ -394,7 +584,18 @@ export function registerWorkspaceRoutes(app: FastifyInstance, context: Workspace
       })
     }
 
-    return publicRepository(repository)
+    const repositoryWithActiveRelease = await context.prisma.repository.findUnique({
+      where: { id: repository.id },
+      include: {
+        releaseCycles: {
+          where: { status: 'ACTIVE' },
+          orderBy: { updatedAt: 'desc' },
+          take: 1,
+        },
+      },
+    })
+
+    return publicRepository(repositoryWithActiveRelease ?? repository)
   })
 
   app.patch('/api/repositories/:repositoryId', { preHandler: requireAuth }, async (request, reply) => {
@@ -447,8 +648,32 @@ export function registerWorkspaceRoutes(app: FastifyInstance, context: Workspace
         defaultBranch: text(body.defaultBranch) || repository.defaultBranch,
         productionBranch: text(body.productionBranch) || repository.productionBranch,
         releaseBranchPattern: text(body.releaseBranchPattern) || repository.releaseBranchPattern,
+        trustSourceBranch: text(body.trustSourceBranch) || repository.trustSourceBranch,
+        developBranch: text(body.developBranch) || repository.developBranch,
+        featureNamePattern: text(body.featureNamePattern) || repository.featureNamePattern,
+        hotfixNamePattern: text(body.hotfixNamePattern) || repository.hotfixNamePattern,
+        featurePlannedTargets: text(body.featurePlannedTargets) || repository.featurePlannedTargets,
+        hotfixPlannedTargets: text(body.hotfixPlannedTargets) || repository.hotfixPlannedTargets,
+        allowCheckoutSourceOverride:
+          typeof body.allowCheckoutSourceOverride === 'boolean'
+            ? body.allowCheckoutSourceOverride
+            : repository.allowCheckoutSourceOverride,
+        allowDirectTaskBranchMainMerge:
+          typeof body.allowDirectTaskBranchMainMerge === 'boolean'
+            ? body.allowDirectTaskBranchMainMerge
+            : repository.allowDirectTaskBranchMainMerge,
       },
     })
+
+    try {
+      await setActiveReleaseCycle(context.prisma, updatedRepository, body)
+    } catch (error) {
+      if (error instanceof Error && error.message === 'RELEASE_BRANCH_NAME_CONFLICT') {
+        return reply.code(400).send({ message: 'Ten release branch dang duoc dung boi branch khac.' })
+      }
+
+      throw error
+    }
 
     if (body.makeDefault === true) {
       await context.prisma.project.update({
@@ -457,7 +682,18 @@ export function registerWorkspaceRoutes(app: FastifyInstance, context: Workspace
       })
     }
 
-    return publicRepository(updatedRepository)
+    const repositoryWithActiveRelease = await context.prisma.repository.findUnique({
+      where: { id: updatedRepository.id },
+      include: {
+        releaseCycles: {
+          where: { status: 'ACTIVE' },
+          orderBy: { updatedAt: 'desc' },
+          take: 1,
+        },
+      },
+    })
+
+    return publicRepository(repositoryWithActiveRelease ?? updatedRepository)
   })
 
   app.delete('/api/repositories/:repositoryId', { preHandler: requireAuth }, async (request, reply) => {

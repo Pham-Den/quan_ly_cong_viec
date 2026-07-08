@@ -22,10 +22,10 @@ Phase nay tap trung review lai flow `/branches`, khong lam GitLab webhook automa
 
 Default nen nhu sau:
 
-- Cho phep drop: `DRAFT`, `CODING`, `READY_REVIEW`, `REVIEWING`, `READY_TEST`, `TESTING`, `READY_RELEASE`, `READY_MAIN`.
+- Cho phep drop: `CODING`, `MERGED_DEVELOP`.
 - Chan drop mac dinh: `MERGED_RELEASE`, vi phai dung action `Merge release` de cap nhat actual target, task status va timeline.
 - Chan drop mac dinh: `MERGED_MAIN`, vi phai dung action `Merge main` de tinh done task theo lineage.
-- `CLOSED`: nen cho phep nhung can confirm, hoac cau hinh rieng neu ban muon chan keo vao day.
+- Branch status duoc rut gon con 4 cot: `CODING`, `MERGED_DEVELOP`, `MERGED_RELEASE`, `MERGED_MAIN`.
 
 ## UI flow de xuat
 

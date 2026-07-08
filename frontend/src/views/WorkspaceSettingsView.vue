@@ -42,6 +42,21 @@ type RepositoryRecord = {
   defaultBranch: string
   productionBranch: string
   releaseBranchPattern: string
+  trustSourceBranch: string
+  developBranch: string
+  featureNamePattern: string
+  hotfixNamePattern: string
+  featurePlannedTargets: string
+  hotfixPlannedTargets: string
+  allowCheckoutSourceOverride: boolean
+  allowDirectTaskBranchMainMerge: boolean
+  activeReleaseCycle: {
+    id: string
+    name: string
+    status: string
+    startDate: string | null
+    endDate: string | null
+  } | null
 }
 
 const session = useSessionStore()
@@ -91,6 +106,17 @@ const repositoryForm = reactive({
   defaultBranch: 'main',
   productionBranch: 'main',
   releaseBranchPattern: 'release/DDMMYYYY',
+  trustSourceBranch: 'main',
+  developBranch: 'develop',
+  featureNamePattern: 'feature/{jiraCode}',
+  hotfixNamePattern: 'hotfix/{jiraCode}-{date}',
+  featurePlannedTargets: '{develop}\n{activeRelease}\n{production}',
+  hotfixPlannedTargets: '{activeRelease}\n{production}',
+  allowCheckoutSourceOverride: false,
+  allowDirectTaskBranchMainMerge: false,
+  activeReleaseBranchName: '',
+  activeReleaseStartDate: '',
+  activeReleaseEndDate: '',
   makeDefault: false,
 })
 const taskCodePreview = ref('')
@@ -157,6 +183,17 @@ function resetRepositoryForm() {
   repositoryForm.defaultBranch = 'main'
   repositoryForm.productionBranch = 'main'
   repositoryForm.releaseBranchPattern = 'release/DDMMYYYY'
+  repositoryForm.trustSourceBranch = 'main'
+  repositoryForm.developBranch = 'develop'
+  repositoryForm.featureNamePattern = 'feature/{jiraCode}'
+  repositoryForm.hotfixNamePattern = 'hotfix/{jiraCode}-{date}'
+  repositoryForm.featurePlannedTargets = '{develop}\n{activeRelease}\n{production}'
+  repositoryForm.hotfixPlannedTargets = '{activeRelease}\n{production}'
+  repositoryForm.allowCheckoutSourceOverride = false
+  repositoryForm.allowDirectTaskBranchMainMerge = false
+  repositoryForm.activeReleaseBranchName = ''
+  repositoryForm.activeReleaseStartDate = ''
+  repositoryForm.activeReleaseEndDate = ''
   repositoryForm.makeDefault = false
 }
 
@@ -295,6 +332,17 @@ function editRepository(repository: RepositoryRecord) {
   repositoryForm.defaultBranch = repository.defaultBranch
   repositoryForm.productionBranch = repository.productionBranch
   repositoryForm.releaseBranchPattern = repository.releaseBranchPattern
+  repositoryForm.trustSourceBranch = repository.trustSourceBranch
+  repositoryForm.developBranch = repository.developBranch
+  repositoryForm.featureNamePattern = repository.featureNamePattern
+  repositoryForm.hotfixNamePattern = repository.hotfixNamePattern
+  repositoryForm.featurePlannedTargets = repository.featurePlannedTargets.replaceAll(',', '\n')
+  repositoryForm.hotfixPlannedTargets = repository.hotfixPlannedTargets.replaceAll(',', '\n')
+  repositoryForm.allowCheckoutSourceOverride = repository.allowCheckoutSourceOverride
+  repositoryForm.allowDirectTaskBranchMainMerge = repository.allowDirectTaskBranchMainMerge
+  repositoryForm.activeReleaseBranchName = repository.activeReleaseCycle?.name ?? ''
+  repositoryForm.activeReleaseStartDate = repository.activeReleaseCycle?.startDate?.slice(0, 10) ?? ''
+  repositoryForm.activeReleaseEndDate = repository.activeReleaseCycle?.endDate?.slice(0, 10) ?? ''
   repositoryForm.makeDefault = selectedProject.value?.defaultRepoId === repository.id
 }
 
@@ -537,8 +585,50 @@ onMounted(refreshWorkspace)
                   <a-input v-model:value="repositoryForm.releaseBranchPattern" />
                 </a-form-item>
               </div>
+              <a-divider>Git flow rules</a-divider>
+              <div class="form-grid">
+                <a-form-item label="Trust source branch">
+                  <a-input v-model:value="repositoryForm.trustSourceBranch" placeholder="main" />
+                </a-form-item>
+                <a-form-item label="Develop branch">
+                  <a-input v-model:value="repositoryForm.developBranch" placeholder="develop" />
+                </a-form-item>
+                <a-form-item label="Active release branch">
+                  <a-input v-model:value="repositoryForm.activeReleaseBranchName" placeholder="release/08072026" />
+                </a-form-item>
+              </div>
+              <div class="form-grid">
+                <a-form-item label="Feature name pattern">
+                  <a-input v-model:value="repositoryForm.featureNamePattern" />
+                </a-form-item>
+                <a-form-item label="Hotfix name pattern">
+                  <a-input v-model:value="repositoryForm.hotfixNamePattern" />
+                </a-form-item>
+              </div>
+              <div class="form-grid">
+                <a-form-item label="Feature planned targets">
+                  <a-textarea v-model:value="repositoryForm.featurePlannedTargets" :rows="3" />
+                </a-form-item>
+                <a-form-item label="Hotfix planned targets">
+                  <a-textarea v-model:value="repositoryForm.hotfixPlannedTargets" :rows="3" />
+                </a-form-item>
+              </div>
+              <div class="form-grid">
+                <a-form-item label="Release start">
+                  <a-input v-model:value="repositoryForm.activeReleaseStartDate" type="date" />
+                </a-form-item>
+                <a-form-item label="Release end">
+                  <a-input v-model:value="repositoryForm.activeReleaseEndDate" type="date" />
+                </a-form-item>
+              </div>
               <a-space class="form-actions">
                 <a-checkbox v-model:checked="repositoryForm.makeDefault">Repository mặc định</a-checkbox>
+                <a-checkbox v-model:checked="repositoryForm.allowCheckoutSourceOverride">
+                  Cho override source branch
+                </a-checkbox>
+                <a-checkbox v-model:checked="repositoryForm.allowDirectTaskBranchMainMerge">
+                  Cho task branch merge thẳng main
+                </a-checkbox>
                 <a-checkbox v-if="repositoryForm.id" v-model:checked="repositoryForm.clearGitlabAccessToken">
                   Xóa token
                 </a-checkbox>
@@ -565,7 +655,8 @@ onMounted(refreshWorkspace)
                   <a-tag v-if="record.hasGitlabAccessToken" color="success">Có token</a-tag>
                 </template>
                 <template v-if="column.key === 'branches'">
-                  <div>{{ record.defaultBranch }} -> {{ record.releaseBranchPattern }} -> {{ record.productionBranch }}</div>
+                  <div>{{ record.trustSourceBranch }} -> {{ record.activeReleaseCycle?.name || record.releaseBranchPattern }} -> {{ record.productionBranch }}</div>
+                  <div class="muted-text">{{ record.featureNamePattern }} / {{ record.hotfixNamePattern }}</div>
                   <a-tag v-if="selectedProject?.defaultRepoId === record.id" color="blue">Mặc định</a-tag>
                 </template>
                 <template v-if="column.key === 'actions'">

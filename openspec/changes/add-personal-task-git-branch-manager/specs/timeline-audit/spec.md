@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: System records timeline events for important changes
-The system SHALL create timeline events for note creation, task creation, task status changes, branch creation, task-branch linking, branch status changes, release merge, main merge, comments, blocked state, and unblocked state.
+The system SHALL create timeline events for note creation, task creation, task status changes, branch creation, branch deletion, task-branch linking, branch status changes, release merge, main merge, comments, blocked state, and unblocked state.
 
 #### Scenario: Task status event
 - **WHEN** a task status changes
@@ -10,6 +10,10 @@ The system SHALL create timeline events for note creation, task creation, task s
 #### Scenario: Branch merge event
 - **WHEN** a branch is marked merged to a release branch or `main`
 - **THEN** the system records a timeline event containing branch reference, linked task references, merge target, actor, and timestamp
+
+#### Scenario: Branch deletion event
+- **WHEN** a branch is deleted before reaching `main`
+- **THEN** the system records a timeline event with deleted branch id, name, status, type, linked task ids, actor, and timestamp before the branch reference is removed
 
 ### Requirement: User can view project timeline
 The system SHALL provide a timeline view filtered by project, task, branch, event type, and date range.

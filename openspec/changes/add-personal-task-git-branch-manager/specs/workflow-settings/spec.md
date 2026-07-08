@@ -24,11 +24,11 @@ The system SHALL allow custom colors for task and branch statuses and use those 
 
 #### Scenario: Default status colors exist
 - **WHEN** the app is used before any custom workflow color configuration
-- **THEN** task and branch status tags use semantic default colors for planned, active, review, testing, release, main, done, blocked, and cancelled states
+- **THEN** task status tags use semantic default colors, and branch status tags use the compact branch flow colors for coding, develop, release, and main
 
 #### Scenario: Change status color
-- **WHEN** the user changes the color for `READY_MAIN`
-- **THEN** all visible `READY_MAIN` tags and board columns use the configured color
+- **WHEN** the user changes the color for `MERGED_MAIN`
+- **THEN** all visible `MERGED_MAIN` tags and board columns use the configured color
 
 #### Scenario: Status text remains visible
 - **WHEN** a status has a configured color
@@ -38,12 +38,20 @@ The system SHALL allow custom colors for task and branch statuses and use those 
 - **WHEN** the user views inbox notes
 - **THEN** pending, archived, and converted note states use distinct simple colors while keeping their labels visible
 
-### Requirement: User can configure release branch pattern
-The system SHALL allow the release branch pattern to be configured per repository with default `release/DDMMYYYY`.
+### Requirement: User can configure release branch pattern and Git flow rules
+The system SHALL allow the release branch pattern and repository Git flow rules to be configured with default release pattern `release/DDMMYYYY`.
 
 #### Scenario: Default release pattern
 - **WHEN** the user creates a self-hosted GitLab repository and does not customize release pattern
 - **THEN** the repository uses `release/DDMMYYYY` as the default release branch pattern
+
+#### Scenario: Configure active release branch
+- **WHEN** the user selects or creates the active release branch for a repository
+- **THEN** new feature and hotfix branch plans use that release branch by default
+
+#### Scenario: Configure branch flow rules
+- **WHEN** the user edits repository Git flow rules
+- **THEN** the system supports configuring trust source branch, develop branch, production branch, feature name pattern, hotfix name pattern, intended targets, and override flags
 
 ### Requirement: Dark mode is a future preference
 The system SHALL record dark mode as a planned post-MVP UI preference and MUST NOT require dark mode for MVP acceptance.

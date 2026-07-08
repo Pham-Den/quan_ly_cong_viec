@@ -21,18 +21,33 @@ export const defaultTaskStatuses = [
 ] as const
 
 export const defaultBranchStatuses = [
-  ['DRAFT', 'Nháp', '#8c8c8c'],
   ['CODING', 'Đang code', '#1677ff'],
-  ['READY_REVIEW', 'Chờ review', '#13c2c2'],
-  ['REVIEWING', 'Đang review', '#08979c'],
-  ['READY_TEST', 'Chờ test', '#faad14'],
-  ['TESTING', 'Đang test', '#d48806'],
-  ['READY_RELEASE', 'Sẵn sàng release', '#722ed1'],
-  ['MERGED_RELEASE', 'Đã vào release', '#9254de'],
-  ['READY_MAIN', 'Sẵn sàng main', '#2f54eb'],
-  ['MERGED_MAIN', 'Đã vào main', '#52c41a'],
-  ['CLOSED', 'Đóng', '#595959'],
+  ['MERGED_DEVELOP', 'Vào develop', '#13c2c2'],
+  ['MERGED_RELEASE', 'Vào release', '#9254de'],
+  ['MERGED_MAIN', 'Vào main', '#52c41a'],
 ] as const
+
+const deprecatedBranchStatuses = [
+  'DRAFT',
+  'READY_REVIEW',
+  'REVIEWING',
+  'READY_TEST',
+  'TESTING',
+  'READY_RELEASE',
+  'READY_MAIN',
+  'CLOSED',
+]
+
+const branchStatusMigrationTargets: Record<string, string> = {
+  DRAFT: 'CODING',
+  READY_REVIEW: 'CODING',
+  REVIEWING: 'CODING',
+  READY_TEST: 'CODING',
+  TESTING: 'CODING',
+  READY_RELEASE: 'CODING',
+  READY_MAIN: 'CODING',
+  CLOSED: 'CODING',
+}
 
 export const defaultBranchKanbanDropRules: Record<string, BranchKanbanDropRule> = {
   MERGED_RELEASE: {
@@ -44,11 +59,6 @@ export const defaultBranchKanbanDropRules: Record<string, BranchKanbanDropRule> 
     allowKanbanDrop: false,
     dropBlockReason: 'Dùng nút Merge main để tính done task theo branch lineage.',
     requiresConfirmation: false,
-  },
-  CLOSED: {
-    allowKanbanDrop: true,
-    dropBlockReason: null,
-    requiresConfirmation: true,
   },
 }
 
@@ -118,16 +128,35 @@ export async function ensureWorkflowStatuses(prisma: AppPrismaClient, projectId:
     if (record.scope === 'BRANCH') {
       const dropRule = branchKanbanDropRule(record.key)
 
-      if (record.allowKanbanDrop === null || record.requiresConfirmation === null || (record.dropBlockReason === null && dropRule.dropBlockReason)) {
-        await prisma.workflowStatus.update({
-          where: { id: record.id },
-          data: {
-            allowKanbanDrop: record.allowKanbanDrop ?? dropRule.allowKanbanDrop,
-            dropBlockReason: record.dropBlockReason ?? dropRule.dropBlockReason,
-            requiresConfirmation: record.requiresConfirmation ?? dropRule.requiresConfirmation,
-          },
-        })
-      }
+      await prisma.workflowStatus.update({
+        where: { id: record.id },
+        data: {
+          label: status.label,
+          sortOrder: status.sortOrder,
+          enabled: true,
+          allowKanbanDrop: record.allowKanbanDrop ?? dropRule.allowKanbanDrop,
+          dropBlockReason: record.dropBlockReason ?? dropRule.dropBlockReason,
+          requiresConfirmation: record.requiresConfirmation ?? dropRule.requiresConfirmation,
+        },
+      })
     }
+  }
+
+  await prisma.workflowStatus.deleteMany({
+    where: {
+      projectId,
+      scope: 'BRANCH',
+      key: { in: deprecatedBranchStatuses },
+    },
+  })
+
+  for (const [from, to] of Object.entries(branchStatusMigrationTargets)) {
+    await prisma.branch.updateMany({
+      where: {
+        status: from,
+        repository: { projectId },
+      },
+      data: { status: to },
+    })
   }
 }

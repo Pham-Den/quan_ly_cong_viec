@@ -45,7 +45,7 @@ The system SHALL allow tasks to be created, viewed, updated, filtered, and assig
 - **THEN** the system updates the task and records a timeline event with the previous and new status
 
 ### Requirement: User can mark task ready for production with dedicated action
-The system SHALL provide a dedicated task action for marking a task release-ready for production, separate from ordinary status editing. This action SHALL be a planning signal and MUST NOT be required for a task to become `DONE` after its branch lineage reaches `main`.
+The system SHALL provide a dedicated task action for marking a task release-ready for production, separate from ordinary status editing. This action SHALL be a planning signal and MUST NOT be required for a task to become `DONE` after its branch flow reaches `main`.
 
 #### Scenario: Mark task ready for production
 - **WHEN** the user clicks the dedicated ready-for-production action on a task
@@ -56,5 +56,5 @@ The system SHALL provide a dedicated task action for marking a task release-read
 - **THEN** the system does not mark the task release-ready unless the dedicated action is used
 
 #### Scenario: Main merge can complete task without readiness flag
-- **WHEN** the task was not marked ready for production but its required branch lineage is recorded as merged into `main`
+- **WHEN** the task was not marked ready for production but its required branch flow is recorded as merged into `main` through a release branch
 - **THEN** the system can still mark the task `DONE` and records that completion came from main merge

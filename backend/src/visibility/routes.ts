@@ -113,8 +113,8 @@ export function registerVisibilityRoutes(app: FastifyInstance, context: Visibili
       blockedTasks: tasks.filter((task) => task.status === 'BLOCKED').slice(0, 8),
       dueTasks: dueTasks.slice(0, 8),
       inboxNotes,
-      branchesReady: branches.filter((branch) => ['READY_TEST', 'TESTING', 'READY_RELEASE', 'MERGED_RELEASE', 'READY_MAIN'].includes(branch.status)).slice(0, 8),
-      branchesNotMain: branches.filter((branch) => branch.status !== 'MERGED_MAIN' && branch.status !== 'CLOSED').slice(0, 8),
+      branchesReady: branches.filter((branch) => ['MERGED_DEVELOP', 'MERGED_RELEASE'].includes(branch.status)).slice(0, 8),
+      branchesNotMain: branches.filter((branch) => branch.status !== 'MERGED_MAIN').slice(0, 8),
       recentTimeline,
     }
   })

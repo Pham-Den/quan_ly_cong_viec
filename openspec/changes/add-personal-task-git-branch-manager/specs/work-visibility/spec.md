@@ -53,7 +53,7 @@ The system SHALL provide an All Tasks view that groups tasks into personal workf
 - **THEN** the All Tasks view shows that task in the in-release bucket
 
 #### Scenario: Done group reflects main merge
-- **WHEN** a task's required branch lineage reaches `main`
+- **WHEN** a task's required branch flow reaches `main` through its release branch
 - **THEN** the All Tasks view shows that task in the done bucket
 
 #### Scenario: Open task from grouped view
@@ -69,7 +69,7 @@ The system SHALL provide branch views grouped or filtered by lifecycle status, r
 
 #### Scenario: View branch source and target
 - **WHEN** the user views the branch table
-- **THEN** the system shows checkout source branch, intended merge target branch, and actual merged-into branch when present
+- **THEN** the system shows checkout source branch, intended merge target branches, active release branch, and actual merged-into branch when present
 
 ### Requirement: Details open in drawers
 The system SHALL open task and branch details in drawers from dashboard, table, board, search, and timeline views.

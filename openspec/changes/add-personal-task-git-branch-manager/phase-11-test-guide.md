@@ -25,7 +25,7 @@ sh dev.sh
 2. Vao `Nhánh`.
 3. Tao branch nhu cu.
 4. Chon toggle `Kanban`.
-5. Keo branch sang status binh thuong nhu `Chờ review`.
+5. Keo branch sang status binh thuong `Vào develop`.
 6. Thu keo branch vao `Đã vào release` hoac `Đã vào main`.
 7. Ky vong: app chan drop va bao dung nut `Merge release` hoac `Merge main`.
 8. Thu keo branch vao `Đóng`.
@@ -43,9 +43,9 @@ sh dev.sh
 
 ## Rule mac dinh
 
-- Cho keo: `DRAFT`, `CODING`, `READY_REVIEW`, `REVIEWING`, `READY_TEST`, `TESTING`, `READY_RELEASE`, `READY_MAIN`.
+- Cho keo: `CODING`, `MERGED_DEVELOP`.
 - Chan keo: `MERGED_RELEASE`, `MERGED_MAIN`.
-- `CLOSED`: cho keo nhung can xac nhan.
+- Kanban chi con 4 cot branch: `Đang code`, `Vào develop`, `Vào release`, `Vào main`.
 
 ## Ghi chu
 

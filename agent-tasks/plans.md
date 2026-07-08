@@ -15,6 +15,17 @@ npx -y @fission-ai/openspec@latest status --change add-personal-task-git-branch-
 npx -y @fission-ai/openspec@latest validate add-personal-task-git-branch-manager --strict
 ```
 
+## Ghi chú rule hiện tại - Phase 12
+
+- Luồng branch chính: task branch checkout từ `main`, merge vào `develop` nếu là feature, merge vào release branch theo tuần, rồi release branch merge vào `main`.
+- Release branch là branch cha theo tuần, ví dụ `release/08072026`; nó checkout từ `main`, nhận các task branch con, rồi merge ngược vào `main`.
+- Task chỉ xem là hoàn tất khi branch chứa task đã đi theo release branch vào `main`.
+- Có thể kéo nhầm release branch từ `main` về lại `MERGED_RELEASE`; thao tác này kéo các child branch và task liên quan về trạng thái release.
+- Có thể xóa branch khi branch chưa vào `main`. Khi xóa, app ghi timeline audit trước rồi xóa branch record, alias và task link liên quan.
+- Không được xóa branch đã vào `main`.
+- Không được xóa release branch cha nếu nó còn child task branch bên trong.
+- Khi release parent đang ở `main`, child branch không được thoát cha: không đổi release, không kéo/đổi status riêng, không xóa. Muốn sửa nhầm thì kéo release parent về `MERGED_RELEASE` trước, sau đó mới đổi release hoặc xóa child branch.
+
 # Plan xây mini app quản lý công việc cá nhân theo Git branch
 
 ## 1. Mục tiêu

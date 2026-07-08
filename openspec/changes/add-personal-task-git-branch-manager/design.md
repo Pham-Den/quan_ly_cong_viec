@@ -17,7 +17,7 @@ The first runtime target is local. The app should still keep enough structure to
 - Support task code groups inside a project, such as `CRM-BE-001` or `CRM-FE-001`.
 - Track branches independently from tasks and support many-to-many task-branch links.
 - Support self-hosted GitLab first, production branch `main`, release branches like `release/08072026`, and hotfix branches checked out from production.
-- Allow users to create branch records from the app at any time with checkout source branch, intended merge target branch, branch lineage, inherited task links, and generated checkout command.
+- Allow users to create branch records from the app at any time using configurable Git flow rules for checkout source branch, intended merge target branches, active release branch, branch naming, and generated checkout command.
 - Allow actual self-hosted GitLab branch creation later when repository API credentials are configured.
 - Make feature, release, and main merge state explicit.
 - Treat actual merge into `main` as the source of truth for task completion; the dedicated ready-for-production action is a planning signal, not a hard blocker.
@@ -54,11 +54,11 @@ Alternative considered: Express, NestJS + PostgreSQL from the start, direct SQL,
 
 ### Decision 3: Model tasks and branches separately
 
-Create separate `tasks`, `branches`, and `task_branches` tables. `branches` stores checkout source, source branch record, merge target fields, and lineage fields. `task_branches` stores the relationship role such as `PRIMARY`, `FIX`, `FOLLOW_UP`, `CARRIED_FROM_SOURCE`, or `CHERRY_PICK`.
+Create separate `tasks`, `branches`, and `task_branches` tables. `branches` stores checkout source, source branch record, merge target fields, active release assignment, and internal flow/completion fields. `task_branches` stores the relationship role such as `PRIMARY`, `FIX`, `FOLLOW_UP`, `CARRIED_FROM_SOURCE`, or `CHERRY_PICK`.
 
 Rationale: one branch can contain multiple tasks, and one task can need multiple branches. A direct one-to-one field would break the real workflow.
 
-Alternative considered: store branch name directly on task. This is too limited for combined branches, derived branches, follow-up fixes, cherry-picks, and answering "this task's branch was checked out from where and merged into where?"
+Alternative considered: store branch name directly on task. This is too limited for combined branches, release-cycle tracking, follow-up fixes, cherry-picks, and answering "this task's branch was checked out from where and merged into where?"
 
 Note: `CHERRY_PICK` means taking one specific commit from one branch and applying it to another branch. It should be supported as metadata later, but it does not need a complex first-class MVP workflow.
 
@@ -96,7 +96,7 @@ Alternative considered: implement the full MVP after writing specs. That is fast
 
 ### Decision 8: Keep the app personal-first, not process-first
 
-The UI must optimize for one person's daily question: "Task nay dang nam o nhanh nao, da toi release nao, da vao main chua?" Internal models such as branch lineage, inherited task links, and completion-required flags exist only to calculate status correctly. The UI should present them as a simple task path and branch history, not as process-heavy project management concepts.
+The UI must optimize for one person's daily question: "Task nay dang nam o nhanh nao, da toi release nao, da vao main chua?" Internal models such as branch flow state, release-cycle links, and completion-required flags exist only to calculate status correctly. The UI should present them as a simple task path and branch history, not as process-heavy project management concepts.
 
 Rationale: the app is for personal memory and control, not team governance.
 
@@ -139,9 +139,9 @@ Core tables:
 - `notes`: quick inbox items with source and conversion state.
 - `workflow_statuses`: configurable task/branch statuses, labels, order, enabled flag, and custom color.
 - `tasks`: planned work item with code, group, title, description, status, priority, type, target date, optional release-ready flag set by a dedicated action, and done timestamp.
-- `branches`: repo branch with lifecycle status, branch type, checkout source branch, source branch record id, lineage id, intended merge target branch, actual merged-into branch, base branch, MR URL, release/main merge timestamps, release cycle date, generated checkout command, and aliases.
+- `branches`: repo branch with lifecycle status, branch type, checkout source branch, source branch record id, lineage id, intended merge target branches, actual merged-into branch, active release branch/cycle reference, base branch, MR URL, release/main merge timestamps, release cycle date, generated checkout command, and aliases.
 - `task_branches`: many-to-many link between tasks and branches with relationship role, lineage id, active/superseded flag, and whether that lineage is required for task completion.
-- `timeline_events`: audit log for note, task, branch, merge, comment, blocked, and unblocked events.
+- `timeline_events`: audit log for note, task, branch creation/deletion, merge, comment, blocked, and unblocked events.
 
 Recommended indexes:
 
@@ -196,6 +196,7 @@ Branches and timeline:
 - `POST /api/branches/create-from-app`
 - `GET /api/branches/:id`
 - `PATCH /api/branches/:id`
+- `DELETE /api/branches/:id`
 - `POST /api/branches/:id/status`
 - `POST /api/branches/:id/mark-merged-release`
 - `POST /api/branches/:id/mark-merged-main`
@@ -241,25 +242,38 @@ Branch statuses:
 
 Merge rules:
 
-- Marking a feature branch merged to a release branch creates a timeline event and can move linked tasks to `MERGED_RELEASE`, but never to `DONE`.
+- Marking a feature branch merged to `develop` records progress only; it does not complete tasks.
+- Marking a feature or hotfix branch merged to the active release branch creates a timeline event and can move linked tasks to `MERGED_RELEASE`, but never to `DONE`.
+- The release branch is a separate weekly base branch. It checks out from `main`, receives task branch merges, and later merges back into `main`.
+- Release branch cards start in `MERGED_RELEASE`; the only allowed lifecycle movement after that is into `MERGED_MAIN`, which must run the release-to-main workflow rather than a generic status update.
+- Release branch cards use a distinct visual treatment in Kanban so the user can separate the weekly release base from task implementation branches at a glance.
+- In Kanban, task branches that have merged into a release are displayed as child rows inside the release branch card. Child rows can be manually reordered inside that release parent, but they cannot be dragged independently into lifecycle columns; the release branch remains the only draggable parent for the release-to-main step, and child branch/task state follows that parent merge.
+- When recording a task branch as merged to release, the user can choose or change the specific release branch; that target must be a distinct release branch, not the same feature/hotfix branch.
 - A branch can be marked ready for main when linked tasks have been marked release-ready through the dedicated task action.
-- Marking a release branch, feature branch, or hotfix branch merged to `main` creates a timeline event and evaluates every linked task; if tasks were not marked ready, the app warns but still records the merge.
-- A task linked to one required branch lineage becomes `DONE` when any active branch in that lineage has been merged into `main`.
-- If branch B is created from branch A and carries A's task links, B reaching `main` satisfies that lineage even when A itself was not merged to `main`.
-- A task linked to multiple independent required branch lineages becomes `DONE` only when every required lineage has at least one active branch reach `main`.
+- Marking a release branch merged to `main` is the source of truth for completion. The action propagates main state to task branches attached to that release branch/cycle and evaluates linked tasks.
+- If a release branch was moved to `main` by mistake, the user can drag that release branch back to `MERGED_RELEASE`. This correction clears main merge state from the release branch and its child task branches, reopens the release cycle, and moves tasks that are no longer fully represented in `main` back to `MERGED_RELEASE`.
+- Branch records can be deleted only before they reach `MERGED_MAIN`. Deletion writes a timeline audit event first, then removes task links and branch aliases through cascade cleanup.
+- A release branch cannot be deleted while it still contains child task branches. The user must first move those children to another release branch or delete those children while they are not in `main`.
+- A child task branch under a release parent in `MERGED_MAIN` cannot be reassigned to another release, dragged/moved to another lifecycle status, or deleted. If the release parent was moved to `main` by mistake, the parent must be dragged back to `MERGED_RELEASE`; only then can the child branch be corrected or deleted.
+- A task linked to one required branch flow becomes `DONE` when its task branch has entered a release branch/cycle that has been merged into `main`.
+- A task linked to multiple independent required branch flows becomes `DONE` only when every required flow reaches `main` through its release branch.
 - A branch marked `CLOSED` or cancelled never marks tasks done automatically.
 - Manual overrides are allowed but must write a timeline event with before/after status.
 
 GitLab branch rules:
 
 - Production branch defaults to `main`.
-- Release branches are created roughly once every 2 weeks.
+- Task branches created from the app default to checkout source `main`.
+- Release branches are created per configured release cycle or sprint.
 - Release branches use a configurable pattern and default to `release/DDMMYYYY`.
-- Hotfix branches are created from production and should be marked as branch type `HOTFIX`.
+- Feature branches use a configurable pattern and default to `feature/{jiraCode}`.
+- Hotfix branches use a configurable pattern and default to `hotfix/{jiraCode}-{date}`.
+- Feature branches default to intended targets `develop`, active release branch, and `main`.
+- Hotfix branches default to intended targets active release branch and `main`.
+- Checkout source override and direct task-branch-to-main merge are advanced rule flags and are disabled by default.
 - Branch aliases are allowed for existing branch names that do not contain the task code.
-- Branches created from the app must record checkout source branch and intended merge target branch.
-- Branches can be created from any existing branch, not only `main` or a release branch.
-- Branches created from another tracked branch can inherit that source branch's linked tasks by default.
+- Branches created from the app must record checkout source branch and intended merge target branches as the original plan.
+- Branches created from another tracked task branch are not part of the default flow; keep this as a future advanced override if needed.
 - If self-hosted GitLab API credentials are not configured, app branch creation creates a local app record and shows the checkout command; it does not pretend the remote branch exists.
 - If self-hosted GitLab API credentials are configured, app branch creation can create the real remote branch and then store the app record.
 
@@ -272,7 +286,7 @@ GitLab branch rules:
 - Manual merge tracking can be forgotten -> dashboard should highlight branches stuck before release or before `main`; add self-hosted GitLab webhooks after MVP.
 - Multi-branch tasks can be confusing -> show "partial main" or "waiting branches" in task detail.
 - GitLab webhook matching can be wrong -> make webhook integration a later phase and keep timeline logs for review.
-- Lineage modeling can feel complex -> hide lineage terminology in the UI and show a simple task path instead.
+- Branch-flow modeling can feel complex -> hide technical modeling terms in the UI and show a simple task path instead.
 
 ## Migration Plan
 

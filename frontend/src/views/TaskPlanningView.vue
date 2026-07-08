@@ -209,7 +209,14 @@ function canConvertNote(note: NoteRecord) {
 }
 
 function branchPath(branch: TaskBranchLink['branch']) {
-  return `${branch.checkoutSourceBranch || '-'} -> ${branch.intendedMergeTarget || '-'} -> ${branch.actualMergedInto || (branch.mergedMainAt ? 'main' : '-')}`
+  const plannedTargets =
+    branch.intendedMergeTarget
+      ?.split(/[\n,]/g)
+      .map((target) => target.trim())
+      .filter(Boolean)
+      .join(', ') || '-'
+
+  return `${branch.checkoutSourceBranch || '-'} -> ${plannedTargets} -> ${branch.actualMergedInto || (branch.mergedMainAt ? 'main' : 'Chưa merge')}`
 }
 
 function taskStatusLabel(status: string) {

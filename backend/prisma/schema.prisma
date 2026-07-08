@@ -88,16 +88,42 @@ model Repository {
   defaultBranch        String   @default("main")
   productionBranch     String   @default("main")
   releaseBranchPattern String   @default("release/DDMMYYYY")
+  trustSourceBranch    String   @default("main")
+  developBranch        String   @default("develop")
+  featureNamePattern   String   @default("feature/{jiraCode}")
+  hotfixNamePattern    String   @default("hotfix/{jiraCode}-{date}")
+  featurePlannedTargets String  @default("{develop},{activeRelease},{production}")
+  hotfixPlannedTargets  String  @default("{activeRelease},{production}")
+  allowCheckoutSourceOverride Boolean @default(false)
+  allowDirectTaskBranchMainMerge Boolean @default(false)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
   project            Project   @relation("ProjectRepositories", fields: [projectId], references: [id], onDelete: Cascade)
   defaultForProjects Project[] @relation("ProjectDefaultRepository")
   branches           Branch[]
+  releaseCycles      ReleaseCycle[]
 
   @@unique([projectId, name])
   @@index([projectId])
   @@index([provider])
+}
+
+model ReleaseCycle {
+  id           String    @id @default(cuid())
+  repositoryId String
+  name         String
+  status       String    @default("ACTIVE")
+  startDate    DateTime?
+  endDate      DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  branches   Branch[]
+
+  @@unique([repositoryId, name])
+  @@index([repositoryId, status])
 }
 
 model WorkflowStatus {
@@ -171,10 +197,11 @@ model Branch {
   id                       String    @id @default(cuid())
   repositoryId             String
   sourceBranchId           String?
+  releaseCycleId           String?
   name                     String
   shortName                String?
   branchType               String    @default("FEATURE")
-  status                   String    @default("DRAFT")
+  status                   String    @default("CODING")
   checkoutSourceBranch     String?
   lineageId                String?
   intendedMergeTarget      String?
@@ -186,10 +213,12 @@ model Branch {
   remoteCreated            Boolean   @default(false)
   mergedReleaseAt          DateTime?
   mergedMainAt             DateTime?
+  sortOrder                Int       @default(0)
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
 
   repository         Repository      @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  releaseCycle       ReleaseCycle?   @relation(fields: [releaseCycleId], references: [id], onDelete: SetNull)
   sourceBranch       Branch?         @relation("BranchSource", fields: [sourceBranchId], references: [id], onDelete: SetNull)
   derivedBranches    Branch[]        @relation("BranchSource")
   aliases            BranchAlias[]
@@ -200,8 +229,10 @@ model Branch {
   @@unique([repositoryId, name])
   @@index([repositoryId, branchType])
   @@index([status])
+  @@index([status, sortOrder])
   @@index([lineageId])
   @@index([sourceBranchId])
+  @@index([releaseCycleId])
 }
 
 model BranchAlias {

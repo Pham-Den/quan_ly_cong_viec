@@ -28,17 +28,10 @@ export const fallbackTaskStatuses = [
 ]
 
 export const fallbackBranchStatuses = [
-  { label: 'Nháp', value: 'DRAFT', color: '#8c8c8c' },
   { label: 'Đang code', value: 'CODING', color: '#1677ff' },
-  { label: 'Chờ review', value: 'READY_REVIEW', color: '#13c2c2' },
-  { label: 'Đang review', value: 'REVIEWING', color: '#08979c' },
-  { label: 'Chờ test', value: 'READY_TEST', color: '#faad14' },
-  { label: 'Đang test', value: 'TESTING', color: '#d48806' },
-  { label: 'Sẵn sàng release', value: 'READY_RELEASE', color: '#722ed1' },
-  { label: 'Đã vào release', value: 'MERGED_RELEASE', color: '#9254de' },
-  { label: 'Sẵn sàng main', value: 'READY_MAIN', color: '#2f54eb' },
-  { label: 'Đã vào main', value: 'MERGED_MAIN', color: '#52c41a' },
-  { label: 'Đóng', value: 'CLOSED', color: '#595959' },
+  { label: 'Vào develop', value: 'MERGED_DEVELOP', color: '#13c2c2' },
+  { label: 'Vào release', value: 'MERGED_RELEASE', color: '#9254de' },
+  { label: 'Vào main', value: 'MERGED_MAIN', color: '#52c41a' },
 ]
 
 export const defaultBranchKanbanDropRules: Record<
@@ -54,11 +47,6 @@ export const defaultBranchKanbanDropRules: Record<
     allowKanbanDrop: false,
     dropBlockReason: 'Dùng nút Merge main để tính done task theo branch lineage.',
     requiresConfirmation: false,
-  },
-  CLOSED: {
-    allowKanbanDrop: true,
-    dropBlockReason: null,
-    requiresConfirmation: true,
   },
 }
 

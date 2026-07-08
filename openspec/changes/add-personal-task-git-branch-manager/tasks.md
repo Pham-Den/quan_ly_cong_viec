@@ -157,11 +157,40 @@
 - [x] 11.12 Add UI test for dragging a branch into an allowed status and rejecting a restricted drop.
 - [x] 11.13 Stop for user review before moving to any GitLab automation.
 
-## 12. Later: Post-MVP Self-Hosted GitLab Automation
+## 12. Branch Flow Rules And Release Cycles
 
-- [ ] 12.1 Add self-hosted GitLab webhook configuration storage.
-- [ ] 12.2 Implement self-hosted GitLab webhook endpoint for merge request merge events.
-- [ ] 12.3 Match GitLab source and target branch names to registered branches, aliases, `main`, and `release/DDMMYYYY`.
-- [ ] 12.4 Write timeline events from webhook processing.
-- [ ] 12.5 Keep manual override actions available after webhook automation is enabled.
-- [ ] 12.6 Review whether local Git repository scanning is needed in addition to GitLab webhooks.
+- [x] 12.1 Wait for user review and explicit approval before implementing this phase.
+- [x] 12.2 Add repository-level Git flow rule configuration with defaults for trust source `main`, develop branch, production branch, release branch pattern, feature name pattern, hotfix name pattern, and override flags.
+- [x] 12.3 Add active release cycle tracking so a repository/project can select the release branch currently receiving task branches.
+- [x] 12.4 Update branch creation so feature and hotfix branches are checked out from the configured trust source by default, with source override disabled unless explicitly configured.
+- [x] 12.5 Update branch name suggestions and validation for `feature/<jira-code>` and `hotfix/<jira-code>-<date>` according to configurable patterns.
+- [x] 12.6 Generate intended merge targets from branch type rules: feature to develop, active release, main; hotfix to active release, main.
+- [x] 12.7 Update `/branches` create/edit UI to show rule-derived source and intended targets clearly, while preserving original plan visibility.
+- [x] 12.8 Update release merge flow so task branches are attached to the active release branch/cycle and stay not done.
+- [x] 12.9 Update main merge flow so recording a release branch merge into `main` propagates main state to task branches in that release and marks eligible tasks done.
+- [x] 12.10 Keep manual actual-merged-into correction available with timeline events, but do not let it bypass release/main task rules.
+- [x] 12.11 Add settings UI for Git flow rules and active release cycle management.
+- [x] 12.12 Add backend and browser tests for feature/hotfix naming, forced checkout source, active release assignment, release merge, release-to-main propagation, and rule configuration changes.
+- [x] 12.13 Stop for user review before returning to GitLab webhook automation.
+- [x] 12.14 Treat each weekly release branch as a distinct release base branch that checks out from `main` and merges back to `main`.
+- [x] 12.15 Add release action support to attach or change a task branch's release branch while rejecting targets that are not distinct release branches.
+- [x] 12.16 Restrict release branch lifecycle so release branches start in `Vào release` and only move to `Vào main` through the main merge workflow.
+- [x] 12.17 Style release branch Kanban cards with a distinct background from normal task branch cards.
+- [x] 12.18 Render task branches merged into a release as child items under the release branch card instead of separate top-level cards.
+- [x] 12.19 Keep release child branch and linked task state following the release branch when the release parent moves to main.
+- [x] 12.20 Add manual branch ordering so top-level Kanban cards can be reordered within a status column and persist after refresh.
+- [x] 12.21 Allow release child branches to be reordered inside their release parent without allowing them to move independently across lifecycle columns.
+- [x] 12.22 Allow a mistaken release branch move to `main` to be dragged back to release, propagating branch/task rollback and timeline events.
+- [x] 12.23 Allow branch deletion before `main`, with backend guard, UI actions, cascade cleanup, and timeline audit event.
+- [x] 12.24 Reject deleting branches already in `main`, and reject deleting release parent branches while they still contain child task branches.
+- [x] 12.25 Lock child task branches while their release parent is in `main`, so they cannot leave the parent by status move, release reassignment, or deletion until the parent is rolled back to release.
+- [x] 12.26 Add backend and browser coverage for branch deletion and release-child correction rules.
+
+## 13. Later: Post-MVP Self-Hosted GitLab Automation
+
+- [ ] 13.1 Add self-hosted GitLab webhook configuration storage.
+- [ ] 13.2 Implement self-hosted GitLab webhook endpoint for merge request merge events.
+- [ ] 13.3 Match GitLab source and target branch names to registered branches, aliases, `main`, and `release/DDMMYYYY`.
+- [ ] 13.4 Write timeline events from webhook processing.
+- [ ] 13.5 Keep manual override actions available after webhook automation is enabled.
+- [ ] 13.6 Review whether local Git repository scanning is needed in addition to GitLab webhooks.

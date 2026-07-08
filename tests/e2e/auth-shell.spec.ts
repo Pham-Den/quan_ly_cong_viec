@@ -2,6 +2,11 @@ import { expect, test } from '@playwright/test'
 
 const email = 'khanh.e2e@example.com'
 const password = 'password123'
+const apiBaseUrl = 'http://127.0.0.1:4100'
+
+function releaseName(date = new Date()) {
+  return `release/${String(date.getDate()).padStart(2, '0')}${String(date.getMonth() + 1).padStart(2, '0')}${date.getFullYear()}`
+}
 
 test.setTimeout(90_000)
 
@@ -111,19 +116,115 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
   const branchDrawer = page.locator('.ant-drawer')
   await branchDrawer.locator('.ant-select').nth(3).click()
   await page.locator('.ant-select-dropdown:visible .ant-select-item-option-content').getByText(/OPS-001/).click()
-  await branchDrawer.getByPlaceholder('feature/OPS-BE-001-export-report').fill('feature/OPS-001-export-report')
+  await expect(branchDrawer.locator('.ant-form-item').filter({ hasText: 'Tên branch' }).locator('input')).toHaveValue('feature/OPS-001')
   await branchDrawer.getByRole('button', { name: 'Tạo branch' }).click()
 
-  await expect(page.getByText('feature/OPS-001-export-report')).toBeVisible()
+  await expect(page.getByText('feature/OPS-001')).toBeVisible()
+  await expect(page.getByRole('cell', { name: new RegExp(releaseName()) })).toBeVisible()
+
+  const accessToken = await page.evaluate(() => localStorage.getItem('qlcv.accessToken'))
+
+  if (!accessToken) {
+    throw new Error('Missing access token')
+  }
+
+  const apiHeaders = { authorization: `Bearer ${accessToken}` }
+  const projectsResponse = await page.request.get(`${apiBaseUrl}/api/projects`, { headers: apiHeaders })
+  const projects = (await projectsResponse.json()) as Array<{ id: string; code: string }>
+  const project = projects.find((item) => item.code === 'OPS')
+
+  if (!project) {
+    throw new Error('Missing OPS project')
+  }
+
+  const taskGroupsResponse = await page.request.get(`${apiBaseUrl}/api/projects/${project.id}/task-groups`, { headers: apiHeaders })
+  const taskGroups = (await taskGroupsResponse.json()) as Array<{ id: string; code: string }>
+  const taskGroup = taskGroups.find((item) => item.code === 'BE')
+  const repositoriesResponse = await page.request.get(`${apiBaseUrl}/api/projects/${project.id}/repositories`, { headers: apiHeaders })
+  const repositories = (await repositoriesResponse.json()) as Array<{ id: string; name: string }>
+  const repository = repositories.find((item) => item.name === 'backend-api')
+
+  if (!taskGroup || !repository) {
+    throw new Error('Missing BE task group or backend-api repository')
+  }
+
+  const extraTaskResponse = await page.request.post(`${apiBaseUrl}/api/tasks`, {
+    headers: apiHeaders,
+    data: {
+      projectId: project.id,
+      taskGroupId: taskGroup.id,
+      title: 'Sửa validate export',
+      priority: 'MEDIUM',
+      type: 'FEATURE',
+    },
+  })
+
+  await expect(extraTaskResponse).toBeOK()
+  const extraTask = (await extraTaskResponse.json()) as { id: string; code: string }
+  const extraBranchResponse = await page.request.post(`${apiBaseUrl}/api/branches`, {
+    headers: apiHeaders,
+    data: {
+      repositoryId: repository.id,
+      name: `feature/${extraTask.code}`,
+      checkoutSourceBranch: 'main',
+      taskIds: [extraTask.id],
+    },
+  })
+
+  await expect(extraBranchResponse).toBeOK()
+
+  const deleteTaskResponse = await page.request.post(`${apiBaseUrl}/api/tasks`, {
+    headers: apiHeaders,
+    data: {
+      projectId: project.id,
+      taskGroupId: taskGroup.id,
+      title: 'Xóa branch nháp',
+      priority: 'MEDIUM',
+      type: 'FEATURE',
+    },
+  })
+
+  await expect(deleteTaskResponse).toBeOK()
+  const deleteTask = (await deleteTaskResponse.json()) as { id: string; code: string }
+  const deleteBranchResponse = await page.request.post(`${apiBaseUrl}/api/branches`, {
+    headers: apiHeaders,
+    data: {
+      repositoryId: repository.id,
+      name: `feature/${deleteTask.code}`,
+      checkoutSourceBranch: 'main',
+      taskIds: [deleteTask.id],
+    },
+  })
+
+  await expect(deleteBranchResponse).toBeOK()
+  await page.getByRole('button', { name: 'Làm mới' }).click()
+  await expect(page.getByRole('row').filter({ hasText: `feature/${extraTask.code}` })).toBeVisible()
+  const deleteBranchRow = page.getByRole('row').filter({ hasText: `feature/${deleteTask.code}` })
+  await expect(deleteBranchRow).toBeVisible()
+  page.once('dialog', async (dialog) => {
+    expect(dialog.message()).toContain(`feature/${deleteTask.code}`)
+    await dialog.accept()
+  })
+  await deleteBranchRow.getByRole('button', { name: 'Xóa' }).click()
+  await expect(deleteBranchRow).toHaveCount(0)
+
   await page.getByText('Kanban', { exact: true }).click()
   await page
-    .getByTestId('branch-card-feature/OPS-001-export-report')
-    .dragTo(page.getByTestId('kanban-column-READY_REVIEW'))
+    .getByTestId(`branch-card-feature/${extraTask.code}`)
+    .dragTo(page.getByTestId('branch-card-feature/OPS-001'))
+  await expect(page.getByText('Đã cập nhật thứ tự branch.')).toBeVisible()
+  const codingBranchTitles = page.getByTestId('kanban-column-CODING').locator('.app-kanban-card-title strong')
+  await expect(codingBranchTitles.nth(0)).toHaveText(`feature/${extraTask.code}`)
+  await expect(codingBranchTitles.nth(1)).toHaveText('feature/OPS-001')
+
+  await page
+    .getByTestId('branch-card-feature/OPS-001')
+    .dragTo(page.getByTestId('kanban-column-MERGED_DEVELOP'))
   await expect(
-    page.getByTestId('kanban-column-READY_REVIEW').getByText('feature/OPS-001-export-report'),
+    page.getByTestId('kanban-column-MERGED_DEVELOP').getByText('feature/OPS-001'),
   ).toBeVisible()
   await page.evaluate(() => {
-    const source = document.querySelector('[data-testid="branch-card-feature/OPS-001-export-report"]')
+    const source = document.querySelector('[data-testid="branch-card-feature/OPS-001"]')
     const target = document.querySelector('[data-testid="kanban-column-MERGED_MAIN"]')
     const dataTransfer = new DataTransfer()
 
@@ -134,31 +235,88 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
   })
   await expect(page.getByText(/Dùng nút Merge main/)).toBeVisible()
   await expect(
-    page.getByTestId('kanban-column-READY_REVIEW').getByText('feature/OPS-001-export-report'),
+    page.getByTestId('kanban-column-MERGED_DEVELOP').getByText('feature/OPS-001'),
+  ).toBeVisible()
+  await page.getByTestId('branch-card-feature/OPS-001-actions').click()
+  await page.locator('.app-kanban-card-action-panel').last().locator('.ant-select').click()
+  await page.locator('.ant-select-dropdown:visible').getByText('Đang code', { exact: true }).click()
+  await expect(
+    page.getByTestId('kanban-column-CODING').getByText('feature/OPS-001'),
   ).toBeVisible()
   await page.getByText('Bảng', { exact: true }).click()
-  await page.getByRole('button', { name: 'Merge release' }).first().click()
-  await expect(page.getByText('Đã vào release')).toBeVisible()
-
-  await page.getByRole('button', { name: 'Tạo branch' }).click()
-  await branchDrawer.locator('.ant-select').nth(4).click()
+  await page.getByRole('row').filter({ hasText: 'feature/OPS-001' }).getByRole('button', { name: 'Gắn release' }).click()
+  await expect(page.getByText('Gắn release branch')).toBeVisible()
+  await page.locator('.ant-modal:visible').getByRole('button', { name: 'Gắn release' }).click()
+  await expect(page.getByText('Vào release', { exact: true }).first()).toBeVisible()
   await page
-    .locator('.ant-select-dropdown:visible .ant-select-item-option-content')
-    .getByText('feature/OPS-001-export-report', { exact: true })
+    .getByRole('row')
+    .filter({ hasText: `feature/${extraTask.code}` })
+    .getByRole('button', { name: 'Gắn release' })
     .click()
-  await branchDrawer.getByPlaceholder('feature/OPS-BE-001-export-report').fill('feature/OPS-001-export-report-fix')
-  await branchDrawer.getByRole('button', { name: 'Tạo branch' }).click()
+  await expect(page.getByText('Gắn release branch')).toBeVisible()
+  await page.locator('.ant-modal:visible').getByRole('button', { name: 'Gắn release' }).click()
+  await expect(page.getByText('Vào release', { exact: true }).first()).toBeVisible()
 
-  await expect(page.getByText('feature/OPS-001-export-report-fix')).toBeVisible()
-  await page.getByRole('button', { name: 'Merge main' }).first().click()
-  await expect(page.getByText('Đã vào main')).toBeVisible()
+  await page.getByText('Kanban', { exact: true }).click()
+  const releaseCard = page.getByTestId(`branch-card-${releaseName()}`)
+  await expect(releaseCard).toHaveClass(/app-kanban-card-branch-release/)
+  await expect(page.getByTestId('branch-card-feature/OPS-001')).toHaveCount(0)
+  await expect(releaseCard.getByTestId('release-child-feature/OPS-001')).toBeVisible()
+  await releaseCard
+    .getByTestId(`release-child-feature/${extraTask.code}`)
+    .dragTo(releaseCard.getByTestId('release-child-feature/OPS-001'))
+  await expect(page.getByText('Đã cập nhật thứ tự nhánh con.')).toBeVisible()
+  const releaseChildTitles = releaseCard.locator('.branch-release-child strong')
+  await expect(releaseChildTitles.nth(0)).toHaveText(`feature/${extraTask.code}`)
+  await expect(releaseChildTitles.nth(1)).toHaveText('feature/OPS-001')
+  await page.evaluate((name) => {
+    const source = document.querySelector(`[data-testid="branch-card-${name}"]`)
+    const target = document.querySelector('[data-testid="kanban-column-MERGED_MAIN"]')
+    const dataTransfer = new DataTransfer()
+
+    source?.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }))
+    target?.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer }))
+    target?.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }))
+    source?.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer }))
+  }, releaseName())
+  const mainReleaseCard = page.getByTestId('kanban-column-MERGED_MAIN').getByTestId(`branch-card-${releaseName()}`)
+  await expect(mainReleaseCard).toBeVisible()
+  await expect(mainReleaseCard.getByTestId('release-child-feature/OPS-001')).toBeVisible()
+  await expect(mainReleaseCard.getByText('Đã theo main').first()).toBeVisible()
+  await page.evaluate((name) => {
+    const source = document.querySelector(`[data-testid="kanban-column-MERGED_MAIN"] [data-testid="branch-card-${name}"]`)
+    const target = document.querySelector('[data-testid="kanban-column-MERGED_RELEASE"]')
+    const dataTransfer = new DataTransfer()
+
+    source?.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }))
+    target?.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer }))
+    target?.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }))
+    source?.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer }))
+  }, releaseName())
+  const rollbackReleaseCard = page.getByTestId('kanban-column-MERGED_RELEASE').getByTestId(`branch-card-${releaseName()}`)
+  await expect(rollbackReleaseCard).toBeVisible()
+  await expect(rollbackReleaseCard.getByTestId('release-child-feature/OPS-001')).toBeVisible()
+  await expect(rollbackReleaseCard.getByText('Đã vào release').first()).toBeVisible()
+  await page.evaluate((name) => {
+    const source = document.querySelector(`[data-testid="kanban-column-MERGED_RELEASE"] [data-testid="branch-card-${name}"]`)
+    const target = document.querySelector('[data-testid="kanban-column-MERGED_MAIN"]')
+    const dataTransfer = new DataTransfer()
+
+    source?.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }))
+    target?.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer }))
+    target?.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }))
+    source?.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer }))
+  }, releaseName())
+  const mainReleaseCardAfterRollback = page.getByTestId('kanban-column-MERGED_MAIN').getByTestId(`branch-card-${releaseName()}`)
+  await expect(mainReleaseCardAfterRollback).toBeVisible()
+  await expect(mainReleaseCardAfterRollback.getByText('Đã theo main').first()).toBeVisible()
 
   await page.getByRole('menuitem', { name: 'Tất cả task' }).click()
   await expect(page.getByText('Hoàn tất')).toBeVisible()
 
   await page.getByRole('menuitem', { name: 'Dòng thời gian' }).click()
   await expect(page.getByRole('heading', { name: 'Dòng thời gian' })).toBeVisible()
-  await expect(page.getByText(/merged vao main/)).toBeVisible()
+  await expect(page.getByText(/merged vao main/).first()).toBeVisible()
   await page.getByPlaceholder('Ví dụ: Cần kiểm tra lại case export').fill('Review Phase 7')
   await page.getByLabel('Nội dung').fill('Timeline đã ghi được note, task, branch và comment.')
   await page.getByRole('button', { name: 'Thêm ghi chú' }).click()
@@ -173,8 +331,16 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
   await page.keyboard.type('feature/OPS-001')
   await page
     .locator('.ant-select-dropdown:visible .ant-select-item-option-content')
-    .getByText(/^feature\/OPS-001-export-report-fix -/)
+    .getByText(/^feature\/OPS-001 -/)
     .click()
   await expect(page.getByRole('heading', { name: 'Nhánh' })).toBeVisible()
   await expect(page.getByText('Chi tiết branch')).toBeVisible()
+
+  await page.addInitScript(() => {
+    localStorage.setItem('qlcv.accessToken', 'expired-access-token')
+    localStorage.setItem('qlcv.refreshToken', 'expired-refresh-token')
+  })
+  await page.reload()
+  await expect(page).toHaveURL(/\/login$/)
+  await expect(page.getByRole('heading', { name: 'Đăng nhập' })).toBeVisible()
 })

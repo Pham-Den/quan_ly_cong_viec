@@ -93,6 +93,11 @@ start_service() {
   sleep 1
 
   if ! is_running "$pid_file"; then
+    if { [ "$name" = "Backend" ] && port_in_use "$BACKEND_PORT"; } || { [ "$name" = "Frontend" ] && port_in_use "$FRONTEND_PORT"; }; then
+      echo "$name started. Log: $log_file"
+      return
+    fi
+
     echo "$name failed to start. Recent log:"
     tail -n 40 "$log_file"
     exit 1
@@ -108,6 +113,7 @@ if [ "${SKIP_DB_SETUP:-0}" != "1" ]; then
   echo "Preparing local database..."
   (
     cd "$ROOT_DIR/backend"
+    DATABASE_URL="$DATABASE_URL" npx prisma generate --schema prisma/schema.prisma
     RUST_LOG="$RUST_LOG" DATABASE_URL="$DATABASE_URL" npx prisma db push --schema prisma/schema.prisma
     DATABASE_URL="$DATABASE_URL" npx tsx prisma/seed.ts
   )
