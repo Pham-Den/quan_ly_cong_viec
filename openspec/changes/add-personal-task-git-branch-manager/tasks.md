@@ -25,15 +25,15 @@
 
 ## 3. Auth And App Shell
 
-- [ ] 3.1 Implement first-run setup API for creating the initial local account when no user exists.
-- [ ] 3.2 Implement login API with password hash verification and JWT session issuing.
-- [ ] 3.3 Implement refresh/logout/current-user APIs.
-- [ ] 3.4 Add backend auth guard for protected APIs.
-- [ ] 3.5 Build frontend first-run setup account screen.
-- [ ] 3.6 Build frontend login page.
-- [ ] 3.7 Build protected Vietnamese layout with sidebar, header, project switcher, global search slot, and user menu.
-- [ ] 3.8 Add frontend route guards and session restore behavior.
-- [ ] 3.9 Stop for user review before moving to project/repository workspace implementation.
+- [x] 3.1 Implement first-run setup API for creating the initial local account when no user exists.
+- [x] 3.2 Implement login API with password hash verification and JWT session issuing.
+- [x] 3.3 Implement refresh/logout/current-user APIs.
+- [x] 3.4 Add backend auth guard for protected APIs.
+- [x] 3.5 Build frontend first-run setup account screen.
+- [x] 3.6 Build frontend login page.
+- [x] 3.7 Build protected Vietnamese layout with sidebar, header, project switcher, global search slot, and user menu.
+- [x] 3.8 Add frontend route guards and session restore behavior.
+- [x] 3.9 Stop for user review before moving to project/repository workspace implementation.
 
 ## 4. Project And Repository Workspace
 

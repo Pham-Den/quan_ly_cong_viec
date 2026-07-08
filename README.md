@@ -21,6 +21,12 @@ npm --workspace backend run db:push
 npm --workspace backend run db:seed
 ```
 
+## First run login
+
+After starting the app, open `http://localhost:5173`. If there is no user yet,
+the app redirects to `/setup` so you can create the first local account. After
+that, use `/login` with the same email and password.
+
 ## Docker Compose
 
 ```bash

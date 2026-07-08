@@ -18,6 +18,15 @@ npm --workspace backend run db:push
 npm --workspace backend run db:seed
 ```
 
+Auth APIs are available under `/api/auth`:
+
+- `GET /api/auth/bootstrap`
+- `POST /api/auth/setup`
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+
 ## Switching database later
 
 When the app needs a durable shared database:

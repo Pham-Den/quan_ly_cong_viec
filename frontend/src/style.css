@@ -1,6 +1,6 @@
 :root {
   color: #172033;
-  background: #f4f6f8;
+  background: #f5f7fb;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -14,11 +14,52 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
-  background: #f4f6f8;
+  background: #f5f7fb;
 }
 
 #app {
   min-height: 100vh;
+}
+
+.auth-page {
+  display: grid;
+  min-height: 100vh;
+  padding: 24px;
+  place-items: center;
+  background:
+    linear-gradient(180deg, rgba(20, 124, 116, 0.08), transparent 280px),
+    #f5f7fb;
+}
+
+.auth-panel {
+  width: min(440px, 100%);
+  padding: 28px;
+  background: #ffffff;
+  border: 1px solid #e5e9f0;
+  border-radius: 8px;
+  box-shadow: 0 18px 46px rgba(23, 32, 51, 0.08);
+}
+
+.auth-brand {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.auth-brand h1 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.auth-brand p {
+  margin: 4px 0 0;
+  color: #667085;
+}
+
+.auth-alert {
+  margin-bottom: 16px;
 }
 
 .app-shell {
@@ -64,18 +105,30 @@ body {
 .app-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   height: 64px;
   padding: 0 24px;
   background: #ffffff;
   border-bottom: 1px solid #e5e9f0;
 }
 
+.header-left {
+  min-width: 0;
+}
+
 .project-select {
-  width: 180px;
+  width: 240px;
 }
 
 .global-search {
   width: min(420px, 42vw);
+}
+
+.user-button {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-content {
@@ -103,7 +156,7 @@ body {
 
 .bucket-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
   gap: 12px;
   margin-bottom: 20px;
 }
@@ -135,11 +188,30 @@ body {
   }
 
   .app-header {
+    align-items: stretch;
+    flex-direction: column;
+    justify-content: center;
+    height: auto;
+    min-height: 96px;
     padding: 0 16px;
   }
 
-  .global-search {
+  .header-left {
     width: 100%;
+    padding-top: 12px;
+  }
+
+  .project-select {
+    width: min(100%, 240px);
+  }
+
+  .global-search {
+    display: none;
+  }
+
+  .user-button {
+    align-self: flex-start;
+    margin-bottom: 12px;
   }
 
   .app-content {
