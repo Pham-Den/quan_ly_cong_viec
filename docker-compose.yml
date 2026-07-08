@@ -1,0 +1,35 @@
+services:
+  backend:
+    image: node:20-alpine
+    working_dir: /workspace
+    command: sh -c "npm install && npm --workspace backend run dev"
+    env_file:
+      - .env
+    environment:
+      BACKEND_HOST: 0.0.0.0
+      BACKEND_PORT: 4000
+      DATABASE_URL: file:/workspace/backend/data/dev.db
+      FRONTEND_ORIGIN: http://localhost:5173
+    ports:
+      - "4000:4000"
+    volumes:
+      - .:/workspace
+      - backend-data:/workspace/backend/data
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /workspace
+    command: sh -c "npm install && npm --workspace frontend run dev -- --host 0.0.0.0"
+    env_file:
+      - .env
+    environment:
+      VITE_API_BASE_URL: http://localhost:4000
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/workspace
+    depends_on:
+      - backend
+
+volumes:
+  backend-data:

@@ -1,1 +1,10 @@
 .bash_history
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+coverage/
+backend/data/
+backend/prisma/*.db
+backend/prisma/*.db-journal

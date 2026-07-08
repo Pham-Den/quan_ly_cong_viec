@@ -1,0 +1,25 @@
+{
+  "name": "backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prisma:generate": "DATABASE_URL=${DATABASE_URL:-file:./dev.db} prisma generate",
+    "prisma:validate": "DATABASE_URL=${DATABASE_URL:-file:./dev.db} prisma validate"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.1.0",
+    "@prisma/client": "^6.19.3",
+    "fastify": "^5.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "prisma": "^6.19.3",
+    "tsx": "^4.20.6",
+    "typescript": "~6.0.2"
+  }
+}

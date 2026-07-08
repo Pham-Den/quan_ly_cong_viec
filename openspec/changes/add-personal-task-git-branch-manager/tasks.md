@@ -1,15 +1,15 @@
 ## 1. Bootstrap
 
-- [ ] 1.1 Wait for user review and explicit approval before starting any implementation.
-- [ ] 1.2 Use Fastify as the compact backend framework.
-- [ ] 1.3 Create monorepo structure with `frontend/` and `backend/`.
-- [ ] 1.4 Create Vue 3 + Vite + TypeScript frontend project.
-- [ ] 1.5 Install and configure Ant Design Vue, Vue Router, Pinia, Axios or TanStack Query, and Day.js.
-- [ ] 1.6 Create compact backend API project with TypeScript.
-- [ ] 1.7 Install and configure Prisma with SQLite for local MVP and a documented database driver switch path.
-- [ ] 1.8 Add Docker Compose for local startup of frontend, backend, and database volume.
-- [ ] 1.9 Add shared environment configuration for frontend API URL, backend port, database URL, JWT secrets, and local setup behavior.
-- [ ] 1.10 Stop for user review before moving to database/auth implementation.
+- [x] 1.1 Wait for user review and explicit approval before starting any implementation.
+- [x] 1.2 Use Fastify as the compact backend framework.
+- [x] 1.3 Create monorepo structure with `frontend/` and `backend/`.
+- [x] 1.4 Create Vue 3 + Vite + TypeScript frontend project.
+- [x] 1.5 Install and configure Ant Design Vue, Vue Router, Pinia, Axios or TanStack Query, and Day.js.
+- [x] 1.6 Create compact backend API project with TypeScript.
+- [x] 1.7 Install and configure Prisma with SQLite for local MVP and a documented database driver switch path.
+- [x] 1.8 Add Docker Compose for local startup of frontend, backend, and database volume.
+- [x] 1.9 Add shared environment configuration for frontend API URL, backend port, database URL, JWT secrets, and local setup behavior.
+- [x] 1.10 Stop for user review before moving to database/auth implementation.
 
 ## 2. Database Schema
 
