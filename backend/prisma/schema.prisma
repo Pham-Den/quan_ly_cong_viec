@@ -84,6 +84,7 @@ model Repository {
   gitlabUrl            String?
   gitlabProjectId      String?
   gitlabProjectPath    String?
+  gitlabAccessToken    String?
   defaultBranch        String   @default("main")
   productionBranch     String   @default("main")
   releaseBranchPattern String   @default("release/DDMMYYYY")

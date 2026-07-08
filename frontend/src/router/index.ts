@@ -5,6 +5,7 @@ import { useSessionStore } from '../stores/session'
 import LoginView from '../views/auth/LoginView.vue'
 import SetupView from '../views/auth/SetupView.vue'
 import DashboardView from '../views/DashboardView.vue'
+import WorkspaceSettingsView from '../views/WorkspaceSettingsView.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -20,6 +21,11 @@ export const router = createRouter({
           path: '',
           name: 'dashboard',
           component: DashboardView,
+        },
+        {
+          path: 'settings',
+          name: 'settings',
+          component: WorkspaceSettingsView,
         },
       ],
     },

@@ -38,15 +38,15 @@
 
 ## 4. Project And Repository Workspace
 
-- [ ] 4.1 Implement project CRUD APIs.
-- [ ] 4.2 Implement task group CRUD APIs scoped by project.
-- [ ] 4.3 Implement repository CRUD APIs scoped by project.
-- [ ] 4.4 Build project list, project selector, and project settings UI.
-- [ ] 4.5 Build task group settings UI.
-- [ ] 4.6 Build repository settings UI with provider `GITLAB_SELF_HOSTED`, internal GitLab URL, optional GitLab project id/path, default branch, production branch `main`, and release branch pattern `release/DDMMYYYY`.
-- [ ] 4.7 Add optional self-hosted GitLab API credential configuration for branch creation, keeping MVP usable without credentials.
-- [ ] 4.8 Implement project and group based task sequence generation.
-- [ ] 4.9 Stop for user review before moving to inbox/task planning implementation.
+- [x] 4.1 Implement project CRUD APIs.
+- [x] 4.2 Implement task group CRUD APIs scoped by project.
+- [x] 4.3 Implement repository CRUD APIs scoped by project.
+- [x] 4.4 Build project list, project selector, and project settings UI.
+- [x] 4.5 Build task group settings UI.
+- [x] 4.6 Build repository settings UI with provider `GITLAB_SELF_HOSTED`, internal GitLab URL, optional GitLab project id/path, default branch, production branch `main`, and release branch pattern `release/DDMMYYYY`.
+- [x] 4.7 Add optional self-hosted GitLab API credential configuration for branch creation, keeping MVP usable without credentials.
+- [x] 4.8 Implement project and group based task sequence generation.
+- [x] 4.9 Stop for user review before moving to inbox/task planning implementation.
 
 ## 5. Inbox And Task Planning
 

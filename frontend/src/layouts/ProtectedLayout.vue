@@ -13,7 +13,7 @@ const menuItems = [
   { key: 'tasks', label: 'All Tasks', disabled: true },
   { key: 'branches', label: 'Branches', disabled: true },
   { key: 'timeline', label: 'Timeline', disabled: true },
-  { key: 'settings', label: 'Cài đặt', disabled: true },
+  { key: 'settings', label: 'Cài đặt' },
 ]
 
 const selectedMenuKeys = computed(() => [String(route.name ?? 'dashboard')])
@@ -49,6 +49,10 @@ async function handleUserMenuClick({ key }: { key: string }) {
 async function handleMenuClick({ key }: { key: string | number }) {
   if (key === 'dashboard') {
     await router.push({ name: 'dashboard' })
+  }
+
+  if (key === 'settings') {
+    await router.push({ name: 'settings' })
   }
 }
 </script>

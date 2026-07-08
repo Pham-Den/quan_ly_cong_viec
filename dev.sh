@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(CDPATH= cd "$(dirname "$0")" && pwd)"
 STATE_DIR="$ROOT_DIR/.dev"
 BACKEND_PID_FILE="$STATE_DIR/backend.pid"
 FRONTEND_PID_FILE="$STATE_DIR/frontend.pid"
@@ -10,10 +10,10 @@ FRONTEND_LOG="$STATE_DIR/frontend.log"
 
 mkdir -p "$STATE_DIR"
 
-if [[ -f "$ROOT_DIR/.env" ]]; then
+if [ -f "$ROOT_DIR/.env" ]; then
   set -a
   # shellcheck disable=SC1091
-  source "$ROOT_DIR/.env"
+  . "$ROOT_DIR/.env"
   set +a
 fi
 
@@ -22,34 +22,54 @@ FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 FRONTEND_ORIGIN="${FRONTEND_ORIGIN:-http://localhost:$FRONTEND_PORT}"
 VITE_API_BASE_URL="${VITE_API_BASE_URL:-http://localhost:$BACKEND_PORT}"
 DATABASE_URL="${DATABASE_URL:-file:./dev.db}"
+RUST_LOG="${PRISMA_RUST_LOG:-info}"
+export RUST_LOG
 
 is_running() {
-  local pid_file="$1"
+  pid_file="$1"
 
-  [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null
+  [ -f "$pid_file" ] || return 1
+  pid="$(cat "$pid_file")"
+  [ -n "$pid" ] || return 1
+  kill -0 "$pid" 2>/dev/null
 }
 
 port_in_use() {
-  local port="$1"
+  port="$1"
 
-  ss -ltn "sport = :$port" | tail -n +2 | grep -q .
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltn "sport = :$port" | tail -n +2 | grep -q .
+    return
+  fi
+
+  if command -v fuser >/dev/null 2>&1; then
+    fuser -n tcp "$port" >/dev/null 2>&1
+    return
+  fi
+
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -ti tcp:"$port" -sTCP:LISTEN >/dev/null 2>&1
+    return
+  fi
+
+  return 1
 }
 
 ensure_port_free() {
-  local name="$1"
-  local port="$2"
-  local pid_file="$3"
+  name="$1"
+  port="$2"
+  pid_file="$3"
 
   if ! is_running "$pid_file" && port_in_use "$port"; then
-    echo "$name port $port is already in use. Run ./stop.sh first or close that process."
+    echo "$name port $port is already in use. Run sh stop.sh first or close that process."
     exit 1
   fi
 }
 
 start_service() {
-  local name="$1"
-  local pid_file="$2"
-  local log_file="$3"
+  name="$1"
+  pid_file="$2"
+  log_file="$3"
   shift 3
 
   if is_running "$pid_file"; then
@@ -62,7 +82,11 @@ start_service() {
 
   (
     cd "$ROOT_DIR"
-    nohup "$@" > "$log_file" 2>&1 &
+    if command -v setsid >/dev/null 2>&1; then
+      setsid "$@" > "$log_file" 2>&1 < /dev/null &
+    else
+      nohup "$@" > "$log_file" 2>&1 < /dev/null &
+    fi
     echo $! > "$pid_file"
   )
 
@@ -80,10 +104,13 @@ start_service() {
 ensure_port_free "Backend" "$BACKEND_PORT" "$BACKEND_PID_FILE"
 ensure_port_free "Frontend" "$FRONTEND_PORT" "$FRONTEND_PID_FILE"
 
-if [[ "${SKIP_DB_SETUP:-0}" != "1" ]]; then
+if [ "${SKIP_DB_SETUP:-0}" != "1" ]; then
   echo "Preparing local database..."
-  DATABASE_URL="$DATABASE_URL" npm --workspace backend run db:push
-  DATABASE_URL="$DATABASE_URL" npm --workspace backend run db:seed
+  (
+    cd "$ROOT_DIR/backend"
+    RUST_LOG="$RUST_LOG" DATABASE_URL="$DATABASE_URL" npx prisma db push --schema prisma/schema.prisma
+    DATABASE_URL="$DATABASE_URL" npx tsx prisma/seed.ts
+  )
 fi
 
 start_service \
@@ -107,4 +134,4 @@ start_service \
 echo
 echo "Frontend: http://localhost:$FRONTEND_PORT"
 echo "Backend:  http://localhost:$BACKEND_PORT"
-echo "Stop:     ./stop.sh"
+echo "Stop:     sh stop.sh"

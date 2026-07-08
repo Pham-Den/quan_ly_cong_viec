@@ -4,6 +4,7 @@ import Fastify from 'fastify'
 import { registerAuthRoutes } from './auth/routes.js'
 import { createPrismaClient } from './db.js'
 import type { AppEnv } from './env.js'
+import { registerWorkspaceRoutes } from './workspace/routes.js'
 
 export function buildServer(env: AppEnv) {
   const app = Fastify({
@@ -31,6 +32,7 @@ export function buildServer(env: AppEnv) {
   }))
 
   registerAuthRoutes(app, { env, prisma })
+  registerWorkspaceRoutes(app, { env, prisma })
 
   return app
 }

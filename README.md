@@ -7,7 +7,7 @@ Mini app quan ly cong viec ca nhan theo task, branch, release va main.
 ```bash
 cp .env.example .env
 npm install
-./dev.sh
+sh dev.sh
 ```
 
 Frontend mac dinh chay o `http://localhost:5173`.
@@ -16,7 +16,7 @@ Backend mac dinh chay o `http://localhost:4000`.
 Dung dev server:
 
 ```bash
-./stop.sh
+sh stop.sh
 ```
 
 ## Database bootstrap
