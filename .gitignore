@@ -1,4 +1,5 @@
 .bash_history
+.dev/
 .env
 .env.*
 !.env.example
