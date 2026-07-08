@@ -101,51 +101,67 @@
 
 ## 8. Work Visibility
 
-- [ ] 8.1 Build dashboard blocks for active tasks, branches ready for test/release/main, blocked work, inbox notes, and recent timeline events.
-- [ ] 8.2 Add dashboard signals for target dates near or past today.
-- [ ] 8.3 Implement global search API across task code, task group, task title, note content, branch name, and branch alias.
-- [ ] 8.4 Build global search UI that opens task or branch drawers from results.
-- [ ] 8.5 Build first-phase task board grouped by status.
-- [ ] 8.6 Build first-phase branch board grouped by lifecycle status.
-- [ ] 8.7 Add views for tasks without branch links and branches not merged to `main`.
-- [ ] 8.8 Add task detail branch path display showing feature branch, checkout source, release target, actual merged-into branch, inherited branches, and `main` status without exposing lineage jargon to the user.
-- [ ] 8.9 Build All Tasks view grouped by practical status buckets: not started, in progress, waiting/review/testing, in release, ready for main, done, blocked, and cancelled.
-- [ ] 8.10 Add group counts, project/group filters, and drawer opening from the All Tasks grouped view.
-- [ ] 8.11 Stop for user review before moving to workflow settings implementation.
+- [x] 8.1 Build dashboard blocks for active tasks, branches ready for test/release/main, blocked work, inbox notes, and recent timeline events.
+- [x] 8.2 Add dashboard signals for target dates near or past today.
+- [x] 8.3 Implement global search API across task code, task group, task title, note content, branch name, and branch alias.
+- [x] 8.4 Build global search UI that opens task or branch drawers from results.
+- [x] 8.5 Build first-phase task board grouped by status.
+- [x] 8.6 Build first-phase branch board grouped by lifecycle status.
+- [x] 8.7 Add views for tasks without branch links and branches not merged to `main`.
+- [x] 8.8 Add task detail branch path display showing feature branch, checkout source, release target, actual merged-into branch, inherited branches, and `main` status without exposing lineage jargon to the user.
+- [x] 8.9 Build All Tasks view grouped by practical status buckets: not started, in progress, waiting/review/testing, in release, ready for main, done, blocked, and cancelled.
+- [x] 8.10 Add group counts, project/group filters, and drawer opening from the All Tasks grouped view.
+- [x] 8.11 Stop for user review before moving to workflow settings implementation.
 
 ## 9. Workflow Settings And UI Polish
 
-- [ ] 9.1 Implement workflow settings APIs for task statuses, branch statuses, labels, display order, enabled flag, and custom colors.
-- [ ] 9.2 Seed semantic default colors for task and branch statuses so the app is readable before customization.
-- [ ] 9.3 Build workflow settings UI with compact color picker or preset color selection for statuses.
-- [ ] 9.4 Apply status colors consistently to dashboard, task table, branch table, grouped boards, drawers, and timeline.
-- [ ] 9.5 Apply simple static colors for note statuses: pending, archived, and converted.
-- [ ] 9.6 Ensure colors are paired with visible text labels so status is still clear without relying on color alone.
-- [ ] 9.7 Ensure Vietnamese UI labels across navigation, forms, buttons, empty states, filters, and validation messages.
-- [ ] 9.8 Add dark mode to the post-MVP backlog without making it part of MVP acceptance.
-- [ ] 9.9 Stop for user review before moving to verification.
+- [x] 9.1 Implement workflow settings APIs for task statuses, branch statuses, labels, display order, enabled flag, and custom colors.
+- [x] 9.2 Seed semantic default colors for task and branch statuses so the app is readable before customization.
+- [x] 9.3 Build workflow settings UI with compact color picker or preset color selection for statuses.
+- [x] 9.4 Apply status colors consistently to dashboard, task table, branch table, grouped boards, drawers, and timeline.
+- [x] 9.5 Apply simple static colors for note statuses: pending, archived, and converted.
+- [x] 9.6 Ensure colors are paired with visible text labels so status is still clear without relying on color alone.
+- [x] 9.7 Ensure Vietnamese UI labels across navigation, forms, buttons, empty states, filters, and validation messages.
+- [x] 9.8 Add dark mode to the post-MVP backlog without making it part of MVP acceptance.
+- [x] 9.9 Stop for user review before moving to verification.
 
 ## 10. Verification
 
-- [ ] 10.1 Add backend unit tests for feature branch -> release branch merge rules.
-- [ ] 10.2 Add backend unit tests for main merge warning behavior when linked tasks are not release-ready.
-- [ ] 10.3 Add backend unit tests for main merge completion rules, including multi-branch tasks.
-- [ ] 10.4 Add backend tests for auth guard and protected APIs.
-- [ ] 10.5 Add backend tests for task code generation with project groups.
-- [ ] 10.6 Add backend tests for app-assisted branch creation with checkout source and intended merge target.
-- [ ] 10.7 Add backend tests for creating branch `B` from task branch `A` and inheriting task links.
-- [ ] 10.8 Add backend tests proving branch `B` merged to `main` completes the carried task even if `A` did not reach `main`.
-- [ ] 10.9 Add backend tests for actual merged-into branch tracking.
-- [ ] 10.10 Add frontend component or integration tests for login, note conversion, task drawer, branch creation drawer, branch drawer, All Tasks grouped view, workflow settings, and merge quick actions.
-- [ ] 10.11 Run typecheck, lint, backend tests, frontend tests, and build.
-- [ ] 10.12 Manually verify the MVP flow: note -> task -> create feature branch A -> create branch B from A -> B reaches main -> task done -> All Tasks done bucket -> timeline.
-- [ ] 10.13 Stop for user review before considering post-MVP Git automation.
+- [x] 10.1 Add backend unit tests for feature branch -> release branch merge rules.
+- [x] 10.2 Add backend unit tests for main merge warning behavior when linked tasks are not release-ready.
+- [x] 10.3 Add backend unit tests for main merge completion rules, including multi-branch tasks.
+- [x] 10.4 Add backend tests for auth guard and protected APIs.
+- [x] 10.5 Add backend tests for task code generation with project groups.
+- [x] 10.6 Add backend tests for app-assisted branch creation with checkout source and intended merge target.
+- [x] 10.7 Add backend tests for creating branch `B` from task branch `A` and inheriting task links.
+- [x] 10.8 Add backend tests proving branch `B` merged to `main` completes the carried task even if `A` did not reach `main`.
+- [x] 10.9 Add backend tests for actual merged-into branch tracking.
+- [x] 10.10 Add frontend component or integration tests for login, note conversion, task drawer, branch creation drawer, branch drawer, All Tasks grouped view, workflow settings, and merge quick actions.
+- [x] 10.11 Run typecheck, lint, backend tests, frontend tests, and build.
+- [x] 10.12 Manually verify the MVP flow: note -> task -> create feature branch A -> create branch B from A -> B reaches main -> task done -> All Tasks done bucket -> timeline.
+- [x] 10.13 Stop for user review before considering post-MVP Git automation.
 
-## 11. Post-MVP Self-Hosted GitLab Automation
+## 11. Branch Kanban And Status Movement
 
-- [ ] 11.1 Add self-hosted GitLab webhook configuration storage.
-- [ ] 11.2 Implement self-hosted GitLab webhook endpoint for merge request merge events.
-- [ ] 11.3 Match GitLab source and target branch names to registered branches, aliases, `main`, and `release/DDMMYYYY`.
-- [ ] 11.4 Write timeline events from webhook processing.
-- [ ] 11.5 Keep manual override actions available after webhook automation is enabled.
-- [ ] 11.6 Review whether local Git repository scanning is needed in addition to GitLab webhooks.
+- [x] 11.1 Keep GitLab automation deferred; do not implement webhook automation in this phase.
+- [x] 11.2 Review the current `/branches` flow and keep existing create branch, edit drawer, table filters, merge release, merge main, and manual status editing available.
+- [x] 11.3 Add workflow metadata for branch statuses to control whether a branch can be dropped into that status from Kanban.
+- [x] 11.4 Seed sane default Kanban drop behavior: normal work statuses allow manual drop, merge-derived statuses require merge actions by default, and closed requires explicit confirmation.
+- [x] 11.5 Extend workflow settings UI so branch statuses show whether Kanban drop is allowed and, when not allowed, why.
+- [x] 11.6 Add backend branch status move API that validates the target status Kanban-drop rule, records timeline events, and does not bypass merge release/main business rules.
+- [x] 11.7 Build `/branches` view mode toggle between table and Kanban while keeping compact filters and the existing create-branch action.
+- [x] 11.8 Build Branch Kanban as one horizontal row of status columns, with each column kept in the same row and horizontally scrollable on small screens.
+- [x] 11.9 Add drag-and-drop for branch cards between allowed status columns, with optimistic UI only after backend validation succeeds.
+- [x] 11.10 When dropping into a restricted status, block the drop and show the correct action path, for example use `Merge release` or `Merge main`.
+- [x] 11.11 Keep branch cards compact but useful: branch name, repo, linked task codes, source/target path, status color, and quick actions.
+- [x] 11.12 Add UI test for dragging a branch into an allowed status and rejecting a restricted drop.
+- [x] 11.13 Stop for user review before moving to any GitLab automation.
+
+## 12. Later: Post-MVP Self-Hosted GitLab Automation
+
+- [ ] 12.1 Add self-hosted GitLab webhook configuration storage.
+- [ ] 12.2 Implement self-hosted GitLab webhook endpoint for merge request merge events.
+- [ ] 12.3 Match GitLab source and target branch names to registered branches, aliases, `main`, and `release/DDMMYYYY`.
+- [ ] 12.4 Write timeline events from webhook processing.
+- [ ] 12.5 Keep manual override actions available after webhook automation is enabled.
+- [ ] 12.6 Review whether local Git repository scanning is needed in addition to GitLab webhooks.

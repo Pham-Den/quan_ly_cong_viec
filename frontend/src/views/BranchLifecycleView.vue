@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import axios from 'axios'
+import { message } from 'ant-design-vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 import { api } from '../services/api'
+import { branchKanbanDropRule, statusMeta, workflowOptions, type WorkflowStatusRecord } from '../services/workflow'
 import { useSessionStore } from '../stores/session'
 
 type RepositoryRecord = {
@@ -72,15 +76,20 @@ type BranchRecord = {
 }
 
 const session = useSessionStore()
+const route = useRoute()
 const loading = ref(false)
 const branchDrawerOpen = ref(false)
 const repositories = ref<RepositoryRecord[]>([])
 const tasks = ref<TaskRecord[]>([])
 const branches = ref<BranchRecord[]>([])
+const workflowStatuses = ref<WorkflowStatusRecord[]>([])
 const editingBranch = ref<BranchRecord | null>(null)
 const repositoryFilter = ref('')
 const statusFilter = ref('')
 const branchQuery = ref('')
+const branchViewMode = ref<'table' | 'kanban'>('table')
+const draggedBranchId = ref('')
+const dragOverStatus = ref('')
 const selectedProjectId = computed(() => session.selectedProjectId)
 const selectedRepository = computed(() =>
   repositories.value.find((repository) => repository.id === branchForm.repositoryId) ?? null,
@@ -113,19 +122,11 @@ const branchColumns = [
   { title: 'Luồng', key: 'path', width: 260 },
   { title: '', key: 'actions', width: 260 },
 ]
-const branchStatusOptions = [
-  { label: 'Nháp', value: 'DRAFT' },
-  { label: 'Đang code', value: 'CODING' },
-  { label: 'Chờ review', value: 'READY_REVIEW' },
-  { label: 'Đang review', value: 'REVIEWING' },
-  { label: 'Chờ test', value: 'READY_TEST' },
-  { label: 'Đang test', value: 'TESTING' },
-  { label: 'Sẵn sàng release', value: 'READY_RELEASE' },
-  { label: 'Đã vào release', value: 'MERGED_RELEASE' },
-  { label: 'Sẵn sàng main', value: 'READY_MAIN' },
-  { label: 'Đã vào main', value: 'MERGED_MAIN' },
-  { label: 'Đóng', value: 'CLOSED' },
+const branchViewModeOptions = [
+  { label: 'Bảng', value: 'table' },
+  { label: 'Kanban', value: 'kanban' },
 ]
+const branchStatusOptions = computed(() => workflowOptions(workflowStatuses.value, 'BRANCH'))
 const branchTypeOptions = [
   { label: 'Feature', value: 'FEATURE' },
   { label: 'Bugfix', value: 'BUGFIX' },
@@ -133,19 +134,16 @@ const branchTypeOptions = [
   { label: 'Release', value: 'RELEASE' },
   { label: 'Support', value: 'SUPPORT' },
 ]
-const statusColors: Record<string, string> = {
-  DRAFT: 'default',
-  CODING: 'blue',
-  READY_REVIEW: 'cyan',
-  REVIEWING: 'cyan',
-  READY_TEST: 'gold',
-  TESTING: 'orange',
-  READY_RELEASE: 'purple',
-  MERGED_RELEASE: 'purple',
-  READY_MAIN: 'geekblue',
-  MERGED_MAIN: 'green',
-  CLOSED: 'default',
-}
+const branchStatusGroups = computed(() =>
+  branchStatusOptions.value.map((status) => ({
+    ...status,
+    color: status.color,
+    branches: branches.value.filter((branch) => branch.status === status.value),
+  })),
+)
+const branchesNotMain = computed(() =>
+  branches.value.filter((branch) => branch.status !== 'MERGED_MAIN' && branch.status !== 'CLOSED'),
+)
 const branchForm = reactive({
   id: '',
   repositoryId: '',
@@ -191,6 +189,34 @@ function slug(value: string) {
 
 function branchAliasText(branch: BranchRecord) {
   return branch.aliases.map((alias) => alias.alias).join(', ')
+}
+
+function branchStatusLabel(status: string) {
+  return statusMeta(workflowStatuses.value, 'BRANCH', status).label
+}
+
+function branchStatusColor(status: string) {
+  return statusMeta(workflowStatuses.value, 'BRANCH', status).color
+}
+
+function taskStatusLabel(status: string) {
+  return statusMeta(workflowStatuses.value, 'TASK', status).label
+}
+
+function kanbanDropRule(status: string) {
+  return branchKanbanDropRule(workflowStatuses.value, status)
+}
+
+function toErrorMessage(error: unknown, fallback: string) {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data
+
+    if (data && typeof data === 'object' && 'message' in data && typeof data.message === 'string') {
+      return data.message
+    }
+  }
+
+  return fallback
 }
 
 function resetBranchForm() {
@@ -258,6 +284,30 @@ async function openBranchDrawer(branch: BranchRecord) {
   branchDrawerOpen.value = true
 }
 
+async function openBranchById(branchId: string) {
+  const { data } = await api.get<BranchRecord>(`/api/branches/${branchId}`)
+
+  editingBranch.value = data
+  branchForm.id = data.id
+  branchForm.repositoryId = data.repositoryId
+  branchForm.sourceBranchId = data.sourceBranchId
+  branchForm.name = data.name
+  branchForm.shortName = data.shortName ?? ''
+  branchForm.branchType = data.branchType
+  branchForm.status = data.status
+  branchForm.checkoutSourceBranch = data.checkoutSourceBranch ?? data.repository.defaultBranch
+  branchForm.intendedMergeTarget = data.intendedMergeTarget ?? ''
+  branchForm.actualMergedInto = data.actualMergedInto ?? ''
+  branchForm.baseBranch = data.baseBranch ?? branchForm.checkoutSourceBranch
+  branchForm.mergeRequestUrl = data.mergeRequestUrl ?? ''
+  branchForm.releaseCycleDate = dateValue(data.releaseCycleDate)
+  branchForm.aliasesText = data.aliases.map((alias) => alias.alias).join('\n')
+  branchForm.taskIds = data.taskLinks.map((link) => link.task.id)
+  branchForm.inheritTaskLinks = true
+  branchForm.createRemote = false
+  branchDrawerOpen.value = true
+}
+
 async function loadRepositories() {
   if (!selectedProjectId.value) {
     repositories.value = []
@@ -278,6 +328,22 @@ async function loadTasks() {
   const { data } = await api.get<TaskRecord[]>(`/api/tasks?projectId=${selectedProjectId.value}`)
 
   tasks.value = data
+}
+
+async function loadWorkflowStatuses() {
+  if (!selectedProjectId.value) {
+    workflowStatuses.value = []
+    return
+  }
+
+  try {
+    const { data } = await api.get<WorkflowStatusRecord[]>(`/api/workflow-statuses?projectId=${selectedProjectId.value}`)
+
+    workflowStatuses.value = data
+  } catch (error) {
+    workflowStatuses.value = []
+    message.error(toErrorMessage(error, 'Không tải được cấu hình workflow, tạm dùng trạng thái mặc định.'))
+  }
 }
 
 async function loadBranches() {
@@ -308,7 +374,7 @@ async function refreshBranches() {
   loading.value = true
 
   try {
-    await Promise.all([loadRepositories(), loadTasks(), loadBranches()])
+    await Promise.all([loadRepositories(), loadTasks(), loadWorkflowStatuses(), loadBranches()])
 
     if (!branchForm.repositoryId) {
       resetBranchForm()
@@ -410,16 +476,92 @@ async function markMergedMain(branch: BranchRecord) {
   await loadTasks()
 }
 
+function startBranchDrag(branch: BranchRecord, event: DragEvent) {
+  draggedBranchId.value = branch.id
+  event.dataTransfer?.setData('text/plain', branch.id)
+
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+  }
+}
+
+function markKanbanDragOver(status: string) {
+  dragOverStatus.value = status
+}
+
+function clearBranchDrag() {
+  draggedBranchId.value = ''
+  dragOverStatus.value = ''
+}
+
+async function dropBranchIntoStatus(status: string, event: DragEvent) {
+  const branchId = event.dataTransfer?.getData('text/plain') || draggedBranchId.value
+  const branch = branches.value.find((item) => item.id === branchId)
+
+  if (!branch) {
+    clearBranchDrag()
+    return
+  }
+
+  if (branch.status === status) {
+    clearBranchDrag()
+    return
+  }
+
+  const rule = kanbanDropRule(status)
+
+  if (!rule.allowKanbanDrop) {
+    message.warning(rule.dropBlockReason ?? 'Không thể kéo branch vào trạng thái này.')
+    clearBranchDrag()
+    return
+  }
+
+  const confirmed = rule.requiresConfirmation
+    ? window.confirm(`Chuyển ${branch.name} sang ${branchStatusLabel(status)}?`)
+    : true
+
+  if (!confirmed) {
+    clearBranchDrag()
+    return
+  }
+
+  try {
+    await api.post(`/api/branches/${branch.id}/move-status`, {
+      status,
+      confirmed,
+    })
+    message.success(`Đã chuyển ${branch.name} sang ${branchStatusLabel(status)}.`)
+    await refreshBranches()
+  } catch (error) {
+    message.error(toErrorMessage(error, 'Không thể chuyển trạng thái branch.'))
+  } finally {
+    clearBranchDrag()
+  }
+}
+
 watch(selectedProjectId, refreshBranches)
 watch([repositoryFilter, statusFilter, branchQuery], loadBranches)
 watch(() => branchForm.repositoryId, applyRepositoryDefaults)
+watch(
+  () => route.query.branchId,
+  (branchId) => {
+    if (typeof branchId === 'string') {
+      void openBranchById(branchId)
+    }
+  },
+)
 onMounted(refreshBranches)
+onMounted(() => {
+  if (typeof route.query.branchId === 'string') {
+    void openBranchById(route.query.branchId)
+  }
+})
 </script>
 
 <template>
   <section class="page-heading">
     <div>
-      <h1>Branches</h1>
+      <h1>Nhánh</h1>
       <p>Theo dõi branch đang checkout từ đâu, merge vào đâu, và task nào sẽ done khi vào main</p>
     </div>
     <a-space>
@@ -427,6 +569,14 @@ onMounted(refreshBranches)
       <a-button type="primary" @click="openCreateBranchDrawer">Tạo branch</a-button>
     </a-space>
   </section>
+
+  <a-card v-if="branchesNotMain.length" class="quick-note-card" title="Branch chưa vào main">
+    <a-space wrap>
+      <a-tag v-for="branch in branchesNotMain" :key="branch.id" class="clickable-tag" @click="openBranchDrawer(branch)">
+        {{ branch.name }}
+      </a-tag>
+    </a-space>
+  </a-card>
 
   <a-card class="settings-card">
     <a-space class="filter-row">
@@ -445,9 +595,11 @@ onMounted(refreshBranches)
         :options="branchStatusOptions"
       />
       <a-input-search v-model:value="branchQuery" class="filter-control" placeholder="Tìm branch/task" />
+      <a-segmented v-model:value="branchViewMode" :options="branchViewModeOptions" />
     </a-space>
 
     <a-table
+      v-if="branchViewMode === 'table'"
       row-key="id"
       size="small"
       :loading="loading"
@@ -469,7 +621,7 @@ onMounted(refreshBranches)
           {{ record.repository.name }}
         </template>
         <template v-if="column.key === 'status'">
-          <a-tag :color="statusColors[record.status] ?? 'default'">{{ record.status }}</a-tag>
+          <a-tag :color="branchStatusColor(record.status)">{{ branchStatusLabel(record.status) }}</a-tag>
         </template>
         <template v-if="column.key === 'tasks'">
           <a-space wrap>
@@ -498,6 +650,73 @@ onMounted(refreshBranches)
         </template>
       </template>
     </a-table>
+
+    <section v-else class="branch-kanban" data-testid="branch-kanban">
+      <div class="branch-kanban-row">
+        <div
+          v-for="group in branchStatusGroups"
+          :key="group.value"
+          class="branch-kanban-column"
+          :class="{
+            'branch-kanban-column-over': dragOverStatus === group.value,
+            'branch-kanban-column-locked': !kanbanDropRule(group.value).allowKanbanDrop,
+          }"
+          :data-testid="`kanban-column-${group.value}`"
+          @dragover.prevent="markKanbanDragOver(group.value)"
+          @dragleave="dragOverStatus === group.value && (dragOverStatus = '')"
+          @drop.prevent="dropBranchIntoStatus(group.value, $event)"
+        >
+          <div class="branch-kanban-column-header">
+            <a-space>
+              <a-tag :color="group.color">{{ group.branches.length }}</a-tag>
+              <strong>{{ group.label }}</strong>
+            </a-space>
+            <span v-if="!kanbanDropRule(group.value).allowKanbanDrop" class="muted-text">
+              Cần action
+            </span>
+            <span v-else-if="kanbanDropRule(group.value).requiresConfirmation" class="muted-text">
+              Cần xác nhận
+            </span>
+          </div>
+
+          <div class="branch-kanban-column-body">
+            <article
+              v-for="branch in group.branches"
+              :key="branch.id"
+              class="branch-kanban-card"
+              draggable="true"
+              :data-testid="`branch-card-${branch.name}`"
+              @dragstart="startBranchDrag(branch, $event)"
+              @dragend="clearBranchDrag"
+              @click="openBranchDrawer(branch)"
+            >
+              <div class="branch-kanban-card-title">
+                <strong>{{ branch.name }}</strong>
+                <a-tag :color="branchStatusColor(branch.status)">{{ branchStatusLabel(branch.status) }}</a-tag>
+              </div>
+              <div class="muted-text">{{ branch.repository.name }} · {{ branch.branchType }}</div>
+              <div class="branch-kanban-path">
+                {{ branch.checkoutSourceBranch || branch.baseBranch || '-' }}
+                <span>-></span>
+                {{ branch.intendedMergeTarget || '-' }}
+                <span>-></span>
+                {{ branch.actualMergedInto || branch.repository.productionBranch }}
+              </div>
+              <a-space class="branch-kanban-tags" wrap>
+                <a-tag v-for="link in branch.taskLinks" :key="link.id">{{ link.task.code }}</a-tag>
+                <a-tag v-if="!branch.taskLinks.length">Chưa link task</a-tag>
+              </a-space>
+              <a-space class="branch-kanban-actions" wrap>
+                <a-button size="small" @click.stop="openBranchDrawer(branch)">Chi tiết</a-button>
+                <a-button size="small" @click.stop="markMergedRelease(branch)">Merge release</a-button>
+                <a-button size="small" type="primary" @click.stop="markMergedMain(branch)">Merge main</a-button>
+              </a-space>
+            </article>
+            <div v-if="!group.branches.length" class="branch-kanban-empty">Không có branch</div>
+          </div>
+        </div>
+      </div>
+    </section>
   </a-card>
 
   <a-drawer v-model:open="branchDrawerOpen" :title="branchForm.id ? 'Chi tiết branch' : 'Tạo branch'" width="720">
@@ -597,7 +816,7 @@ onMounted(refreshBranches)
       <a-list size="small" :data-source="editingBranch.taskLinks">
         <template #renderItem="{ item }">
           <a-list-item>
-            <a-list-item-meta :title="`${item.task.code} - ${item.task.title}`" :description="`${item.role} - ${item.task.status}`" />
+            <a-list-item-meta :title="`${item.task.code} - ${item.task.title}`" :description="`${item.role} - ${taskStatusLabel(item.task.status)}`" />
           </a-list-item>
         </template>
       </a-list>

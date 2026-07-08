@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import { api } from '../services/api'
+import { statusMeta, type WorkflowStatusRecord } from '../services/workflow'
 import { useSessionStore } from '../stores/session'
 
 type TaskRecord = {
@@ -43,6 +44,7 @@ const loading = ref(false)
 const events = ref<TimelineEventRecord[]>([])
 const tasks = ref<TaskRecord[]>([])
 const branches = ref<BranchRecord[]>([])
+const workflowStatuses = ref<WorkflowStatusRecord[]>([])
 const selectedProjectId = computed(() => session.selectedProjectId)
 const filters = reactive({
   taskId: '',
@@ -95,6 +97,22 @@ function formatDate(value: string) {
   }).format(new Date(value))
 }
 
+function taskStatusLabel(status: string) {
+  return statusMeta(workflowStatuses.value, 'TASK', status).label
+}
+
+function taskStatusColor(status: string) {
+  return statusMeta(workflowStatuses.value, 'TASK', status).color
+}
+
+function branchStatusLabel(status: string) {
+  return statusMeta(workflowStatuses.value, 'BRANCH', status).label
+}
+
+function branchStatusColor(status: string) {
+  return statusMeta(workflowStatuses.value, 'BRANCH', status).color
+}
+
 async function loadTasks() {
   if (!selectedProjectId.value) {
     tasks.value = []
@@ -115,6 +133,17 @@ async function loadBranches() {
   const { data } = await api.get<BranchRecord[]>(`/api/branches?projectId=${selectedProjectId.value}`)
 
   branches.value = data
+}
+
+async function loadWorkflowStatuses() {
+  if (!selectedProjectId.value) {
+    workflowStatuses.value = []
+    return
+  }
+
+  const { data } = await api.get<WorkflowStatusRecord[]>(`/api/workflow-statuses?projectId=${selectedProjectId.value}`)
+
+  workflowStatuses.value = data
 }
 
 async function loadTimeline() {
@@ -139,7 +168,7 @@ async function refreshTimeline() {
   loading.value = true
 
   try {
-    await Promise.all([loadTasks(), loadBranches(), loadTimeline()])
+    await Promise.all([loadTasks(), loadBranches(), loadWorkflowStatuses(), loadTimeline()])
   } finally {
     loading.value = false
   }
@@ -171,7 +200,7 @@ onMounted(refreshTimeline)
 <template>
   <section class="page-heading">
     <div>
-      <h1>Timeline</h1>
+      <h1>Dòng thời gian</h1>
       <p>Nhật ký note, task, branch, merge và ghi chú theo dự án</p>
     </div>
     <a-button @click="refreshTimeline">Làm mới</a-button>
@@ -220,8 +249,12 @@ onMounted(refreshTimeline)
               <div v-if="event.description" class="timeline-description">{{ event.description }}</div>
               <a-space wrap>
                 <a-tag>{{ event.project.code }}</a-tag>
-                <a-tag v-if="event.task">{{ event.task.code }}</a-tag>
-                <a-tag v-if="event.branch">{{ event.branch.name }}</a-tag>
+                <a-tag v-if="event.task" :color="taskStatusColor(event.task.status)">
+                  {{ event.task.code }} - {{ taskStatusLabel(event.task.status) }}
+                </a-tag>
+                <a-tag v-if="event.branch" :color="branchStatusColor(event.branch.status)">
+                  {{ event.branch.name }} - {{ branchStatusLabel(event.branch.status) }}
+                </a-tag>
               </a-space>
             </div>
           </a-timeline-item>

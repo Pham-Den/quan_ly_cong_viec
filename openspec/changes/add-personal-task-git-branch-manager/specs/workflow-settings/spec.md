@@ -11,6 +11,14 @@ The system SHALL provide configurable task and branch status metadata while reta
 - **WHEN** the user disables an optional status
 - **THEN** the system hides that status from creation and filter controls without corrupting existing records
 
+#### Scenario: Configure branch Kanban drop
+- **WHEN** the user configures a branch workflow status
+- **THEN** the system allows the user to decide whether branch cards can be dragged into that status from the Kanban board
+
+#### Scenario: Show restricted movement reason
+- **WHEN** a branch workflow status does not allow Kanban drop
+- **THEN** the workflow settings UI shows the reason or required action so the user understands why cards cannot be dropped there
+
 ### Requirement: User can configure custom status colors
 The system SHALL allow custom colors for task and branch statuses and use those colors consistently in table, board, dashboard, detail drawer, and timeline views.
 

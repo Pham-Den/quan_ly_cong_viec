@@ -95,6 +95,22 @@ async function ensureTask(prisma: AppPrismaClient, taskId: string, userId: strin
         orderBy: { createdAt: 'desc' },
         take: 20,
       },
+      branchLinks: {
+        where: { active: true },
+        include: {
+          branch: {
+            select: {
+              id: true,
+              name: true,
+              status: true,
+              checkoutSourceBranch: true,
+              intendedMergeTarget: true,
+              actualMergedInto: true,
+              mergedMainAt: true,
+            },
+          },
+        },
+      },
     },
   })
 
@@ -479,6 +495,10 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
                 id: true,
                 name: true,
                 status: true,
+                checkoutSourceBranch: true,
+                intendedMergeTarget: true,
+                actualMergedInto: true,
+                mergedMainAt: true,
               },
             },
           },

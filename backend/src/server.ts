@@ -7,16 +7,19 @@ import { createPrismaClient } from './db.js'
 import type { AppEnv } from './env.js'
 import { registerPlanningRoutes } from './planning/routes.js'
 import { registerTimelineRoutes } from './timeline/routes.js'
+import { registerVisibilityRoutes } from './visibility/routes.js'
 import { registerWorkspaceRoutes } from './workspace/routes.js'
+import { registerWorkflowRoutes } from './workflow/routes.js'
 
 export function buildServer(env: AppEnv) {
   const app = Fastify({
-    logger: true,
+    logger: process.env.NODE_ENV !== 'test',
   })
   const prisma = createPrismaClient(env.databaseUrl)
 
   app.register(cors, {
     origin: env.frontendOrigin,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Authorization', 'Content-Type'],
   })
 
@@ -39,6 +42,8 @@ export function buildServer(env: AppEnv) {
   registerPlanningRoutes(app, { env, prisma })
   registerBranchRoutes(app, { env, prisma })
   registerTimelineRoutes(app, { env, prisma })
+  registerVisibilityRoutes(app, { env, prisma })
+  registerWorkflowRoutes(app, { env, prisma })
 
   return app
 }

@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { api } from '../services/api'
+import { noteStatusMeta, statusMeta, workflowOptions, type WorkflowStatusRecord } from '../services/workflow'
 import { useSessionStore } from '../stores/session'
 
 type TaskGroupRecord = {
@@ -49,6 +50,18 @@ type TaskRecord = {
     code: string
     name: string
   } | null
+  branchLinks?: Array<{
+    id: string
+    branch: {
+      id: string
+      name: string
+      status: string
+      checkoutSourceBranch: string | null
+      intendedMergeTarget: string | null
+      actualMergedInto: string | null
+      mergedMainAt: string | null
+    }
+  }>
   timelineEvents?: TimelineEventRecord[]
 }
 
@@ -60,12 +73,15 @@ type TimelineEventRecord = {
   createdAt: string
 }
 
+type TaskBranchLink = NonNullable<TaskRecord['branchLinks']>[number]
+
 const route = useRoute()
 const session = useSessionStore()
 const loading = ref(false)
 const notes = ref<NoteRecord[]>([])
 const tasks = ref<TaskRecord[]>([])
 const taskGroups = ref<TaskGroupRecord[]>([])
+const workflowStatuses = ref<WorkflowStatusRecord[]>([])
 const noteStatus = ref('ACTIONABLE')
 const noteQuery = ref('')
 const taskQuery = ref('')
@@ -86,6 +102,23 @@ const taskGroupOptions = computed(() =>
     value: group.id,
   })),
 )
+const taskBuckets = [
+  { key: 'notStarted', label: 'Chưa làm', statuses: ['PLANNED'] },
+  { key: 'inProgress', label: 'Đang tiến hành', statuses: ['IN_PROGRESS'] },
+  { key: 'waiting', label: 'Review/Test', statuses: ['IN_REVIEW', 'TESTING'] },
+  { key: 'inRelease', label: 'Đang ở release', statuses: ['READY_RELEASE', 'MERGED_RELEASE'] },
+  { key: 'readyMain', label: 'Sẵn sàng main', statuses: ['READY_PROD'] },
+  { key: 'done', label: 'Hoàn tất', statuses: ['DONE'] },
+  { key: 'blocked', label: 'Blocked', statuses: ['BLOCKED'] },
+  { key: 'cancelled', label: 'Cancelled', statuses: ['CANCELLED'] },
+]
+const groupedTasks = computed(() =>
+  taskBuckets.map((bucket) => ({
+    ...bucket,
+    tasks: tasks.value.filter((task) => bucket.statuses.includes(task.status)),
+  })),
+)
+const tasksWithoutBranches = computed(() => tasks.value.filter((task) => !(task.branchLinks?.length)))
 const noteForm = reactive({
   content: '',
   source: '',
@@ -122,18 +155,7 @@ const taskColumns = [
   { title: 'Ưu tiên', dataIndex: 'priority', key: 'priority', width: 112 },
   { title: '', key: 'actions', width: 220 },
 ]
-const statusOptions = [
-  { label: 'Chưa làm', value: 'PLANNED' },
-  { label: 'Đang tiến hành', value: 'IN_PROGRESS' },
-  { label: 'Đang review', value: 'IN_REVIEW' },
-  { label: 'Đang test', value: 'TESTING' },
-  { label: 'Sẵn sàng release', value: 'READY_RELEASE' },
-  { label: 'Đã vào release', value: 'MERGED_RELEASE' },
-  { label: 'Sẵn sàng main', value: 'READY_PROD' },
-  { label: 'Done', value: 'DONE' },
-  { label: 'Blocked', value: 'BLOCKED' },
-  { label: 'Cancelled', value: 'CANCELLED' },
-]
+const statusOptions = computed(() => workflowOptions(workflowStatuses.value, 'TASK'))
 const priorityOptions = [
   { label: 'Low', value: 'LOW' },
   { label: 'Medium', value: 'MEDIUM' },
@@ -151,12 +173,6 @@ const noteStatusOptions = [
   { label: 'Đang chờ', value: 'NEW' },
   { label: 'Đã lưu trữ', value: 'ARCHIVED' },
 ]
-const noteStatusLabels: Record<string, string> = {
-  NEW: 'Đang chờ',
-  ARCHIVED: 'Đã lưu trữ',
-  CONVERTED: 'Đã thành task',
-}
-
 function resetNoteForm() {
   noteForm.content = ''
   noteForm.source = ''
@@ -192,6 +208,30 @@ function canConvertNote(note: NoteRecord) {
   return ['NEW', 'ARCHIVED'].includes(note.status)
 }
 
+function branchPath(branch: TaskBranchLink['branch']) {
+  return `${branch.checkoutSourceBranch || '-'} -> ${branch.intendedMergeTarget || '-'} -> ${branch.actualMergedInto || (branch.mergedMainAt ? 'main' : '-')}`
+}
+
+function taskStatusLabel(status: string) {
+  return statusMeta(workflowStatuses.value, 'TASK', status).label
+}
+
+function taskStatusColor(status: string) {
+  return statusMeta(workflowStatuses.value, 'TASK', status).color
+}
+
+function branchStatusLabel(status: string) {
+  return statusMeta(workflowStatuses.value, 'BRANCH', status).label
+}
+
+function branchStatusColor(status: string) {
+  return statusMeta(workflowStatuses.value, 'BRANCH', status).color
+}
+
+function bucketColor(bucket: { statuses: string[] }) {
+  return taskStatusColor(bucket.statuses[0] ?? 'PLANNED')
+}
+
 async function loadTaskGroups() {
   if (!selectedProjectId.value) {
     taskGroups.value = []
@@ -201,6 +241,17 @@ async function loadTaskGroups() {
   const { data } = await api.get<TaskGroupRecord[]>(`/api/projects/${selectedProjectId.value}/task-groups`)
 
   taskGroups.value = data.filter((group) => group.enabled)
+}
+
+async function loadWorkflowStatuses() {
+  if (!selectedProjectId.value) {
+    workflowStatuses.value = []
+    return
+  }
+
+  const { data } = await api.get<WorkflowStatusRecord[]>(`/api/workflow-statuses?projectId=${selectedProjectId.value}`)
+
+  workflowStatuses.value = data
 }
 
 async function loadNotes() {
@@ -263,7 +314,7 @@ async function refreshPlanning() {
   loading.value = true
 
   try {
-    await Promise.all([loadTaskGroups(), loadNotes(), loadTasks()])
+    await Promise.all([loadTaskGroups(), loadWorkflowStatuses(), loadNotes(), loadTasks()])
   } finally {
     loading.value = false
   }
@@ -325,9 +376,7 @@ function openCreateTaskDrawer() {
   taskDrawerOpen.value = true
 }
 
-async function openTaskDrawer(task: TaskRecord) {
-  const { data } = await api.get<TaskRecord>(`/api/tasks/${task.id}`)
-
+function setTaskDrawerData(data: TaskRecord) {
   editingTask.value = data
   taskForm.id = data.id
   taskForm.title = data.title
@@ -338,6 +387,18 @@ async function openTaskDrawer(task: TaskRecord) {
   taskForm.type = data.type
   taskForm.targetDate = dateValue(data.targetDate)
   taskDrawerOpen.value = true
+}
+
+async function openTaskDrawer(task: TaskRecord) {
+  const { data } = await api.get<TaskRecord>(`/api/tasks/${task.id}`)
+
+  setTaskDrawerData(data)
+}
+
+async function openTaskById(taskId: string) {
+  const { data } = await api.get<TaskRecord>(`/api/tasks/${taskId}`)
+
+  setTaskDrawerData(data)
 }
 
 async function submitTask() {
@@ -374,13 +435,26 @@ async function markReadyProd(task: TaskRecord) {
 
 watch(selectedProjectId, refreshPlanning)
 watch([noteStatus, noteQuery, taskStatus, taskPriority, taskType, taskGroupFilter, taskBranch, taskQuery], refreshPlanning)
+watch(
+  () => route.query.taskId,
+  (taskId) => {
+    if (typeof taskId === 'string') {
+      void openTaskById(taskId)
+    }
+  },
+)
 onMounted(refreshPlanning)
+onMounted(() => {
+  if (typeof route.query.taskId === 'string') {
+    void openTaskById(route.query.taskId)
+  }
+})
 </script>
 
 <template>
   <section class="page-heading">
     <div>
-      <h1>{{ mode === 'inbox' ? 'Inbox' : 'All Tasks' }}</h1>
+      <h1>{{ mode === 'inbox' ? 'Inbox' : 'Tất cả task' }}</h1>
       <p>{{ mode === 'inbox' ? 'Ghi nhanh yêu cầu lắc nhắc rồi chuyển thành task' : 'Theo dõi và chỉnh task đã plan' }}</p>
     </div>
     <a-space>
@@ -429,12 +503,40 @@ onMounted(refreshPlanning)
               </a-space>
             </template>
             <template v-if="column.key === 'status'">
-              <a-tag>{{ noteStatusLabels[record.status] ?? record.status }}</a-tag>
+              <a-tag :color="noteStatusMeta[record.status]?.color">
+                {{ noteStatusMeta[record.status]?.label ?? record.status }}
+              </a-tag>
             </template>
           </template>
         </a-table>
       </a-card>
     </section>
+
+    <section v-if="mode === 'tasks'" class="status-board">
+      <a-card v-for="bucket in groupedTasks" :key="bucket.key" class="status-column" size="small">
+        <template #title>
+          <a-space>
+            <a-tag :color="bucketColor(bucket)">{{ bucket.tasks.length }}</a-tag>
+            <span>{{ bucket.label }}</span>
+          </a-space>
+        </template>
+        <a-list size="small" :data-source="bucket.tasks.slice(0, 5)">
+          <template #renderItem="{ item }">
+            <a-list-item class="clickable-list-item" @click="openTaskDrawer(item)">
+              <a-list-item-meta :title="`${item.code} - ${item.title}`" :description="item.branchLinks?.[0]?.branch.name || 'Chưa link branch'" />
+            </a-list-item>
+          </template>
+        </a-list>
+      </a-card>
+    </section>
+
+    <a-card v-if="mode === 'tasks' && tasksWithoutBranches.length" class="quick-note-card" title="Task chưa có branch">
+      <a-space wrap>
+        <a-tag v-for="task in tasksWithoutBranches" :key="task.id" class="clickable-tag" @click="openTaskDrawer(task)">
+          {{ task.code }}
+        </a-tag>
+      </a-space>
+    </a-card>
 
     <a-card class="settings-card" :title="mode === 'inbox' ? 'Task mới tạo' : 'Danh sách task'">
       <a-space class="filter-row">
@@ -455,7 +557,7 @@ onMounted(refreshPlanning)
             {{ record.taskGroup ? `${record.taskGroup.code} - ${record.taskGroup.name}` : '-' }}
           </template>
           <template v-if="column.key === 'status'">
-            <a-tag>{{ record.status }}</a-tag>
+            <a-tag :color="taskStatusColor(record.status)">{{ taskStatusLabel(record.status) }}</a-tag>
           </template>
           <template v-if="column.key === 'actions'">
             <a-space>
@@ -523,7 +625,18 @@ onMounted(refreshPlanning)
         <a-button type="primary" html-type="submit">{{ taskForm.id ? 'Lưu task' : 'Tạo task' }}</a-button>
         <a-button v-if="editingTask" @click="markReadyProd(editingTask)">Sẵn sàng main</a-button>
       </a-space>
-    </a-form>
+      </a-form>
+
+      <a-divider v-if="editingTask">Branch path</a-divider>
+      <a-list v-if="editingTask" size="small" :data-source="editingTask.branchLinks ?? []">
+        <template #renderItem="{ item }">
+          <a-list-item>
+            <a-list-item-meta :title="item.branch.name" :description="branchPath(item.branch)" />
+            <a-tag :color="branchStatusColor(item.branch.status)">{{ branchStatusLabel(item.branch.status) }}</a-tag>
+          </a-list-item>
+        </template>
+      </a-list>
+      <a-empty v-if="editingTask && !editingTask.branchLinks?.length" description="Task chưa link branch" />
 
     <a-tabs v-if="editingTask" class="timeline-list">
       <a-tab-pane key="timeline" tab="Timeline">

@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "NODE_ENV=test DATABASE_URL=${DATABASE_URL:-file:./test.db} prisma db push --skip-generate && NODE_ENV=test DATABASE_URL=${DATABASE_URL:-file:./test.db} node --import tsx --test --test-concurrency=1 src/*.test.ts",
     "db:push": "RUST_LOG=${RUST_LOG:-info} DATABASE_URL=${DATABASE_URL:-file:./dev.db} prisma db push",
     "db:seed": "DATABASE_URL=${DATABASE_URL:-file:./dev.db} tsx prisma/seed.ts",
     "prisma:generate": "DATABASE_URL=${DATABASE_URL:-file:./dev.db} prisma generate",

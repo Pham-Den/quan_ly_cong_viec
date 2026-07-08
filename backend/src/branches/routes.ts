@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyReply } from 'fastify'
 import { createAuthGuard } from '../auth/guard.js'
 import type { AppPrismaClient } from '../db.js'
 import type { AppEnv } from '../env.js'
+import { branchKanbanDropRule, ensureWorkflowStatuses } from '../workflow/defaults.js'
 
 type BranchRoutesContext = {
   env: AppEnv
@@ -41,6 +42,7 @@ type BranchBody = {
 type MergeBody = {
   targetBranch?: unknown
   confirmed?: unknown
+  status?: unknown
 }
 
 function bodyAs<T>(body: unknown) {
@@ -781,6 +783,84 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
         title: `Doi trang thai branch ${branch.name}`,
         description: `${branch.status} -> ${nextStatus}`,
         metadataJson: JSON.stringify({ from: branch.status, to: nextStatus }),
+      },
+    })
+
+    return updatedBranch
+  })
+
+  app.post('/api/branches/:branchId/move-status', { preHandler: requireAuth }, async (request, reply) => {
+    const branch = await ensureBranch(context.prisma, paramsAs(request.params).branchId ?? '', request.authUser?.id ?? '', reply)
+
+    if (!branch) {
+      return
+    }
+
+    const body = bodyAs<MergeBody>(request.body)
+    const nextStatus = text(body.status)
+
+    if (!nextStatus) {
+      return reply.code(400).send({ message: 'Can chon trang thai branch.' })
+    }
+
+    if (['MERGED_RELEASE', 'MERGED_MAIN'].includes(nextStatus)) {
+      const rule = branchKanbanDropRule(nextStatus)
+
+      return reply.code(400).send({
+        message: rule.dropBlockReason ?? 'Trang thai nay can dung action rieng.',
+        blocked: true,
+      })
+    }
+
+    await ensureWorkflowStatuses(context.prisma, branch.repository.projectId)
+
+    const workflowStatus = await context.prisma.workflowStatus.findFirst({
+      where: {
+        projectId: branch.repository.projectId,
+        scope: 'BRANCH',
+        key: nextStatus,
+        enabled: true,
+      },
+    })
+
+    if (!workflowStatus) {
+      return reply.code(400).send({ message: 'Trang thai branch khong hop le hoac dang tat.' })
+    }
+
+    const dropRule = branchKanbanDropRule(nextStatus, workflowStatus)
+
+    if (!dropRule.allowKanbanDrop) {
+      return reply.code(400).send({
+        message: dropRule.dropBlockReason ?? 'Khong the keo branch vao trang thai nay.',
+        blocked: true,
+      })
+    }
+
+    if (dropRule.requiresConfirmation && body.confirmed !== true) {
+      return reply.code(409).send({
+        message: 'Can xac nhan truoc khi chuyen branch vao trang thai nay.',
+        requiresConfirmation: true,
+      })
+    }
+
+    if (branch.status === nextStatus) {
+      return branch
+    }
+
+    const updatedBranch = await context.prisma.branch.update({
+      where: { id: branch.id },
+      data: { status: nextStatus },
+    })
+
+    await context.prisma.timelineEvent.create({
+      data: {
+        projectId: branch.repository.projectId,
+        branchId: branch.id,
+        createdById: request.authUser?.id,
+        eventType: 'BRANCH_STATUS_CHANGED',
+        title: `Keo branch ${branch.name}`,
+        description: `${branch.status} -> ${nextStatus}`,
+        metadataJson: JSON.stringify({ from: branch.status, to: nextStatus, source: 'kanban' }),
       },
     })
 

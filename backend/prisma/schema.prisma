@@ -109,6 +109,9 @@ model WorkflowStatus {
   color     String
   sortOrder Int
   enabled   Boolean  @default(true)
+  allowKanbanDrop     Boolean?
+  dropBlockReason     String?
+  requiresConfirmation Boolean?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -77,6 +77,37 @@ The system SHALL allow branch status to move through draft, coding, review, test
 - **WHEN** the user changes a branch lifecycle status
 - **THEN** the system updates the branch and records a timeline event with the previous and new status
 
+#### Scenario: Move branch status from Kanban
+- **WHEN** the user drags a branch card into a branch status column that allows Kanban drop
+- **THEN** the system updates the branch status, keeps the branch in the target column, and records a timeline event
+
+#### Scenario: Reject restricted Kanban status
+- **WHEN** the user drags a branch card into a status that does not allow Kanban drop
+- **THEN** the system rejects the status move, returns the branch to the previous column, and shows the action required for that status
+
+#### Scenario: Merge statuses require merge actions by default
+- **WHEN** the user tries to drag a branch directly into `MERGED_RELEASE` or `MERGED_MAIN`
+- **THEN** the system blocks the drop by default and directs the user to use the merge release or merge main action so linked task rules are not bypassed
+
+### Requirement: User can view branches as a one-row Kanban board
+The system SHALL provide a Kanban view for `/branches` where branch lifecycle statuses are shown as columns in a single horizontal row.
+
+#### Scenario: View branch Kanban
+- **WHEN** the user opens `/branches` and selects Kanban view
+- **THEN** the system shows all enabled branch statuses as same-row columns ordered by workflow settings
+
+#### Scenario: Compact branch card
+- **WHEN** a branch appears in the Kanban board
+- **THEN** the branch card shows branch name, repository, linked task codes, checkout source, intended target, actual merged-into state, and quick actions without requiring the table view
+
+#### Scenario: Kanban respects existing filters
+- **WHEN** the user filters by repository, status, or search query
+- **THEN** the Kanban board shows only branches matching the current filters
+
+#### Scenario: Horizontal overflow
+- **WHEN** the viewport cannot fit every status column
+- **THEN** the Kanban board keeps the columns in one row and allows horizontal scrolling instead of wrapping columns into multiple rows
+
 ### Requirement: Release merge updates linked tasks without completing them
 The system SHALL update release merge state and linked task state when a feature branch is marked merged into a release branch, but it MUST NOT mark linked tasks as `DONE`.
 

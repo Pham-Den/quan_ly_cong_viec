@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import { api } from '../services/api'
+import { branchKanbanDropRule, type WorkflowStatusRecord } from '../services/workflow'
 import { useSessionStore } from '../stores/session'
 
 type ProjectRecord = {
@@ -51,12 +52,19 @@ const savingRepository = ref(false)
 const projects = ref<ProjectRecord[]>([])
 const taskGroups = ref<TaskGroupRecord[]>([])
 const repositories = ref<RepositoryRecord[]>([])
+const workflowStatuses = ref<WorkflowStatusRecord[]>([])
 const selectedProjectId = computed({
   get: () => session.selectedProjectId,
   set: (value: string | null) => session.selectProject(value),
 })
 const selectedProject = computed(
   () => projects.value.find((project) => project.id === selectedProjectId.value) ?? null,
+)
+const taskWorkflowStatuses = computed(() =>
+  workflowStatuses.value.filter((status) => status.scope === 'TASK').sort((left, right) => left.sortOrder - right.sortOrder),
+)
+const branchWorkflowStatuses = computed(() =>
+  workflowStatuses.value.filter((status) => status.scope === 'BRANCH').sort((left, right) => left.sortOrder - right.sortOrder),
 )
 const projectForm = reactive({
   id: '',
@@ -106,6 +114,21 @@ const repositoryColumns = [
   { title: 'Nhánh', key: 'branches', width: 220 },
   { title: '', key: 'actions', width: 180 },
 ]
+const workflowColumns = [
+  { title: 'Key', dataIndex: 'key', key: 'key', width: 170 },
+  { title: 'Label', key: 'label' },
+  { title: 'Màu', key: 'color', width: 170 },
+  { title: 'Thứ tự', key: 'sortOrder', width: 112 },
+  { title: 'Đang dùng', key: 'enabled', width: 112 },
+  { title: '', key: 'actions', width: 92 },
+]
+const branchWorkflowColumns = [
+  ...workflowColumns.slice(0, -1),
+  { title: 'Kanban', key: 'kanbanDrop', width: 130 },
+  { title: 'Xác nhận', key: 'requiresConfirmation', width: 112 },
+  { title: 'Lý do chặn', key: 'dropBlockReason', width: 260 },
+  workflowColumns[workflowColumns.length - 1],
+]
 
 function resetProjectForm() {
   projectForm.id = ''
@@ -151,19 +174,22 @@ async function loadProjectChildren() {
   if (!selectedProjectId.value) {
     taskGroups.value = []
     repositories.value = []
+    workflowStatuses.value = []
     taskCodePreview.value = ''
     return
   }
 
-  const [taskGroupResponse, repositoryResponse, previewResponse] = await Promise.all([
+  const [taskGroupResponse, repositoryResponse, previewResponse, workflowResponse] = await Promise.all([
     api.get<TaskGroupRecord[]>(`/api/projects/${selectedProjectId.value}/task-groups`),
     api.get<RepositoryRecord[]>(`/api/projects/${selectedProjectId.value}/repositories`),
     api.get<{ code: string }>(`/api/projects/${selectedProjectId.value}/task-code-preview`),
+    api.get<WorkflowStatusRecord[]>(`/api/workflow-statuses?projectId=${selectedProjectId.value}`),
   ])
 
   taskGroups.value = taskGroupResponse.data
   repositories.value = repositoryResponse.data
   taskCodePreview.value = previewResponse.data.code
+  workflowStatuses.value = workflowResponse.data
 }
 
 async function refreshWorkspace() {
@@ -297,6 +323,45 @@ async function deleteRepository(repository: RepositoryRecord) {
   await api.delete(`/api/repositories/${repository.id}`)
   resetRepositoryForm()
   await refreshWorkspace()
+}
+
+async function saveWorkflowStatus(status: WorkflowStatusRecord) {
+  await api.patch(`/api/workflow-statuses/${status.id}`, {
+    label: status.label,
+    color: status.color,
+    sortOrder: status.sortOrder,
+    enabled: status.enabled,
+    allowKanbanDrop: status.key === 'MERGED_RELEASE' || status.key === 'MERGED_MAIN' ? false : status.allowKanbanDrop,
+    dropBlockReason: status.dropBlockReason,
+    requiresConfirmation: status.requiresConfirmation,
+  })
+  await loadProjectChildren()
+}
+
+function isMergeWorkflowStatus(status: WorkflowStatusRecord) {
+  return status.key === 'MERGED_RELEASE' || status.key === 'MERGED_MAIN'
+}
+
+function branchDropAllowed(status: WorkflowStatusRecord) {
+  return isMergeWorkflowStatus(status) ? false : branchKanbanDropRule(workflowStatuses.value, status.key).allowKanbanDrop
+}
+
+function branchDropReason(status: WorkflowStatusRecord) {
+  return branchKanbanDropRule(workflowStatuses.value, status.key).dropBlockReason ?? ''
+}
+
+function branchRequiresConfirmation(status: WorkflowStatusRecord) {
+  return branchKanbanDropRule(workflowStatuses.value, status.key).requiresConfirmation
+}
+
+function setBranchDropAllowed(status: WorkflowStatusRecord, checked: boolean) {
+  if (!isMergeWorkflowStatus(status)) {
+    status.allowKanbanDrop = checked
+  }
+}
+
+function setBranchRequiresConfirmation(status: WorkflowStatusRecord, checked: boolean) {
+  status.requiresConfirmation = checked
 }
 
 watch(selectedProjectId, async () => {
@@ -510,6 +575,106 @@ onMounted(refreshWorkspace)
                       <a-button size="small" danger>Xóa</a-button>
                     </a-popconfirm>
                   </a-space>
+                </template>
+              </template>
+            </a-table>
+          </a-tab-pane>
+
+          <a-tab-pane key="workflow" tab="Workflow">
+            <a-alert
+              class="settings-alert"
+              type="info"
+              message="Status key dùng cho rule hệ thống; bạn chỉ chỉnh label, màu, thứ tự và bật/tắt hiển thị."
+            />
+
+            <a-divider>Task status</a-divider>
+            <a-table
+              row-key="id"
+              size="small"
+              :columns="workflowColumns"
+              :data-source="taskWorkflowStatuses"
+              :pagination="false"
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'key'">
+                  <a-tag :color="record.color">{{ record.key }}</a-tag>
+                </template>
+                <template v-if="column.key === 'label'">
+                  <a-input v-model:value="record.label" />
+                </template>
+                <template v-if="column.key === 'color'">
+                  <a-space>
+                    <a-input v-model:value="record.color" type="color" class="color-input" />
+                    <a-tag :color="record.color">{{ record.color }}</a-tag>
+                  </a-space>
+                </template>
+                <template v-if="column.key === 'sortOrder'">
+                  <a-input-number v-model:value="record.sortOrder" :min="1" />
+                </template>
+                <template v-if="column.key === 'enabled'">
+                  <a-switch v-model:checked="record.enabled" />
+                </template>
+                <template v-if="column.key === 'actions'">
+                  <a-button size="small" type="primary" @click="saveWorkflowStatus(record)">Lưu</a-button>
+                </template>
+              </template>
+            </a-table>
+
+            <a-divider>Branch status</a-divider>
+            <a-table
+              row-key="id"
+              size="small"
+              :columns="branchWorkflowColumns"
+              :data-source="branchWorkflowStatuses"
+              :pagination="false"
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'key'">
+                  <a-tag :color="record.color">{{ record.key }}</a-tag>
+                </template>
+                <template v-if="column.key === 'label'">
+                  <a-input v-model:value="record.label" />
+                </template>
+                <template v-if="column.key === 'color'">
+                  <a-space>
+                    <a-input v-model:value="record.color" type="color" class="color-input" />
+                    <a-tag :color="record.color">{{ record.color }}</a-tag>
+                  </a-space>
+                </template>
+                <template v-if="column.key === 'sortOrder'">
+                  <a-input-number v-model:value="record.sortOrder" :min="1" />
+                </template>
+                <template v-if="column.key === 'enabled'">
+                  <a-switch v-model:checked="record.enabled" />
+                </template>
+                <template v-if="column.key === 'kanbanDrop'">
+                  <a-space>
+                    <a-switch
+                      :checked="branchDropAllowed(record)"
+                      :disabled="isMergeWorkflowStatus(record)"
+                      @change="setBranchDropAllowed(record, Boolean($event))"
+                    />
+                    <a-tag :color="branchDropAllowed(record) ? 'success' : 'default'">
+                      {{ branchDropAllowed(record) ? 'Cho kéo' : 'Chặn' }}
+                    </a-tag>
+                  </a-space>
+                </template>
+                <template v-if="column.key === 'requiresConfirmation'">
+                  <a-switch
+                    :checked="branchRequiresConfirmation(record)"
+                    :disabled="!branchDropAllowed(record)"
+                    @change="setBranchRequiresConfirmation(record, Boolean($event))"
+                  />
+                </template>
+                <template v-if="column.key === 'dropBlockReason'">
+                  <a-input
+                    v-model:value="record.dropBlockReason"
+                    :disabled="branchDropAllowed(record) && !isMergeWorkflowStatus(record)"
+                    :placeholder="branchDropReason(record) || 'Không có'"
+                  />
+                </template>
+                <template v-if="column.key === 'actions'">
+                  <a-button size="small" type="primary" @click="saveWorkflowStatus(record)">Lưu</a-button>
                 </template>
               </template>
             </a-table>

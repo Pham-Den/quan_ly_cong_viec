@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyReply } from 'fastify'
 import { createAuthGuard } from '../auth/guard.js'
 import type { AppPrismaClient } from '../db.js'
 import type { AppEnv } from '../env.js'
+import { ensureWorkflowStatuses } from '../workflow/defaults.js'
 
 type WorkspaceRoutesContext = {
   env: AppEnv
@@ -147,7 +148,7 @@ export function registerWorkspaceRoutes(app: FastifyInstance, context: Workspace
       return reply.code(409).send({ message: 'Ma du an da ton tai.' })
     }
 
-    return context.prisma.project.create({
+    const project = await context.prisma.project.create({
       data: {
         ownerId: request.authUser?.id,
         code: nextCode,
@@ -155,6 +156,10 @@ export function registerWorkspaceRoutes(app: FastifyInstance, context: Workspace
         description: nullableText(body.description),
       },
     })
+
+    await ensureWorkflowStatuses(context.prisma, project.id)
+
+    return project
   })
 
   app.patch('/api/projects/:projectId', { preHandler: requireAuth }, async (request, reply) => {

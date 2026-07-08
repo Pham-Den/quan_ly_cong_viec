@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test'
 const email = 'khanh.e2e@example.com'
 const password = 'password123'
 
+test.setTimeout(90_000)
+
 test('first-run setup, logout, login, and session restore', async ({ page }) => {
   await page.goto('/')
 
@@ -64,6 +66,15 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
   await expect(workspacePanel.getByText('team/backend-api')).toBeVisible()
   await expect(workspacePanel.getByText('Có token')).toBeVisible()
 
+  await page.getByRole('tab', { name: 'Workflow' }).click()
+  const doneStatusRow = workspacePanel.getByRole('row').filter({ hasText: 'DONE' })
+  await doneStatusRow.locator('input').first().fill('Hoàn tất')
+  await Promise.all([
+    page.waitForResponse((response) => response.url().includes('/api/workflow-statuses/') && response.request().method() === 'PATCH' && response.ok()),
+    doneStatusRow.getByRole('button', { name: 'Lưu' }).click(),
+  ])
+  await expect(doneStatusRow.locator('input').first()).toHaveValue('Hoàn tất')
+
   await page.getByRole('menuitem', { name: 'Tổng quan' }).click()
   await page.getByPlaceholder('Ghi nhanh yêu cầu mới...').fill('Tạo API export báo cáo')
   await page.locator('form').getByRole('button', { name: 'Thêm note' }).click()
@@ -88,14 +99,14 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
   await expect(inboxPanel.getByText('Tạo API export báo cáo')).toBeHidden()
   await expect(page.locator('.settings-card').last().getByText('Tạo API export báo cáo')).toBeVisible()
   await page.getByRole('button', { name: 'Sẵn sàng main' }).first().click()
-  await expect(page.getByText('READY_PROD')).toBeVisible()
+  await expect(page.getByText('Sẵn sàng main')).toBeVisible()
 
-  await page.getByRole('menuitem', { name: 'All Tasks' }).click()
-  await expect(page.getByRole('heading', { name: 'All Tasks' })).toBeVisible()
-  await expect(page.getByText('Tạo API export báo cáo')).toBeVisible()
+  await page.getByRole('menuitem', { name: 'Tất cả task' }).click()
+  await expect(page.getByRole('heading', { name: 'Tất cả task' })).toBeVisible()
+  await expect(page.locator('.settings-card').last().getByText('Tạo API export báo cáo')).toBeVisible()
 
-  await page.getByRole('menuitem', { name: 'Branches' }).click()
-  await expect(page.getByRole('heading', { name: 'Branches' })).toBeVisible()
+  await page.getByRole('menuitem', { name: 'Nhánh' }).click()
+  await expect(page.getByRole('heading', { name: 'Nhánh' })).toBeVisible()
   await page.getByRole('button', { name: 'Tạo branch' }).click()
   const branchDrawer = page.locator('.ant-drawer')
   await branchDrawer.locator('.ant-select').nth(3).click()
@@ -104,8 +115,30 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
   await branchDrawer.getByRole('button', { name: 'Tạo branch' }).click()
 
   await expect(page.getByText('feature/OPS-001-export-report')).toBeVisible()
+  await page.getByText('Kanban', { exact: true }).click()
+  await page
+    .getByTestId('branch-card-feature/OPS-001-export-report')
+    .dragTo(page.getByTestId('kanban-column-READY_REVIEW'))
+  await expect(
+    page.getByTestId('kanban-column-READY_REVIEW').getByText('feature/OPS-001-export-report'),
+  ).toBeVisible()
+  await page.evaluate(() => {
+    const source = document.querySelector('[data-testid="branch-card-feature/OPS-001-export-report"]')
+    const target = document.querySelector('[data-testid="kanban-column-MERGED_MAIN"]')
+    const dataTransfer = new DataTransfer()
+
+    source?.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }))
+    target?.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer }))
+    target?.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }))
+    source?.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer }))
+  })
+  await expect(page.getByText(/Dùng nút Merge main/)).toBeVisible()
+  await expect(
+    page.getByTestId('kanban-column-READY_REVIEW').getByText('feature/OPS-001-export-report'),
+  ).toBeVisible()
+  await page.getByText('Bảng', { exact: true }).click()
   await page.getByRole('button', { name: 'Merge release' }).first().click()
-  await expect(page.getByText('MERGED_RELEASE')).toBeVisible()
+  await expect(page.getByText('Đã vào release')).toBeVisible()
 
   await page.getByRole('button', { name: 'Tạo branch' }).click()
   await branchDrawer.locator('.ant-select').nth(4).click()
@@ -118,16 +151,30 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
 
   await expect(page.getByText('feature/OPS-001-export-report-fix')).toBeVisible()
   await page.getByRole('button', { name: 'Merge main' }).first().click()
-  await expect(page.getByText('MERGED_MAIN')).toBeVisible()
+  await expect(page.getByText('Đã vào main')).toBeVisible()
 
-  await page.getByRole('menuitem', { name: 'All Tasks' }).click()
-  await expect(page.getByText('DONE')).toBeVisible()
+  await page.getByRole('menuitem', { name: 'Tất cả task' }).click()
+  await expect(page.getByText('Hoàn tất')).toBeVisible()
 
-  await page.getByRole('menuitem', { name: 'Timeline' }).click()
-  await expect(page.getByRole('heading', { name: 'Timeline' })).toBeVisible()
+  await page.getByRole('menuitem', { name: 'Dòng thời gian' }).click()
+  await expect(page.getByRole('heading', { name: 'Dòng thời gian' })).toBeVisible()
   await expect(page.getByText(/merged vao main/)).toBeVisible()
   await page.getByPlaceholder('Ví dụ: Cần kiểm tra lại case export').fill('Review Phase 7')
   await page.getByLabel('Nội dung').fill('Timeline đã ghi được note, task, branch và comment.')
   await page.getByRole('button', { name: 'Thêm ghi chú' }).click()
   await expect(page.getByText('Review Phase 7')).toBeVisible()
+
+  await page.getByRole('menuitem', { name: 'Tổng quan' }).click()
+  await expect(page.getByText('Timeline gần đây', { exact: true })).toBeVisible()
+  await expect(page.getByText('Branch cần chú ý', { exact: true })).toBeVisible()
+  await expect(page.getByText('Hoàn tất', { exact: true })).toBeVisible()
+
+  await page.locator('.global-search').click()
+  await page.keyboard.type('feature/OPS-001')
+  await page
+    .locator('.ant-select-dropdown:visible .ant-select-item-option-content')
+    .getByText(/^feature\/OPS-001-export-report-fix -/)
+    .click()
+  await expect(page.getByRole('heading', { name: 'Nhánh' })).toBeVisible()
+  await expect(page.getByText('Chi tiết branch')).toBeVisible()
 })

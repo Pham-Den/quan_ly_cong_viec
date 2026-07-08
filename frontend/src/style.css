@@ -177,6 +177,12 @@ body {
   gap: 16px;
 }
 
+.visibility-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
 .work-panel {
   min-height: 360px;
   border-radius: 8px;
@@ -250,6 +256,32 @@ body {
   width: 180px;
 }
 
+.color-input {
+  width: 48px;
+  padding: 2px;
+}
+
+.status-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.status-column {
+  min-height: 128px;
+  border-radius: 8px;
+}
+
+.clickable-list-item,
+.clickable-tag {
+  cursor: pointer;
+}
+
+.clickable-list-item:hover {
+  background: #f5f9ff;
+}
+
 .muted-text {
   color: #667085;
   font-size: 12px;
@@ -265,6 +297,101 @@ body {
 
 .branch-path span {
   color: #98a2b3;
+}
+
+.branch-kanban {
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.branch-kanban-row {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  min-width: max-content;
+}
+
+.branch-kanban-column {
+  width: 280px;
+  min-height: 420px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.branch-kanban-column-over {
+  border-color: #1677ff;
+  background: #f0f7ff;
+}
+
+.branch-kanban-column-locked {
+  background: #fbfbfb;
+}
+
+.branch-kanban-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 10px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.branch-kanban-column-body {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+}
+
+.branch-kanban-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  cursor: grab;
+}
+
+.branch-kanban-card:active {
+  cursor: grabbing;
+}
+
+.branch-kanban-card:hover {
+  border-color: #91caff;
+}
+
+.branch-kanban-card-title {
+  display: grid;
+  gap: 6px;
+}
+
+.branch-kanban-card-title strong {
+  overflow-wrap: anywhere;
+}
+
+.branch-kanban-path {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  color: #475467;
+  font-size: 12px;
+}
+
+.branch-kanban-path span {
+  color: #98a2b3;
+}
+
+.branch-kanban-tags,
+.branch-kanban-actions {
+  row-gap: 6px;
+}
+
+.branch-kanban-empty {
+  padding: 18px 8px;
+  color: #98a2b3;
+  text-align: center;
 }
 
 .timeline-grid {
@@ -330,6 +457,10 @@ body {
   }
 
   .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .visibility-grid {
     grid-template-columns: 1fr;
   }
 
