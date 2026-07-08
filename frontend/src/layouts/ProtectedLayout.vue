@@ -10,7 +10,8 @@ const session = useSessionStore()
 
 const menuItems = [
   { key: 'dashboard', label: 'Tổng quan' },
-  { key: 'tasks', label: 'All Tasks', disabled: true },
+  { key: 'inbox', label: 'Inbox' },
+  { key: 'tasks', label: 'All Tasks' },
   { key: 'branches', label: 'Branches', disabled: true },
   { key: 'timeline', label: 'Timeline', disabled: true },
   { key: 'settings', label: 'Cài đặt' },
@@ -53,6 +54,14 @@ async function handleMenuClick({ key }: { key: string | number }) {
 
   if (key === 'settings') {
     await router.push({ name: 'settings' })
+  }
+
+  if (key === 'inbox') {
+    await router.push({ name: 'inbox' })
+  }
+
+  if (key === 'tasks') {
+    await router.push({ name: 'tasks' })
   }
 }
 </script>

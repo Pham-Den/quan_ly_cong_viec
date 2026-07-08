@@ -44,6 +44,10 @@ The system SHALL provide an All Tasks view that groups tasks into personal workf
 - **WHEN** the user opens the All Tasks view
 - **THEN** the system groups tasks into buckets such as not started, in progress, waiting/review/testing, in release, ready for main, done, blocked, and cancelled
 
+#### Scenario: Status groups are color coded
+- **WHEN** the user views task or branch status groups
+- **THEN** each group shows a compact color accent and visible status label based on workflow status color metadata
+
 #### Scenario: Group reflects branch progress
 - **WHEN** a task has a linked branch merged into a release branch but not yet into `main`
 - **THEN** the All Tasks view shows that task in the in-release bucket

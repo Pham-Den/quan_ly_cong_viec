@@ -14,9 +14,21 @@ The system SHALL provide configurable task and branch status metadata while reta
 ### Requirement: User can configure custom status colors
 The system SHALL allow custom colors for task and branch statuses and use those colors consistently in table, board, dashboard, detail drawer, and timeline views.
 
+#### Scenario: Default status colors exist
+- **WHEN** the app is used before any custom workflow color configuration
+- **THEN** task and branch status tags use semantic default colors for planned, active, review, testing, release, main, done, blocked, and cancelled states
+
 #### Scenario: Change status color
 - **WHEN** the user changes the color for `READY_MAIN`
 - **THEN** all visible `READY_MAIN` tags and board columns use the configured color
+
+#### Scenario: Status text remains visible
+- **WHEN** a status has a configured color
+- **THEN** the UI still shows the status label text and does not rely on color alone
+
+#### Scenario: Note statuses use simple colors
+- **WHEN** the user views inbox notes
+- **THEN** pending, archived, and converted note states use distinct simple colors while keeping their labels visible
 
 ### Requirement: User can configure release branch pattern
 The system SHALL allow the release branch pattern to be configured per repository with default `release/DDMMYYYY`.

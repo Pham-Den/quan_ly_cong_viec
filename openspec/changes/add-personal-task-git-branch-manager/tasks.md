@@ -50,17 +50,17 @@
 
 ## 5. Inbox And Task Planning
 
-- [ ] 5.1 Implement note list/create/update/archive APIs.
-- [ ] 5.2 Implement convert-note-to-task API that links the source note and writes timeline events.
-- [ ] 5.3 Implement task CRUD and task status APIs.
-- [ ] 5.4 Build dashboard inbox quick-add panel.
-- [ ] 5.5 Build inbox page with active, converted, and archived filters.
-- [ ] 5.6 Build convert-note-to-task drawer with project, group, priority, type, and target date fields.
-- [ ] 5.7 Build task table view with filters for project, group, status, priority, type, branch, and text query.
-- [ ] 5.8 Build task detail drawer with editable fields and timeline tab placeholder.
-- [ ] 5.9 Implement a dedicated mark-ready-prod task button/action used as a production-readiness planning signal, not a hard completion gate.
-- [ ] 5.10 Record timeline events for task creation and manual task status changes.
-- [ ] 5.11 Stop for user review before moving to branch lifecycle implementation.
+- [x] 5.1 Implement note list/create/update/archive APIs.
+- [x] 5.2 Implement convert-note-to-task API that links the source note and writes timeline events.
+- [x] 5.3 Implement task CRUD and task status APIs.
+- [x] 5.4 Build dashboard inbox quick-add panel.
+- [x] 5.5 Build inbox page with actionable, pending, and archived filters while hiding converted notes from normal inbox review.
+- [x] 5.6 Build convert-note-to-task drawer with project, group, priority, type, and target date fields.
+- [x] 5.7 Build task table view with filters for project, group, status, priority, type, branch, and text query.
+- [x] 5.8 Build task detail drawer with editable fields and timeline tab placeholder.
+- [x] 5.9 Implement a dedicated mark-ready-prod task button/action used as a production-readiness planning signal, not a hard completion gate.
+- [x] 5.10 Record timeline events for task creation and manual task status changes.
+- [x] 5.11 Stop for user review before moving to branch lifecycle implementation.
 
 ## 6. Branch Lifecycle
 
@@ -116,11 +116,14 @@
 ## 9. Workflow Settings And UI Polish
 
 - [ ] 9.1 Implement workflow settings APIs for task statuses, branch statuses, labels, display order, enabled flag, and custom colors.
-- [ ] 9.2 Build workflow settings UI.
-- [ ] 9.3 Apply custom status colors consistently to dashboard, tables, boards, drawers, and timeline.
-- [ ] 9.4 Ensure Vietnamese UI labels across navigation, forms, buttons, empty states, filters, and validation messages.
-- [ ] 9.5 Add dark mode to the post-MVP backlog without making it part of MVP acceptance.
-- [ ] 9.6 Stop for user review before moving to verification.
+- [ ] 9.2 Seed semantic default colors for task and branch statuses so the app is readable before customization.
+- [ ] 9.3 Build workflow settings UI with compact color picker or preset color selection for statuses.
+- [ ] 9.4 Apply status colors consistently to dashboard, task table, branch table, grouped boards, drawers, and timeline.
+- [ ] 9.5 Apply simple static colors for note statuses: pending, archived, and converted.
+- [ ] 9.6 Ensure colors are paired with visible text labels so status is still clear without relying on color alone.
+- [ ] 9.7 Ensure Vietnamese UI labels across navigation, forms, buttons, empty states, filters, and validation messages.
+- [ ] 9.8 Add dark mode to the post-MVP backlog without making it part of MVP acceptance.
+- [ ] 9.9 Stop for user review before moving to verification.
 
 ## 10. Verification
 

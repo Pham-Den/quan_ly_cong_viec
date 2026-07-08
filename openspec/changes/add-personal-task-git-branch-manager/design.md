@@ -110,6 +110,23 @@ Rationale: the user needs a quick picture of task health across all projects/bra
 
 Alternative considered: rely only on dashboard widgets and search. That is useful for action items, but it does not provide a complete task status picture.
 
+### Decision 10: Use semantic status colors for scan speed
+
+Task, branch, and note statuses should be visually distinct with compact colored tags and board/bucket accents. The status key remains the workflow source of truth; color is display metadata and can be customized later from workflow settings.
+
+Default color intent:
+
+- Neutral/gray: draft, planned, archived, closed, cancelled.
+- Blue/cyan: active coding or in-progress work.
+- Purple/indigo: review or waiting-for-review states.
+- Orange/gold: testing, release readiness, production readiness, and attention states.
+- Green: merged into `main` or truly done.
+- Red: blocked or failing states.
+
+Rationale: the user scans the app repeatedly to answer "task dang o dau?". Colors should reduce reading effort without replacing the actual status text.
+
+Alternative considered: only show status text. This is compact but makes All Tasks, branch tables, and dashboards harder to scan once there are many records.
+
 ## Data Model
 
 Core tables:
@@ -251,6 +268,7 @@ GitLab branch rules:
 - Branch names may not include task codes -> allow manual linking and branch aliases/search.
 - Too many statuses may slow usage -> group statuses visually in dashboard while preserving detailed backend states.
 - Configurable statuses can make workflow rules harder -> keep canonical status keys internally and allow labels/colors/order to be configured first.
+- Too many custom colors can become noisy -> ship semantic defaults first, then allow per-project overrides in workflow settings.
 - Manual merge tracking can be forgotten -> dashboard should highlight branches stuck before release or before `main`; add self-hosted GitLab webhooks after MVP.
 - Multi-branch tasks can be confusing -> show "partial main" or "waiting branches" in task detail.
 - GitLab webhook matching can be wrong -> make webhook integration a later phase and keep timeline logs for review.

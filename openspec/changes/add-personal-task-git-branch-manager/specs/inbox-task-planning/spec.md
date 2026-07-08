@@ -11,8 +11,8 @@ The system SHALL provide an inbox for quickly capturing small requests before th
 The system SHALL allow an inbox note to be converted into a task while preserving a link back to the source note and allowing an optional task group.
 
 #### Scenario: Convert note to task
-- **WHEN** the user converts a `NEW` note into a task with title, project, priority, and type
-- **THEN** the system creates the task, marks the note `CONVERTED`, and records the source note on the task
+- **WHEN** the user converts a `NEW` or `ARCHIVED` note into a task with title, project, priority, and type
+- **THEN** the system creates the task, marks the note `CONVERTED`, records the source note on the task, and removes the note from the normal inbox review list
 
 #### Scenario: Convert note to grouped task
 - **WHEN** the user converts a note into a task and selects a task group
@@ -24,6 +24,10 @@ The system SHALL allow notes that will not become tasks to be archived.
 #### Scenario: Archive note
 - **WHEN** the user archives a `NEW` note
 - **THEN** the system changes the note status to `ARCHIVED` and removes it from the active inbox list
+
+#### Scenario: Convert archived note
+- **WHEN** the user converts an `ARCHIVED` note into a task
+- **THEN** the system creates the task and marks the note `CONVERTED`
 
 ### Requirement: User can manage task details
 The system SHALL allow tasks to be created, viewed, updated, filtered, and assigned statuses, priorities, types, descriptions, and target dates.

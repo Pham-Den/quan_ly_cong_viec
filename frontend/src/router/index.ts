@@ -5,6 +5,7 @@ import { useSessionStore } from '../stores/session'
 import LoginView from '../views/auth/LoginView.vue'
 import SetupView from '../views/auth/SetupView.vue'
 import DashboardView from '../views/DashboardView.vue'
+import TaskPlanningView from '../views/TaskPlanningView.vue'
 import WorkspaceSettingsView from '../views/WorkspaceSettingsView.vue'
 
 export const router = createRouter({
@@ -26,6 +27,16 @@ export const router = createRouter({
           path: 'settings',
           name: 'settings',
           component: WorkspaceSettingsView,
+        },
+        {
+          path: 'inbox',
+          name: 'inbox',
+          component: TaskPlanningView,
+        },
+        {
+          path: 'tasks',
+          name: 'tasks',
+          component: TaskPlanningView,
         },
       ],
     },
