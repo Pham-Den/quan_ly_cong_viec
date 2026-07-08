@@ -6,3 +6,255 @@ datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  projects       Project[]
+  refreshTokens  RefreshToken[]
+  timelineEvents TimelineEvent[]
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Project {
+  id             String   @id @default(cuid())
+  ownerId        String?
+  defaultRepoId  String?
+  code           String   @unique
+  name           String
+  description    String?
+  nextTaskNumber Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  owner             User?            @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  defaultRepository Repository?      @relation("ProjectDefaultRepository", fields: [defaultRepoId], references: [id], onDelete: SetNull)
+  repositories      Repository[]     @relation("ProjectRepositories")
+  taskGroups        TaskGroup[]
+  notes             Note[]
+  tasks             Task[]
+  workflowStatuses  WorkflowStatus[]
+  timelineEvents    TimelineEvent[]
+
+  @@index([ownerId])
+  @@index([defaultRepoId])
+}
+
+model TaskGroup {
+  id             String   @id @default(cuid())
+  projectId      String
+  code           String
+  name           String
+  description    String?
+  enabled        Boolean  @default(true)
+  nextTaskNumber Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+
+  @@unique([projectId, code])
+  @@index([projectId])
+}
+
+model Repository {
+  id                   String   @id @default(cuid())
+  projectId            String
+  name                 String
+  provider             String   @default("GITLAB_SELF_HOSTED")
+  gitlabUrl            String?
+  gitlabProjectId      String?
+  gitlabProjectPath    String?
+  defaultBranch        String   @default("main")
+  productionBranch     String   @default("main")
+  releaseBranchPattern String   @default("release/DDMMYYYY")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  project            Project   @relation("ProjectRepositories", fields: [projectId], references: [id], onDelete: Cascade)
+  defaultForProjects Project[] @relation("ProjectDefaultRepository")
+  branches           Branch[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@index([provider])
+}
+
+model WorkflowStatus {
+  id        String   @id @default(cuid())
+  projectId String?
+  scope     String
+  key       String
+  label     String
+  color     String
+  sortOrder Int
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, scope, key])
+  @@index([projectId, scope])
+  @@index([scope, sortOrder])
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  projectId String?
+  content   String
+  source    String?
+  status    String   @default("NEW")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project       Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  convertedTask Task?
+
+  @@index([projectId, status])
+  @@index([status])
+}
+
+model Task {
+  id             String    @id @default(cuid())
+  projectId      String
+  taskGroupId    String?
+  sourceNoteId   String?   @unique
+  code           String    @unique
+  title          String
+  description    String?
+  status         String    @default("PLANNED")
+  priority       String    @default("MEDIUM")
+  type           String    @default("FEATURE")
+  targetDate     DateTime?
+  releaseReadyAt DateTime?
+  doneAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  project        Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskGroup      TaskGroup?      @relation(fields: [taskGroupId], references: [id], onDelete: SetNull)
+  sourceNote     Note?           @relation(fields: [sourceNoteId], references: [id], onDelete: SetNull)
+  branchLinks    TaskBranch[]
+  timelineEvents TimelineEvent[]
+
+  @@index([projectId, status])
+  @@index([projectId, taskGroupId])
+  @@index([status])
+  @@index([targetDate])
+}
+
+model Branch {
+  id                       String    @id @default(cuid())
+  repositoryId             String
+  sourceBranchId           String?
+  name                     String
+  shortName                String?
+  branchType               String    @default("FEATURE")
+  status                   String    @default("DRAFT")
+  checkoutSourceBranch     String?
+  lineageId                String?
+  intendedMergeTarget      String?
+  actualMergedInto         String?
+  baseBranch               String?
+  mergeRequestUrl          String?
+  releaseCycleDate         DateTime?
+  generatedCheckoutCommand String?
+  remoteCreated            Boolean   @default(false)
+  mergedReleaseAt          DateTime?
+  mergedMainAt             DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  repository         Repository      @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  sourceBranch       Branch?         @relation("BranchSource", fields: [sourceBranchId], references: [id], onDelete: SetNull)
+  derivedBranches    Branch[]        @relation("BranchSource")
+  aliases            BranchAlias[]
+  taskLinks          TaskBranch[]    @relation("BranchTaskLinks")
+  inheritedTaskLinks TaskBranch[]    @relation("TaskBranchInheritedFrom")
+  timelineEvents     TimelineEvent[]
+
+  @@unique([repositoryId, name])
+  @@index([repositoryId, branchType])
+  @@index([status])
+  @@index([lineageId])
+  @@index([sourceBranchId])
+}
+
+model BranchAlias {
+  id        String   @id @default(cuid())
+  branchId  String
+  alias     String
+  createdAt DateTime @default(now())
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, alias])
+  @@index([alias])
+}
+
+model TaskBranch {
+  id                    String   @id @default(cuid())
+  taskId                String
+  branchId              String
+  inheritedFromBranchId String?
+  role                  String   @default("PRIMARY")
+  lineageId             String?
+  active                Boolean  @default(true)
+  completionRequired    Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  task                Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  branch              Branch  @relation("BranchTaskLinks", fields: [branchId], references: [id], onDelete: Cascade)
+  inheritedFromBranch Branch? @relation("TaskBranchInheritedFrom", fields: [inheritedFromBranchId], references: [id], onDelete: SetNull)
+
+  @@unique([taskId, branchId, role])
+  @@index([taskId, branchId])
+  @@index([branchId])
+  @@index([lineageId])
+  @@index([active, completionRequired])
+}
+
+model TimelineEvent {
+  id           String   @id @default(cuid())
+  projectId    String
+  taskId       String?
+  branchId     String?
+  createdById  String?
+  eventType    String
+  title        String
+  description  String?
+  metadataJson String   @default("{}")
+  createdAt    DateTime @default(now())
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task      Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  branch    Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  createdBy User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+  @@index([taskId])
+  @@index([branchId])
+  @@index([eventType])
+  @@index([createdById])
+}

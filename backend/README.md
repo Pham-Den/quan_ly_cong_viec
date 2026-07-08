@@ -10,6 +10,14 @@ The MVP starts with SQLite through Prisma:
 DATABASE_URL=file:./dev.db
 ```
 
+Validate and create the local SQLite schema:
+
+```bash
+npm --workspace backend run prisma:validate
+npm --workspace backend run db:push
+npm --workspace backend run db:seed
+```
+
 ## Switching database later
 
 When the app needs a durable shared database:

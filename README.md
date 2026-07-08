@@ -13,6 +13,14 @@ npm run dev
 Frontend mac dinh chay o `http://localhost:5173`.
 Backend mac dinh chay o `http://localhost:4000`.
 
+## Database bootstrap
+
+```bash
+npm --workspace backend run prisma:validate
+npm --workspace backend run db:push
+npm --workspace backend run db:seed
+```
+
 ## Docker Compose
 
 ```bash

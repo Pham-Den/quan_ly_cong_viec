@@ -13,15 +13,15 @@
 
 ## 2. Database Schema
 
-- [ ] 2.1 Define Prisma models for users and refresh tokens.
-- [ ] 2.2 Define Prisma models for projects, task groups, and repositories.
-- [ ] 2.3 Define Prisma models for workflow statuses and status colors.
-- [ ] 2.4 Define Prisma models for notes and tasks, including task group and target date.
-- [ ] 2.5 Define Prisma models for branches, branch aliases, and task-branch links.
-- [ ] 2.6 Define Prisma model for timeline events with JSON metadata.
-- [ ] 2.7 Add indexes for project/status, task code, task group, branch repo/name, branch aliases, branch status, task-branch links, and timeline project/date.
-- [ ] 2.8 Seed one sample project, default workflow statuses, self-hosted GitLab repository defaults, and custom status colors; do not seed a user because the first-run setup screen creates the first account.
-- [ ] 2.9 Stop for user review before moving to auth/app shell implementation.
+- [x] 2.1 Define Prisma models for users and refresh tokens.
+- [x] 2.2 Define Prisma models for projects, task groups, and repositories.
+- [x] 2.3 Define Prisma models for workflow statuses and status colors.
+- [x] 2.4 Define Prisma models for notes and tasks, including task group and target date.
+- [x] 2.5 Define Prisma models for branches, branch aliases, and task-branch links.
+- [x] 2.6 Define Prisma model for timeline events with JSON metadata.
+- [x] 2.7 Add indexes for project/status, task code, task group, branch repo/name, branch aliases, branch status, task-branch links, and timeline project/date.
+- [x] 2.8 Seed one sample project, default workflow statuses, self-hosted GitLab repository defaults, and custom status colors; do not seed a user because the first-run setup screen creates the first account.
+- [x] 2.9 Stop for user review before moving to auth/app shell implementation.
 
 ## 3. Auth And App Shell
 
