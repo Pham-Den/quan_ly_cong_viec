@@ -2,9 +2,18 @@
 .env
 .env.*
 !.env.example
+
+# Dependencies
 node_modules/
+**/node_modules/
+
+# Build outputs
 dist/
+**/dist/
 coverage/
+**/coverage/
+
+# Local data
 backend/data/
 backend/prisma/*.db
 backend/prisma/*.db-journal
