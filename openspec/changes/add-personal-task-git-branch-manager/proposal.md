@@ -7,7 +7,7 @@ Nguoi dung dang quan ly qua nhieu yeu cau nho, Git branch ngan gon va luong merg
 - Add authenticated personal task management with project separation.
 - Add inbox notes for quick capture and conversion into planned tasks.
 - Add task tracking with status, priority, type, target date, and detail drawer workflows.
-- Add repository and Git branch tracking, including many-to-many links between tasks and branches.
+- Add repository and Git branch tracking, allowing one active branch per task while still allowing one branch to contain multiple tasks.
 - Add app-assisted branch creation at any time using configurable Git flow rules for trust source branch, branch naming, intended merge targets, active release branch, and task completion.
 - Add branch lifecycle actions for tracking task progress from feature/hotfix branch to develop/release and from release branch to `main`.
 - Add timeline/audit events for important task and branch changes.

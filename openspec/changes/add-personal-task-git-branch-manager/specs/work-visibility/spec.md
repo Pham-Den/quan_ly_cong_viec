@@ -5,7 +5,7 @@ The system SHALL provide a dashboard that prioritizes actionable items instead o
 
 #### Scenario: Dashboard highlights active work
 - **WHEN** the user opens the dashboard for a project
-- **THEN** the system shows active tasks, branches ready for test/release/main, blocked work, unconverted inbox notes, and recent timeline events
+- **THEN** the system shows active tasks, branches in coding/develop/release/main lifecycle states, blocked work, unconverted inbox notes, and recent timeline events
 
 #### Scenario: Dashboard highlights due dates
 - **WHEN** tasks have target dates near or past today
@@ -37,12 +37,16 @@ The system SHALL provide task table and task board views with filters for projec
 - **WHEN** the user filters tasks by a task group
 - **THEN** the system shows only tasks in that group for the selected project
 
+#### Scenario: Task table shows priority tags
+- **WHEN** the user views the task table
+- **THEN** each task priority is shown as a compact colored tag using green Low, gold Medium, and red High with 1/2/3 bar icons and hover text for the priority label
+
 ### Requirement: User can view all tasks grouped by practical status
 The system SHALL provide an All Tasks view that groups tasks into personal workflow buckets for quick status review.
 
 #### Scenario: View all task groups
 - **WHEN** the user opens the All Tasks view
-- **THEN** the system groups tasks into buckets such as not started, in progress, waiting/review/testing, in release, ready for main, done, blocked, and cancelled
+- **THEN** the system groups tasks into branch-derived buckets: not started, in progress, in release, and on prod/done
 
 #### Scenario: Status groups are color coded
 - **WHEN** the user views task or branch status groups
@@ -53,7 +57,7 @@ The system SHALL provide an All Tasks view that groups tasks into personal workf
 - **THEN** the All Tasks view shows that task in the in-release bucket
 
 #### Scenario: Done group reflects main merge
-- **WHEN** a task's required branch flow reaches `main` through its release branch
+- **WHEN** a task's active branch flow reaches `main` through its release branch
 - **THEN** the All Tasks view shows that task in the done bucket
 
 #### Scenario: Open task from grouped view
@@ -63,9 +67,9 @@ The system SHALL provide an All Tasks view that groups tasks into personal workf
 ### Requirement: User can view branches as table or board
 The system SHALL provide branch views grouped or filtered by lifecycle status, repository, project, linked task, and text query.
 
-#### Scenario: Find branches ready for main
-- **WHEN** the user filters branches by `READY_MAIN`
-- **THEN** the system shows branches waiting for main merge action
+#### Scenario: Find branches by main status
+- **WHEN** the user filters branches by `MERGED_MAIN`
+- **THEN** the system shows branches whose lifecycle has reached main/prod
 
 #### Scenario: View branch source and target
 - **WHEN** the user views the branch table

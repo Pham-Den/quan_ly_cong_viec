@@ -103,24 +103,42 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
 
   await expect(inboxPanel.getByText('Tạo API export báo cáo')).toBeHidden()
   await expect(page.locator('.settings-card').last().getByText('Tạo API export báo cáo')).toBeVisible()
-  await page.getByRole('button', { name: 'Sẵn sàng main' }).first().click()
-  await expect(page.getByText('Sẵn sàng main')).toBeVisible()
 
   await page.getByRole('menuitem', { name: 'Tất cả task' }).click()
   await expect(page.getByRole('heading', { name: 'Tất cả task' })).toBeVisible()
   await expect(page.locator('.settings-card').last().getByText('Tạo API export báo cáo')).toBeVisible()
+  await page.getByRole('button', { name: 'Tạo task' }).click()
+  const taskDrawer = page.locator('.ant-drawer-content:visible').last()
+  await taskDrawer.locator('input.ant-input').first().fill('Task thủ công ưu tiên cao')
+  await taskDrawer.locator('.ant-form-item').filter({ hasText: 'Ưu tiên' }).locator('.ant-select').click()
+  await page.locator('.ant-select-dropdown:visible').getByText('High', { exact: true }).click()
+  await taskDrawer.getByRole('button', { name: 'Tạo task' }).click()
+  const manualTaskRow = page.getByRole('row').filter({ hasText: 'Task thủ công ưu tiên cao' })
+  await expect(manualTaskRow).toBeVisible()
+  await expect(manualTaskRow.getByTestId('priority-tag-HIGH')).toBeVisible()
+  await manualTaskRow.getByRole('button', { name: 'Hủy task' }).click()
+  await page.locator('.ant-popover:visible').getByRole('button', { name: 'Hủy task' }).click()
+  await expect(manualTaskRow.getByText('Đã hủy')).toBeVisible()
+  await manualTaskRow.getByRole('button', { name: 'Phục hồi nháp' }).click()
+  await expect(manualTaskRow.getByText('Chưa làm')).toBeVisible()
+  await manualTaskRow.getByRole('button', { name: 'Xóa task' }).click()
+  await page.locator('.ant-popover:visible').getByRole('button', { name: 'Xóa' }).click()
+  await expect(manualTaskRow).toHaveCount(0)
 
   await page.getByRole('menuitem', { name: 'Nhánh' }).click()
   await expect(page.getByRole('heading', { name: 'Nhánh' })).toBeVisible()
   await page.getByRole('button', { name: 'Tạo branch' }).click()
-  const branchDrawer = page.locator('.ant-drawer')
+  const branchDrawer = page.locator('.ant-drawer-content:visible').last()
   await branchDrawer.locator('.ant-select').nth(3).click()
   await page.locator('.ant-select-dropdown:visible .ant-select-item-option-content').getByText(/OPS-001/).click()
   await expect(branchDrawer.locator('.ant-form-item').filter({ hasText: 'Tên branch' }).locator('input')).toHaveValue('feature/OPS-001')
   await branchDrawer.getByRole('button', { name: 'Tạo branch' }).click()
 
   await expect(page.getByText('feature/OPS-001')).toBeVisible()
-  await expect(page.getByRole('cell', { name: new RegExp(releaseName()) })).toBeVisible()
+  const firstBranchRow = page.getByRole('row').filter({ hasText: 'feature/OPS-001' })
+  await expect(firstBranchRow.getByText('Tạo API export báo cáo')).toBeVisible()
+  await expect(firstBranchRow.locator('.task-ref-priority-medium').first()).toBeVisible()
+  await expect(firstBranchRow.getByText(releaseName()).first()).toBeVisible()
 
   const accessToken = await page.evaluate(() => localStorage.getItem('qlcv.accessToken'))
 
@@ -173,6 +191,45 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
 
   await expect(extraBranchResponse).toBeOK()
 
+  const sharedBranchTaskResponse = await page.request.post(`${apiBaseUrl}/api/tasks`, {
+    headers: apiHeaders,
+    data: {
+      projectId: project.id,
+      taskGroupId: taskGroup.id,
+      title: 'Task thêm chung branch',
+      priority: 'HIGH',
+      type: 'FEATURE',
+    },
+  })
+
+  await expect(sharedBranchTaskResponse).toBeOK()
+  const sharedBranchTask = (await sharedBranchTaskResponse.json()) as { id: string; code: string }
+
+  const detachTaskResponse = await page.request.post(`${apiBaseUrl}/api/tasks`, {
+    headers: apiHeaders,
+    data: {
+      projectId: project.id,
+      taskGroupId: taskGroup.id,
+      title: 'Gỡ branch khỏi release',
+      priority: 'MEDIUM',
+      type: 'FEATURE',
+    },
+  })
+
+  await expect(detachTaskResponse).toBeOK()
+  const detachTask = (await detachTaskResponse.json()) as { id: string; code: string }
+  const detachBranchResponse = await page.request.post(`${apiBaseUrl}/api/branches`, {
+    headers: apiHeaders,
+    data: {
+      repositoryId: repository.id,
+      name: `feature/${detachTask.code}`,
+      checkoutSourceBranch: 'main',
+      taskIds: [detachTask.id],
+    },
+  })
+
+  await expect(detachBranchResponse).toBeOK()
+
   const deleteTaskResponse = await page.request.post(`${apiBaseUrl}/api/tasks`, {
     headers: apiHeaders,
     data: {
@@ -197,6 +254,25 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
   })
 
   await expect(deleteBranchResponse).toBeOK()
+  const deletedReleaseName = 'release/31122099'
+  const deletedReleaseResponse = await page.request.post(`${apiBaseUrl}/api/branches`, {
+    headers: apiHeaders,
+    data: {
+      repositoryId: repository.id,
+      name: deletedReleaseName,
+      branchType: 'RELEASE',
+      checkoutSourceBranch: 'main',
+    },
+  })
+
+  await expect(deletedReleaseResponse).toBeOK()
+  const deletedRelease = (await deletedReleaseResponse.json()) as { id: string }
+  const deleteReleaseResponse = await page.request.delete(`${apiBaseUrl}/api/branches/${deletedRelease.id}`, {
+    headers: apiHeaders,
+  })
+
+  await expect(deleteReleaseResponse).toBeOK()
+
   await page.getByRole('button', { name: 'Làm mới' }).click()
   await expect(page.getByRole('row').filter({ hasText: `feature/${extraTask.code}` })).toBeVisible()
   const deleteBranchRow = page.getByRole('row').filter({ hasText: `feature/${deleteTask.code}` })
@@ -207,6 +283,13 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
   })
   await deleteBranchRow.getByRole('button', { name: 'Xóa' }).click()
   await expect(deleteBranchRow).toHaveCount(0)
+  const editableBranchRow = page.getByRole('row').filter({ hasText: 'feature/OPS-001' })
+  await editableBranchRow.getByRole('button', { name: 'Chi tiết' }).click()
+  const editBranchDrawer = page.locator('.ant-drawer-content:visible').last()
+  await editBranchDrawer.locator('.ant-form-item').filter({ hasText: 'Task liên quan' }).locator('.ant-select').click()
+  await page.locator('.ant-select-dropdown:visible .ant-select-item-option-content').getByText(new RegExp(sharedBranchTask.code)).click()
+  await editBranchDrawer.getByRole('button', { name: 'Lưu branch' }).click()
+  await expect(editableBranchRow.getByText('Task thêm chung branch')).toBeVisible()
 
   await page.getByText('Kanban', { exact: true }).click()
   await page
@@ -239,15 +322,23 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
   ).toBeVisible()
   await page.getByTestId('branch-card-feature/OPS-001-actions').click()
   await page.locator('.app-kanban-card-action-panel').last().locator('.ant-select').click()
-  await page.locator('.ant-select-dropdown:visible').getByText('Đang code', { exact: true }).click()
+  await page.locator('.ant-select-dropdown:visible').getByText('Đang tiến hành', { exact: true }).click()
   await expect(
     page.getByTestId('kanban-column-CODING').getByText('feature/OPS-001'),
   ).toBeVisible()
   await page.getByText('Bảng', { exact: true }).click()
   await page.getByRole('row').filter({ hasText: 'feature/OPS-001' }).getByRole('button', { name: 'Gắn release' }).click()
   await expect(page.getByText('Gắn release branch')).toBeVisible()
+  const releaseModal = page.locator('.ant-modal:visible')
+  const releaseInput = releaseModal.locator('input')
+  await releaseInput.fill('')
+  await releaseInput.click()
+  const releaseOptions = page.locator('.ant-select-dropdown:visible .ant-select-item-option-content')
+  await expect(releaseOptions.filter({ hasText: releaseName() })).toHaveCount(1)
+  await expect(releaseOptions.filter({ hasText: deletedReleaseName })).toHaveCount(0)
+  await releaseInput.fill(releaseName())
   await page.locator('.ant-modal:visible').getByRole('button', { name: 'Gắn release' }).click()
-  await expect(page.getByText('Vào release', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('Release', { exact: true }).first()).toBeVisible()
   await page
     .getByRole('row')
     .filter({ hasText: `feature/${extraTask.code}` })
@@ -255,7 +346,15 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
     .click()
   await expect(page.getByText('Gắn release branch')).toBeVisible()
   await page.locator('.ant-modal:visible').getByRole('button', { name: 'Gắn release' }).click()
-  await expect(page.getByText('Vào release', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('Release', { exact: true }).first()).toBeVisible()
+  await page
+    .getByRole('row')
+    .filter({ hasText: `feature/${detachTask.code}` })
+    .getByRole('button', { name: 'Gắn release' })
+    .click()
+  await expect(page.getByText('Gắn release branch')).toBeVisible()
+  await page.locator('.ant-modal:visible').getByRole('button', { name: 'Gắn release' }).click()
+  await expect(page.getByText('Release', { exact: true }).first()).toBeVisible()
 
   await page.getByText('Kanban', { exact: true }).click()
   const releaseCard = page.getByTestId(`branch-card-${releaseName()}`)
@@ -269,6 +368,16 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
   const releaseChildTitles = releaseCard.locator('.branch-release-child strong')
   await expect(releaseChildTitles.nth(0)).toHaveText(`feature/${extraTask.code}`)
   await expect(releaseChildTitles.nth(1)).toHaveText('feature/OPS-001')
+  await releaseCard
+    .getByTestId(`release-child-feature/${detachTask.code}`)
+    .dragTo(page.getByTestId('kanban-column-CODING'))
+  await expect(page.getByText(`Đã gỡ feature/${detachTask.code} khỏi release.`)).toBeVisible()
+  await expect(
+    page.getByTestId('kanban-column-CODING').getByTestId(`branch-card-feature/${detachTask.code}`),
+  ).toBeVisible()
+  await expect(
+    page.getByTestId(`branch-card-${releaseName()}`).getByTestId(`release-child-feature/${detachTask.code}`),
+  ).toHaveCount(0)
   await page.evaluate((name) => {
     const source = document.querySelector(`[data-testid="branch-card-${name}"]`)
     const target = document.querySelector('[data-testid="kanban-column-MERGED_MAIN"]')
@@ -312,7 +421,7 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
   await expect(mainReleaseCardAfterRollback.getByText('Đã theo main').first()).toBeVisible()
 
   await page.getByRole('menuitem', { name: 'Tất cả task' }).click()
-  await expect(page.getByText('Hoàn tất')).toBeVisible()
+  await expect(page.getByText('Hoàn tất').first()).toBeVisible()
 
   await page.getByRole('menuitem', { name: 'Dòng thời gian' }).click()
   await expect(page.getByRole('heading', { name: 'Dòng thời gian' })).toBeVisible()
@@ -325,7 +434,7 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
   await page.getByRole('menuitem', { name: 'Tổng quan' }).click()
   await expect(page.getByText('Timeline gần đây', { exact: true })).toBeVisible()
   await expect(page.getByText('Branch cần chú ý', { exact: true })).toBeVisible()
-  await expect(page.getByText('Hoàn tất', { exact: true })).toBeVisible()
+  await expect(page.getByText('Lên prod', { exact: true }).first()).toBeVisible()
 
   await page.locator('.global-search').click()
   await page.keyboard.type('feature/OPS-001')

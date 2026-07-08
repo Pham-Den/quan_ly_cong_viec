@@ -25,15 +25,14 @@ Tạo hoặc dùng dữ liệu từ Phase 5/6:
 
 1. Tạo note trong `Inbox`.
 2. Chuyển note thành task.
-3. Bấm `Sẵn sàng main` cho task.
-4. Tạo branch liên quan task.
-5. Merge branch vào release.
-6. Merge branch hoặc branch kế thừa vào main.
+3. Tạo branch liên quan task.
+4. Merge branch vào release.
+5. Merge release vào main.
 
 Kỳ vọng:
 
 - Timeline có event note tạo/lưu trữ/chuyển task.
-- Timeline có event task tạo/đổi trạng thái/sẵn sàng main/done bởi main merge.
+- Timeline có event task tạo, vào release, và done bởi main merge.
 - Timeline có event branch tạo/link task/merge release/merge main.
 
 ## 3. Test Màn Timeline

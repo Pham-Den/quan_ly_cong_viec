@@ -15,12 +15,12 @@ The first runtime target is local. The app should still keep enough structure to
 - Let the user capture quick notes and convert them into planned tasks.
 - Organize tasks and repositories by project.
 - Support task code groups inside a project, such as `CRM-BE-001` or `CRM-FE-001`.
-- Track branches independently from tasks and support many-to-many task-branch links.
+- Track branches independently from tasks while keeping each task attached to at most one active branch.
 - Support self-hosted GitLab first, production branch `main`, release branches like `release/08072026`, and hotfix branches checked out from production.
 - Allow users to create branch records from the app at any time using configurable Git flow rules for checkout source branch, intended merge target branches, active release branch, branch naming, and generated checkout command.
 - Allow actual self-hosted GitLab branch creation later when repository API credentials are configured.
 - Make feature, release, and main merge state explicit.
-- Treat actual merge into `main` as the source of truth for task completion; the dedicated ready-for-production action is a planning signal, not a hard blocker.
+- Treat actual merge into `main` as the source of truth for task completion; task detail does not expose a separate ready-for-production gate.
 - Automatically update linked task status after release/main merge actions according to deterministic rules.
 - Record timeline events for every important status, link, and merge action.
 - Provide dashboard, all-task status overview, search, table, board, drawer, and filter workflows that are fast to use.
@@ -56,7 +56,7 @@ Alternative considered: Express, NestJS + PostgreSQL from the start, direct SQL,
 
 Create separate `tasks`, `branches`, and `task_branches` tables. `branches` stores checkout source, source branch record, merge target fields, active release assignment, and internal flow/completion fields. `task_branches` stores the relationship role such as `PRIMARY`, `FIX`, `FOLLOW_UP`, `CARRIED_FROM_SOURCE`, or `CHERRY_PICK`.
 
-Rationale: one branch can contain multiple tasks, and one task can need multiple branches. A direct one-to-one field would break the real workflow.
+Rationale: one branch can contain multiple tasks, but for the personal tracking workflow one task should only have one active implementation branch at a time. Keeping the link table preserves history and makes reassignment explicit without making the daily UI complex.
 
 Alternative considered: store branch name directly on task. This is too limited for combined branches, release-cycle tracking, follow-up fixes, cherry-picks, and answering "this task's branch was checked out from where and merged into where?"
 
@@ -64,7 +64,7 @@ Note: `CHERRY_PICK` means taking one specific commit from one branch and applyin
 
 ### Decision 4: Centralize status transitions in backend workflow actions
 
-Expose explicit API actions such as `POST /api/branches/:id/mark-merged-release` and `POST /api/branches/:id/mark-merged-main`. These actions update branch state, evaluate linked tasks, and write timeline events in one transaction. The main merge action should warn when linked tasks were not marked ready for production, but it must still allow recording the real main merge and completing eligible tasks because `main` is the source of truth.
+Expose explicit API actions such as `POST /api/branches/:id/mark-merged-release` and `POST /api/branches/:id/mark-merged-main`. These actions update branch state, evaluate linked tasks, and write timeline events in one transaction. The main merge action records the real release-to-main merge and completes eligible tasks because `main` is the source of truth.
 
 Rationale: merge-driven task updates are business rules. They should be consistent whether triggered manually from the UI or later by a Git webhook.
 
@@ -98,13 +98,15 @@ Alternative considered: implement the full MVP after writing specs. That is fast
 
 The UI must optimize for one person's daily question: "Task nay dang nam o nhanh nao, da toi release nao, da vao main chua?" Internal models such as branch flow state, release-cycle links, and completion-required flags exist only to calculate status correctly. The UI should present them as a simple task path and branch history, not as process-heavy project management concepts.
 
+In branch-facing views, linked tasks should be identified by their title first because the title is what the user recognizes during daily work. Task codes remain visible as secondary reference ids for search/linking, and task groups remain primarily for task-code generation, task views, and filters rather than being promoted in branch cards.
+
 Rationale: the app is for personal memory and control, not team governance.
 
 Alternative considered: expose all Git/workflow metadata directly. That would make the app powerful but too noisy for the core personal-use case.
 
 ### Decision 9: Make All Tasks the primary status view
 
-The app should include an All Tasks view that groups every task into practical personal buckets such as not started, in progress, waiting/review/testing, in release, ready for main, done, blocked, and cancelled. This view should be easier to scan than a raw status table, while still allowing table filters and drawer details.
+The app should include an All Tasks view that groups every task into practical branch-derived buckets: not started, in progress, in release, and on prod/done. This view should be easier to scan than a raw status table, while still allowing table filters and drawer details.
 
 Rationale: the user needs a quick picture of task health across all projects/branches.
 
@@ -118,8 +120,8 @@ Default color intent:
 
 - Neutral/gray: draft, planned, archived, closed, cancelled.
 - Blue/cyan: active coding or in-progress work.
-- Purple/indigo: review or waiting-for-review states.
-- Orange/gold: testing, release readiness, production readiness, and attention states.
+- Purple/indigo: release or planned transition states.
+- Orange/gold: attention states.
 - Green: merged into `main` or truly done.
 - Red: blocked or failing states.
 
@@ -138,9 +140,9 @@ Core tables:
 - `repositories`: project repo config, provider, self-hosted GitLab URL, optional GitLab project id/path, default branch name, production branch `main`, and release branch pattern.
 - `notes`: quick inbox items with source and conversion state.
 - `workflow_statuses`: configurable task/branch statuses, labels, order, enabled flag, and custom color.
-- `tasks`: planned work item with code, group, title, description, status, priority, type, target date, optional release-ready flag set by a dedicated action, and done timestamp.
+- `tasks`: planned work item with code, group, title, description, branch-derived status, priority, type, target date, and done timestamp.
 - `branches`: repo branch with lifecycle status, branch type, checkout source branch, source branch record id, lineage id, intended merge target branches, actual merged-into branch, active release branch/cycle reference, base branch, MR URL, release/main merge timestamps, release cycle date, generated checkout command, and aliases.
-- `task_branches`: many-to-many link between tasks and branches with relationship role, lineage id, active/superseded flag, and whether that lineage is required for task completion.
+- `task_branches`: task-branch link history with active/superseded flag. The app enforces one active branch per task while still allowing one branch to link multiple tasks.
 - `timeline_events`: audit log for note, task, branch creation/deletion, merge, comment, blocked, and unblocked events.
 
 Recommended indexes:
@@ -185,8 +187,8 @@ Notes and tasks:
 - `POST /api/tasks`
 - `GET /api/tasks/:id`
 - `PATCH /api/tasks/:id`
+- `DELETE /api/tasks/:id`
 - `POST /api/tasks/:id/status`
-- `POST /api/tasks/:id/mark-ready-prod`
 - `POST /api/tasks/:id/link-branch`
 
 Branches and timeline:
@@ -214,49 +216,39 @@ Future webhooks:
 
 Task statuses:
 
-- `INBOX`
-- `PLANNED`
-- `IN_PROGRESS`
-- `IN_REVIEW`
-- `TESTING`
-- `READY_RELEASE`
-- `MERGED_RELEASE`
-- `READY_PROD`
-- `DONE`
-- `BLOCKED`
-- `CANCELLED`
+- `PLANNED`: chưa gắn branch nào.
+- `IN_PROGRESS`: đang có branch active ở trạng thái đang tiến hành hoặc develop.
+- `MERGED_RELEASE`: branch active đã vào release.
+- `DONE`: branch active đã theo release vào `main`/prod.
 
 Branch statuses:
 
-- `DRAFT`
-- `CODING`
-- `READY_REVIEW`
-- `REVIEWING`
-- `READY_TEST`
-- `TESTING`
-- `READY_RELEASE`
-- `MERGED_RELEASE`
-- `READY_MAIN`
-- `MERGED_MAIN`
-- `CLOSED`
+- `CODING`: đang tiến hành.
+- `MERGED_DEVELOP`: vào develop, vẫn được tính là task đang tiến hành.
+- `MERGED_RELEASE`: release.
+- `MERGED_MAIN`: main/prod.
 
 Merge rules:
 
 - Marking a feature branch merged to `develop` records progress only; it does not complete tasks.
+- Creating or linking a branch to a task moves that task to `IN_PROGRESS` and deactivates any previous active branch link for that same task.
+- A task without an active branch is `PLANNED`.
+- Task records can be deleted only before the active branch path reaches `MERGED_MAIN`; deletion writes a timeline audit event first, then removes task-branch links through cascade cleanup while keeping branch records intact.
 - Marking a feature or hotfix branch merged to the active release branch creates a timeline event and can move linked tasks to `MERGED_RELEASE`, but never to `DONE`.
 - The release branch is a separate weekly base branch. It checks out from `main`, receives task branch merges, and later merges back into `main`.
 - Release branch cards start in `MERGED_RELEASE`; the only allowed lifecycle movement after that is into `MERGED_MAIN`, which must run the release-to-main workflow rather than a generic status update.
 - Release branch cards use a distinct visual treatment in Kanban so the user can separate the weekly release base from task implementation branches at a glance.
-- In Kanban, task branches that have merged into a release are displayed as child rows inside the release branch card. Child rows can be manually reordered inside that release parent, but they cannot be dragged independently into lifecycle columns; the release branch remains the only draggable parent for the release-to-main step, and child branch/task state follows that parent merge.
+- In Kanban, task branches that have merged into a release are displayed as child rows inside the release branch card. Child rows can be manually reordered inside that release parent. While the parent is still in `MERGED_RELEASE`, a child can be corrected by editing its status or dragging it out to a normal lifecycle column; this clears its release assignment and returns linked tasks out of release when no other required branch flow remains in release/main. Once the release parent reaches `MERGED_MAIN`, child branches stay locked under that parent until the parent is rolled back to `MERGED_RELEASE`.
+- Branch table, Kanban card, card action menu, and branch drawer controls should prefer disabled states over hiding unavailable actions. This keeps the full workflow visible while still preventing invalid edits.
+- Branch detail fields that are state-derived or unsafe to mutate after creation should stay visible but disabled, for example repository/type on existing branches, existing task links, release-child status, and branch identity once the branch is in release/main.
 - When recording a task branch as merged to release, the user can choose or change the specific release branch; that target must be a distinct release branch, not the same feature/hotfix branch.
-- A branch can be marked ready for main when linked tasks have been marked release-ready through the dedicated task action.
 - Marking a release branch merged to `main` is the source of truth for completion. The action propagates main state to task branches attached to that release branch/cycle and evaluates linked tasks.
+- There is no separate task-level ready-main gate in the current UI. If a task branch is attached to a release branch and that release branch reaches `main`, the linked task follows the branch-derived status rules.
 - If a release branch was moved to `main` by mistake, the user can drag that release branch back to `MERGED_RELEASE`. This correction clears main merge state from the release branch and its child task branches, reopens the release cycle, and moves tasks that are no longer fully represented in `main` back to `MERGED_RELEASE`.
 - Branch records can be deleted only before they reach `MERGED_MAIN`. Deletion writes a timeline audit event first, then removes task links and branch aliases through cascade cleanup.
 - A release branch cannot be deleted while it still contains child task branches. The user must first move those children to another release branch or delete those children while they are not in `main`.
 - A child task branch under a release parent in `MERGED_MAIN` cannot be reassigned to another release, dragged/moved to another lifecycle status, or deleted. If the release parent was moved to `main` by mistake, the parent must be dragged back to `MERGED_RELEASE`; only then can the child branch be corrected or deleted.
-- A task linked to one required branch flow becomes `DONE` when its task branch has entered a release branch/cycle that has been merged into `main`.
-- A task linked to multiple independent required branch flows becomes `DONE` only when every required flow reaches `main` through its release branch.
+- A task becomes `DONE` when its single active branch has entered a release branch/cycle that has been merged into `main`.
 - A branch marked `CLOSED` or cancelled never marks tasks done automatically.
 - Manual overrides are allowed but must write a timeline event with before/after status.
 
@@ -284,7 +276,7 @@ GitLab branch rules:
 - Configurable statuses can make workflow rules harder -> keep canonical status keys internally and allow labels/colors/order to be configured first.
 - Too many custom colors can become noisy -> ship semantic defaults first, then allow per-project overrides in workflow settings.
 - Manual merge tracking can be forgotten -> dashboard should highlight branches stuck before release or before `main`; add self-hosted GitLab webhooks after MVP.
-- Multi-branch tasks can be confusing -> show "partial main" or "waiting branches" in task detail.
+- Historical branch links can be confusing -> show only the active branch path in normal task views and keep superseded links as audit history.
 - GitLab webhook matching can be wrong -> make webhook integration a later phase and keep timeline logs for review.
 - Branch-flow modeling can feel complex -> hide technical modeling terms in the UI and show a simple task path instead.
 

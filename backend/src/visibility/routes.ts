@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyReply } from 'fastify'
 import { createAuthGuard } from '../auth/guard.js'
 import type { AppPrismaClient } from '../db.js'
 import type { AppEnv } from '../env.js'
+import { syncAllProjectTasksWithLinkedBranches } from '../workflow/task-sync.js'
 
 type VisibilityRoutesContext = {
   env: AppEnv
@@ -28,11 +29,8 @@ async function ensureProject(prisma: AppPrismaClient, projectId: string, userId:
 function taskBucket(status: string) {
   if (status === 'PLANNED') return 'notStarted'
   if (status === 'IN_PROGRESS') return 'inProgress'
-  if (['IN_REVIEW', 'TESTING'].includes(status)) return 'waiting'
-  if (['READY_RELEASE', 'MERGED_RELEASE'].includes(status)) return 'inRelease'
-  if (status === 'READY_PROD') return 'readyMain'
+  if (status === 'MERGED_RELEASE') return 'inRelease'
   if (status === 'DONE') return 'done'
-  if (status === 'BLOCKED') return 'blocked'
   if (status === 'CANCELLED') return 'cancelled'
 
   return 'inProgress'
@@ -50,6 +48,8 @@ export function registerVisibilityRoutes(app: FastifyInstance, context: Visibili
     if (!project) {
       return
     }
+
+    await syncAllProjectTasksWithLinkedBranches(context.prisma, project.id, request.authUser?.id)
 
     const now = new Date()
     const soon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
@@ -109,8 +109,8 @@ export function registerVisibilityRoutes(app: FastifyInstance, context: Visibili
 
     return {
       bucketCounts,
-      activeTasks: tasks.filter((task) => ['PLANNED', 'IN_PROGRESS', 'IN_REVIEW', 'TESTING'].includes(task.status)).slice(0, 8),
-      blockedTasks: tasks.filter((task) => task.status === 'BLOCKED').slice(0, 8),
+      activeTasks: tasks.filter((task) => task.status === 'IN_PROGRESS').slice(0, 8),
+      blockedTasks: [],
       dueTasks: dueTasks.slice(0, 8),
       inboxNotes,
       branchesReady: branches.filter((branch) => ['MERGED_DEVELOP', 'MERGED_RELEASE'].includes(branch.status)).slice(0, 8),

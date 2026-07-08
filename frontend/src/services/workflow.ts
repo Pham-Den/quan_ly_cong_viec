@@ -17,21 +17,16 @@ export type WorkflowStatusRecord = {
 export const fallbackTaskStatuses = [
   { label: 'Chưa làm', value: 'PLANNED', color: '#64748b' },
   { label: 'Đang tiến hành', value: 'IN_PROGRESS', color: '#1677ff' },
-  { label: 'Đang review', value: 'IN_REVIEW', color: '#13c2c2' },
-  { label: 'Đang test', value: 'TESTING', color: '#faad14' },
-  { label: 'Sẵn sàng release', value: 'READY_RELEASE', color: '#722ed1' },
-  { label: 'Đã vào release', value: 'MERGED_RELEASE', color: '#9254de' },
-  { label: 'Sẵn sàng main', value: 'READY_PROD', color: '#2f54eb' },
-  { label: 'Done', value: 'DONE', color: '#52c41a' },
-  { label: 'Blocked', value: 'BLOCKED', color: '#f5222d' },
-  { label: 'Cancelled', value: 'CANCELLED', color: '#595959' },
+  { label: 'Đang ở release', value: 'MERGED_RELEASE', color: '#9254de' },
+  { label: 'Lên prod', value: 'DONE', color: '#52c41a' },
+  { label: 'Đã hủy', value: 'CANCELLED', color: '#8c8c8c' },
 ]
 
 export const fallbackBranchStatuses = [
-  { label: 'Đang code', value: 'CODING', color: '#1677ff' },
+  { label: 'Đang tiến hành', value: 'CODING', color: '#1677ff' },
   { label: 'Vào develop', value: 'MERGED_DEVELOP', color: '#13c2c2' },
-  { label: 'Vào release', value: 'MERGED_RELEASE', color: '#9254de' },
-  { label: 'Vào main', value: 'MERGED_MAIN', color: '#52c41a' },
+  { label: 'Release', value: 'MERGED_RELEASE', color: '#9254de' },
+  { label: 'Main', value: 'MERGED_MAIN', color: '#52c41a' },
 ]
 
 export const defaultBranchKanbanDropRules: Record<

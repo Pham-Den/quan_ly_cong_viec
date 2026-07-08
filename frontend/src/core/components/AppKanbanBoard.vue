@@ -23,6 +23,12 @@ type KanbanReorderPayload = KanbanPayload & {
   targetItem: KanbanItem
 }
 
+type KanbanExternalDropPayload = {
+  itemKey: string
+  column: KanbanColumn
+  sourceColumn: null
+}
+
 const props = withDefaults(
   defineProps<{
     columns: KanbanColumn[]
@@ -48,6 +54,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   'item-drop': [payload: KanbanPayload]
   'blocked-drop': [payload: KanbanPayload]
+  'external-drop': [payload: KanbanExternalDropPayload]
   'item-reorder': [payload: KanbanReorderPayload]
   'item-click': [payload: KanbanPayload & { event: MouseEvent }]
 }>()
@@ -131,6 +138,13 @@ function dropIntoColumn(column: KanbanColumn, event: DragEvent) {
   const dragged = findDraggedItem()
 
   if (!dragged) {
+    if (draggedItemKey.value) {
+      emit('external-drop', {
+        itemKey: draggedItemKey.value,
+        column,
+        sourceColumn: null,
+      })
+    }
     clearDrag()
     return
   }
@@ -162,6 +176,13 @@ function dropOnCard(targetItem: KanbanItem, column: KanbanColumn, event: DragEve
   const dragged = findDraggedItem()
 
   if (!dragged) {
+    if (draggedItemKey.value) {
+      emit('external-drop', {
+        itemKey: draggedItemKey.value,
+        column,
+        sourceColumn: null,
+      })
+    }
     clearDrag()
     return
   }

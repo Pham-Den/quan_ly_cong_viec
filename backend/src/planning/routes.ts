@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyReply } from 'fastify'
 import { createAuthGuard } from '../auth/guard.js'
 import type { AppPrismaClient } from '../db.js'
 import type { AppEnv } from '../env.js'
+import { syncAllProjectTasksWithLinkedBranches, syncTasksWithLinkedBranches } from '../workflow/task-sync.js'
 
 type PlanningRoutesContext = {
   env: AppEnv
@@ -165,6 +166,23 @@ async function createTaskCode(
 
     return taskCode
   })
+}
+
+function taskReachedMain(task: {
+  status: string
+  doneAt: Date | string | null
+  branchLinks: Array<{
+    branch: {
+      status: string
+      mergedMainAt: Date | string | null
+    }
+  }>
+}) {
+  return (
+    task.status === 'DONE' ||
+    Boolean(task.doneAt) ||
+    task.branchLinks.some((link) => link.branch.status === 'MERGED_MAIN' || link.branch.mergedMainAt)
+  )
 }
 
 export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRoutesContext) {
@@ -456,6 +474,10 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
     const branch = url.searchParams.get('branch')?.trim() || undefined
     const query = url.searchParams.get('q')?.trim() || undefined
 
+    if (projectId) {
+      await syncAllProjectTasksWithLinkedBranches(context.prisma, projectId, request.authUser?.id)
+    }
+
     return context.prisma.task.findMany({
       where: {
         ...(projectId ? { projectId } : {}),
@@ -467,6 +489,7 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
           ? {
               branchLinks: {
                 some: {
+                  active: true,
                   branch: {
                     name: { contains: branch },
                   },
@@ -489,6 +512,7 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
         taskGroup: { select: { id: true, code: true, name: true } },
         sourceNote: { select: { id: true, content: true } },
         branchLinks: {
+          where: { active: true },
           include: {
             branch: {
               select: {
@@ -574,8 +598,15 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
       return
     }
 
+    if (taskReachedMain(task)) {
+      return reply.code(400).send({ message: 'Task da len prod/main nen chi co the xem lai.' })
+    }
+
+    if (task.status === 'CANCELLED') {
+      return reply.code(400).send({ message: 'Task da huy. Hay phuc hoi ve nhap truoc khi chinh sua.' })
+    }
+
     const body = bodyAs<TaskBody>(request.body)
-    const nextStatus = text(body.status) || task.status
     const taskGroupId = nullableText(body.taskGroupId)
 
     if (taskGroupId) {
@@ -588,40 +619,24 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
       }
     }
 
-    const updatedTask = await context.prisma.task.update({
+    await context.prisma.task.update({
       where: { id: task.id },
       data: {
         taskGroupId,
         title: text(body.title) || task.title,
         description: nullableText(body.description),
-        status: nextStatus,
         priority: text(body.priority) || task.priority,
         type: text(body.type) || task.type,
         targetDate: dateOrNull(body.targetDate),
       },
     })
 
-    if (nextStatus !== task.status) {
-      const eventType =
-        nextStatus === 'BLOCKED' ? 'TASK_BLOCKED' : task.status === 'BLOCKED' ? 'TASK_UNBLOCKED' : 'TASK_STATUS_CHANGED'
+    await syncTasksWithLinkedBranches(context.prisma, [task.id], task.projectId, request.authUser?.id)
 
-      await context.prisma.timelineEvent.create({
-        data: {
-          projectId: task.projectId,
-          taskId: task.id,
-          createdById: request.authUser?.id,
-          eventType,
-          title: `Doi trang thai ${task.code}`,
-          description: `${task.status} -> ${nextStatus}`,
-          metadataJson: JSON.stringify({ from: task.status, to: nextStatus }),
-        },
-      })
-    }
-
-    return updatedTask
+    return ensureTask(context.prisma, task.id, request.authUser?.id ?? '', reply)
   })
 
-  app.post('/api/tasks/:taskId/mark-ready-prod', { preHandler: requireAuth }, async (request, reply) => {
+  app.post('/api/tasks/:taskId/cancel', { preHandler: requireAuth }, async (request, reply) => {
     const taskId = paramsAs(request.params).taskId ?? ''
     const task = await ensureTask(context.prisma, taskId, request.authUser?.id ?? '', reply)
 
@@ -629,27 +644,134 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
       return
     }
 
-    const nextStatus = ['DONE', 'CANCELLED'].includes(task.status) ? task.status : 'READY_PROD'
-    const updatedTask = await context.prisma.task.update({
-      where: { id: task.id },
-      data: {
-        status: nextStatus,
-        releaseReadyAt: new Date(),
-      },
+    if (taskReachedMain(task)) {
+      return reply.code(400).send({ message: 'Task da len prod/main nen khong the huy.' })
+    }
+
+    if (task.status === 'CANCELLED') {
+      return task
+    }
+
+    const activeBranches = task.branchLinks.map((link) => ({
+      branchId: link.branch.id,
+      name: link.branch.name,
+      status: link.branch.status,
+      actualMergedInto: link.branch.actualMergedInto,
+    }))
+
+    await context.prisma.$transaction(async (tx) => {
+      await tx.taskBranch.updateMany({
+        where: {
+          taskId: task.id,
+          active: true,
+        },
+        data: { active: false },
+      })
+      await tx.task.update({
+        where: { id: task.id },
+        data: {
+          status: 'CANCELLED',
+          doneAt: null,
+        },
+      })
+      await tx.timelineEvent.create({
+        data: {
+          projectId: task.projectId,
+          taskId: task.id,
+          createdById: request.authUser?.id,
+          eventType: 'TASK_CANCELLED',
+          title: `Huy task ${task.code}`,
+          description: task.title,
+          metadataJson: JSON.stringify({
+            previousStatus: task.status,
+            activeBranches,
+          }),
+        },
+      })
     })
 
-    await context.prisma.timelineEvent.create({
-      data: {
-        projectId: task.projectId,
-        taskId: task.id,
-        createdById: request.authUser?.id,
-        eventType: 'TASK_READY_PROD',
-        title: `Danh dau san sang main ${task.code}`,
-        description: 'Day la tin hieu lap ke hoach, khong phai dieu kien bat buoc de done.',
-        metadataJson: JSON.stringify({ previousStatus: task.status, nextStatus }),
-      },
+    return ensureTask(context.prisma, task.id, request.authUser?.id ?? '', reply)
+  })
+
+  app.post('/api/tasks/:taskId/restore-draft', { preHandler: requireAuth }, async (request, reply) => {
+    const taskId = paramsAs(request.params).taskId ?? ''
+    const task = await ensureTask(context.prisma, taskId, request.authUser?.id ?? '', reply)
+
+    if (!task) {
+      return
+    }
+
+    if (task.status !== 'CANCELLED') {
+      return reply.code(400).send({ message: 'Chi task da huy moi phuc hoi ve nhap.' })
+    }
+
+    await context.prisma.$transaction(async (tx) => {
+      await tx.task.update({
+        where: { id: task.id },
+        data: {
+          status: 'PLANNED',
+          doneAt: null,
+        },
+      })
+      await tx.timelineEvent.create({
+        data: {
+          projectId: task.projectId,
+          taskId: task.id,
+          createdById: request.authUser?.id,
+          eventType: 'TASK_RESTORED_TO_DRAFT',
+          title: `Phuc hoi ${task.code} ve nhap`,
+          description: task.title,
+          metadataJson: JSON.stringify({ previousStatus: task.status }),
+        },
+      })
     })
 
-    return updatedTask
+    return ensureTask(context.prisma, task.id, request.authUser?.id ?? '', reply)
+  })
+
+  app.delete('/api/tasks/:taskId', { preHandler: requireAuth }, async (request, reply) => {
+    const taskId = paramsAs(request.params).taskId ?? ''
+    const task = await ensureTask(context.prisma, taskId, request.authUser?.id ?? '', reply)
+
+    if (!task) {
+      return
+    }
+
+    if (taskReachedMain(task)) {
+      return reply.code(400).send({ message: 'Task da len prod/main nen khong the xoa khoi tracking.' })
+    }
+
+    const activeBranches = task.branchLinks.map((link) => ({
+      branchId: link.branch.id,
+      name: link.branch.name,
+      status: link.branch.status,
+      actualMergedInto: link.branch.actualMergedInto,
+    }))
+
+    await context.prisma.$transaction(async (tx) => {
+      await tx.timelineEvent.create({
+        data: {
+          projectId: task.projectId,
+          taskId: task.id,
+          createdById: request.authUser?.id,
+          eventType: 'TASK_DELETED',
+          title: `Xoa task ${task.code}`,
+          description: task.title,
+          metadataJson: JSON.stringify({
+            taskId: task.id,
+            code: task.code,
+            title: task.title,
+            status: task.status,
+            priority: task.priority,
+            type: task.type,
+            activeBranches,
+          }),
+        },
+      })
+
+      await tx.task.delete({ where: { id: task.id } })
+    })
+
+    return { ok: true }
   })
 }

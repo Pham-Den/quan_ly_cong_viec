@@ -7,25 +7,28 @@ export type BranchKanbanDropRule = {
 }
 
 export const defaultTaskStatuses = [
-  ['INBOX', 'Inbox', '#8c8c8c'],
   ['PLANNED', 'Chưa làm', '#64748b'],
   ['IN_PROGRESS', 'Đang tiến hành', '#1677ff'],
-  ['IN_REVIEW', 'Đang review', '#13c2c2'],
-  ['TESTING', 'Đang test', '#faad14'],
-  ['READY_RELEASE', 'Sẵn sàng release', '#722ed1'],
-  ['MERGED_RELEASE', 'Đã vào release', '#9254de'],
-  ['READY_PROD', 'Sẵn sàng main', '#2f54eb'],
-  ['DONE', 'Done', '#52c41a'],
-  ['BLOCKED', 'Blocked', '#f5222d'],
-  ['CANCELLED', 'Cancelled', '#595959'],
+  ['MERGED_RELEASE', 'Đang ở release', '#9254de'],
+  ['DONE', 'Lên prod', '#52c41a'],
+  ['CANCELLED', 'Đã hủy', '#8c8c8c'],
 ] as const
 
 export const defaultBranchStatuses = [
-  ['CODING', 'Đang code', '#1677ff'],
+  ['CODING', 'Đang tiến hành', '#1677ff'],
   ['MERGED_DEVELOP', 'Vào develop', '#13c2c2'],
-  ['MERGED_RELEASE', 'Vào release', '#9254de'],
-  ['MERGED_MAIN', 'Vào main', '#52c41a'],
+  ['MERGED_RELEASE', 'Release', '#9254de'],
+  ['MERGED_MAIN', 'Main', '#52c41a'],
 ] as const
+
+const deprecatedTaskStatuses = [
+  'INBOX',
+  'IN_REVIEW',
+  'TESTING',
+  'READY_RELEASE',
+  'READY_PROD',
+  'BLOCKED',
+]
 
 const deprecatedBranchStatuses = [
   'DRAFT',
@@ -47,6 +50,11 @@ const branchStatusMigrationTargets: Record<string, string> = {
   READY_RELEASE: 'CODING',
   READY_MAIN: 'CODING',
   CLOSED: 'CODING',
+}
+
+const oldDefaultTaskLabels: Record<string, string[]> = {
+  MERGED_RELEASE: ['Đã vào release'],
+  DONE: ['Done'],
 }
 
 export const defaultBranchKanbanDropRules: Record<string, BranchKanbanDropRule> = {
@@ -140,7 +148,27 @@ export async function ensureWorkflowStatuses(prisma: AppPrismaClient, projectId:
         },
       })
     }
+
+    if (record.scope === 'TASK' && (oldDefaultTaskLabels[record.key] ?? []).includes(record.label)) {
+      await prisma.workflowStatus.update({
+        where: { id: record.id },
+        data: {
+          label: status.label,
+          color: status.color,
+          sortOrder: status.sortOrder,
+          enabled: true,
+        },
+      })
+    }
   }
+
+  await prisma.workflowStatus.deleteMany({
+    where: {
+      projectId,
+      scope: 'TASK',
+      key: { in: deprecatedTaskStatuses },
+    },
+  })
 
   await prisma.workflowStatus.deleteMany({
     where: {

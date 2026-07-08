@@ -24,8 +24,7 @@ http://localhost:5173
 Vào `Inbox` hoặc `All Tasks`:
 
 1. Tạo một task mới hoặc dùng task đã có.
-2. Nếu muốn test warning main merge, để task chưa bấm `Sẵn sàng main`.
-3. Nếu muốn test flow không warning, bấm `Sẵn sàng main`.
+2. Không cần đánh dấu ready-main; task sẽ đi theo branch active.
 
 Kỳ vọng:
 
@@ -60,7 +59,7 @@ Kỳ vọng:
 
 - Branch chuyển status `MERGED_RELEASE`.
 - `Đã merge vào` là release branch.
-- Task liên quan chưa chuyển `DONE`; nếu chưa `READY_PROD` thì có thể chuyển `MERGED_RELEASE`.
+- Task liên quan chưa chuyển `DONE`; task chuyển `MERGED_RELEASE` khi active branch đã vào release.
 - Timeline ghi event merge release.
 
 ## 5. Tạo Branch B Từ Branch A
@@ -92,14 +91,15 @@ Kỳ vọng:
 - Task liên quan chuyển `DONE`, dù branch A chỉ mới vào release.
 - Timeline ghi event branch vào main và task done bởi main merge.
 
-## 7. Test Warning Khi Chưa Ready Main
+## 7. Test Main Merge Không Cần Ready Main
 
-Tạo task/branch khác và không bấm `Sẵn sàng main`, sau đó bấm `Merge main`.
+Tạo task/branch/release flow khác, sau đó merge release vào `main`.
 
 Kỳ vọng:
 
-- UI hiện cảnh báo task chưa sẵn sàng main.
-- Nếu xác nhận vẫn merge, hệ thống vẫn ghi nhận main merge vì main là source of truth.
+- UI không yêu cầu ready-main ở task.
+- Hệ thống ghi nhận main merge vì `main` là source of truth.
+- Task đủ điều kiện chuyển `DONE`.
 
 ## 8. Test Alias Và Search
 
@@ -137,5 +137,5 @@ Luồng tự động đang kiểm thêm Phase 6:
 - [ ] Branch A merge release không làm task `DONE`.
 - [ ] Branch B tạo từ A kế thừa task.
 - [ ] Branch B merge main làm task `DONE`.
-- [ ] Warning main merge xuất hiện khi task chưa ready main.
+- [ ] Main merge không yêu cầu ready-main ở task.
 - [ ] Search theo branch name, task code, alias hoạt động.

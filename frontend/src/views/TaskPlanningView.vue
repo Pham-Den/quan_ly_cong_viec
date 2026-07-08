@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { message } from 'ant-design-vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
@@ -41,7 +42,6 @@ type TaskRecord = {
   priority: string
   type: string
   targetDate: string | null
-  releaseReadyAt: string | null
   project?: {
     code: string
     name: string
@@ -105,12 +105,9 @@ const taskGroupOptions = computed(() =>
 const taskBuckets = [
   { key: 'notStarted', label: 'Chưa làm', statuses: ['PLANNED'] },
   { key: 'inProgress', label: 'Đang tiến hành', statuses: ['IN_PROGRESS'] },
-  { key: 'waiting', label: 'Review/Test', statuses: ['IN_REVIEW', 'TESTING'] },
-  { key: 'inRelease', label: 'Đang ở release', statuses: ['READY_RELEASE', 'MERGED_RELEASE'] },
-  { key: 'readyMain', label: 'Sẵn sàng main', statuses: ['READY_PROD'] },
-  { key: 'done', label: 'Hoàn tất', statuses: ['DONE'] },
-  { key: 'blocked', label: 'Blocked', statuses: ['BLOCKED'] },
-  { key: 'cancelled', label: 'Cancelled', statuses: ['CANCELLED'] },
+  { key: 'inRelease', label: 'Đang ở release', statuses: ['MERGED_RELEASE'] },
+  { key: 'done', label: 'Lên prod', statuses: ['DONE'] },
+  { key: 'cancelled', label: 'Đã hủy', statuses: ['CANCELLED'] },
 ]
 const groupedTasks = computed(() =>
   taskBuckets.map((bucket) => ({
@@ -118,7 +115,9 @@ const groupedTasks = computed(() =>
     tasks: tasks.value.filter((task) => bucket.statuses.includes(task.status)),
   })),
 )
-const tasksWithoutBranches = computed(() => tasks.value.filter((task) => !(task.branchLinks?.length)))
+const tasksWithoutBranches = computed(() =>
+  tasks.value.filter((task) => !['DONE', 'CANCELLED'].includes(task.status) && !(task.branchLinks?.length)),
+)
 const noteForm = reactive({
   content: '',
   source: '',
@@ -136,7 +135,6 @@ const taskForm = reactive({
   title: '',
   description: '',
   taskGroupId: null as string | null,
-  status: 'PLANNED',
   priority: 'MEDIUM',
   type: 'FEATURE',
   targetDate: '',
@@ -152,15 +150,14 @@ const taskColumns = [
   { title: 'Task', key: 'task' },
   { title: 'Nhóm', key: 'group', width: 150 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 140 },
-  { title: 'Ưu tiên', dataIndex: 'priority', key: 'priority', width: 112 },
-  { title: '', key: 'actions', width: 220 },
+  { title: 'Ưu tiên', dataIndex: 'priority', key: 'priority', width: 96 },
+  { title: '', key: 'actions', width: 260 },
 ]
 const statusOptions = computed(() => workflowOptions(workflowStatuses.value, 'TASK'))
 const priorityOptions = [
   { label: 'Low', value: 'LOW' },
   { label: 'Medium', value: 'MEDIUM' },
   { label: 'High', value: 'HIGH' },
-  { label: 'Urgent', value: 'URGENT' },
 ]
 const typeOptions = [
   { label: 'Feature', value: 'FEATURE' },
@@ -183,7 +180,6 @@ function resetTaskForm() {
   taskForm.title = ''
   taskForm.description = ''
   taskForm.taskGroupId = null
-  taskForm.status = 'PLANNED'
   taskForm.priority = 'MEDIUM'
   taskForm.type = 'FEATURE'
   taskForm.targetDate = ''
@@ -238,6 +234,68 @@ function branchStatusColor(status: string) {
 function bucketColor(bucket: { statuses: string[] }) {
   return taskStatusColor(bucket.statuses[0] ?? 'PLANNED')
 }
+
+function priorityMeta(priority: string) {
+  const normalizedPriority = priority.toUpperCase()
+  const meta: Record<string, { value: string; label: string; color: string; bars: number }> = {
+    LOW: { value: 'LOW', label: 'Low', color: 'green', bars: 1 },
+    MEDIUM: { value: 'MEDIUM', label: 'Medium', color: 'gold', bars: 2 },
+    HIGH: { value: 'HIGH', label: 'High', color: 'red', bars: 3 },
+    URGENT: { value: 'URGENT', label: 'Urgent', color: 'red', bars: 3 },
+  }
+
+  return meta[normalizedPriority] ?? { value: normalizedPriority || 'MEDIUM', label: priority || 'Medium', color: 'gold', bars: 2 }
+}
+
+function taskDeleteDisabledReason(task: TaskRecord) {
+  const linkedBranch = task.branchLinks?.find((link) => link.branch.status === 'MERGED_MAIN' || link.branch.mergedMainAt)
+
+  if (task.status === 'DONE' || linkedBranch) {
+    return 'Task đã lên main/prod nên không thể xóa.'
+  }
+
+  return ''
+}
+
+function canDeleteTask(task: TaskRecord) {
+  return !taskDeleteDisabledReason(task)
+}
+
+function taskCancelDisabledReason(task: TaskRecord) {
+  if (task.status === 'CANCELLED') {
+    return 'Task đã hủy.'
+  }
+
+  return taskDeleteDisabledReason(task).replace('xóa', 'hủy')
+}
+
+function canCancelTask(task: TaskRecord) {
+  return !taskCancelDisabledReason(task)
+}
+
+function canRestoreTask(task: TaskRecord) {
+  return task.status === 'CANCELLED'
+}
+
+function taskEditDisabledReason(task: TaskRecord) {
+  const linkedBranch = task.branchLinks?.find((link) => link.branch.status === 'MERGED_MAIN' || link.branch.mergedMainAt)
+
+  if (task.status === 'CANCELLED') {
+    return 'Task đã hủy, hãy phục hồi về nháp trước khi chỉnh sửa hoặc gắn branch.'
+  }
+
+  if (task.status === 'DONE' || linkedBranch) {
+    return 'Task đã lên main/prod nên chỉ xem lại, không chỉnh sửa.'
+  }
+
+  return ''
+}
+
+function canEditTask(task: TaskRecord) {
+  return !taskEditDisabledReason(task)
+}
+
+const taskFormReadonly = computed(() => Boolean(editingTask.value && !canEditTask(editingTask.value)))
 
 async function loadTaskGroups() {
   if (!selectedProjectId.value) {
@@ -389,7 +447,6 @@ function setTaskDrawerData(data: TaskRecord) {
   taskForm.title = data.title
   taskForm.description = data.description ?? ''
   taskForm.taskGroupId = data.taskGroupId
-  taskForm.status = data.status
   taskForm.priority = data.priority
   taskForm.type = data.type
   taskForm.targetDate = dateValue(data.targetDate)
@@ -413,12 +470,16 @@ async function submitTask() {
     return
   }
 
+  if (editingTask.value && !canEditTask(editingTask.value)) {
+    message.warning(taskEditDisabledReason(editingTask.value))
+    return
+  }
+
   const payload = {
     projectId: selectedProjectId.value,
     title: taskForm.title,
     description: taskForm.description,
     taskGroupId: taskForm.taskGroupId,
-    status: taskForm.status,
     priority: taskForm.priority,
     type: taskForm.type,
     targetDate: taskForm.targetDate,
@@ -435,9 +496,45 @@ async function submitTask() {
   await loadTasks()
 }
 
-async function markReadyProd(task: TaskRecord) {
-  await api.post(`/api/tasks/${task.id}/mark-ready-prod`)
+async function deleteTask(task: TaskRecord) {
+  await api.delete(`/api/tasks/${task.id}`)
+
+  if (editingTask.value?.id === task.id) {
+    taskDrawerOpen.value = false
+    resetTaskForm()
+  }
+
+  message.success(`Đã xóa task ${task.code}.`)
   await loadTasks()
+}
+
+async function cancelTask(task: TaskRecord) {
+  if (!canCancelTask(task)) {
+    message.warning(taskCancelDisabledReason(task))
+    return
+  }
+
+  await api.post(`/api/tasks/${task.id}/cancel`)
+  message.success(`Đã hủy task ${task.code}.`)
+  await loadTasks()
+
+  if (editingTask.value?.id === task.id) {
+    await openTaskById(task.id)
+  }
+}
+
+async function restoreTask(task: TaskRecord) {
+  if (!canRestoreTask(task)) {
+    return
+  }
+
+  await api.post(`/api/tasks/${task.id}/restore-draft`)
+  message.success(`Đã phục hồi ${task.code} về nháp.`)
+  await loadTasks()
+
+  if (editingTask.value?.id === task.id) {
+    await openTaskById(task.id)
+  }
 }
 
 watch(selectedProjectId, refreshPlanning)
@@ -462,7 +559,7 @@ onMounted(() => {
   <section class="page-heading">
     <div>
       <h1>{{ mode === 'inbox' ? 'Inbox' : 'Tất cả task' }}</h1>
-      <p>{{ mode === 'inbox' ? 'Ghi nhanh yêu cầu lắc nhắc rồi chuyển thành task' : 'Theo dõi và chỉnh task đã plan' }}</p>
+      <p>{{ mode === 'inbox' ? 'Ghi nhanh yêu cầu lắc nhắc rồi chuyển thành task' : 'Theo dõi task theo branch đang gắn' }}</p>
     </div>
     <a-space>
       <a-button @click="refreshPlanning">Làm mới</a-button>
@@ -566,10 +663,55 @@ onMounted(() => {
           <template v-if="column.key === 'status'">
             <a-tag :color="taskStatusColor(record.status)">{{ taskStatusLabel(record.status) }}</a-tag>
           </template>
+          <template v-if="column.key === 'priority'">
+            <a-tooltip :title="priorityMeta(record.priority).label">
+              <a-tag
+                :color="priorityMeta(record.priority).color"
+                class="priority-tag"
+                :data-testid="`priority-tag-${priorityMeta(record.priority).value}`"
+              >
+                <span class="priority-bars" :aria-label="priorityMeta(record.priority).label">
+                  <span v-for="bar in 3" :key="bar" :class="{ 'is-active': bar <= priorityMeta(record.priority).bars }" />
+                </span>
+              </a-tag>
+            </a-tooltip>
+          </template>
           <template v-if="column.key === 'actions'">
             <a-space>
               <a-button size="small" @click="openTaskDrawer(record)">Chi tiết</a-button>
-              <a-button size="small" @click="markReadyProd(record)">Sẵn sàng main</a-button>
+              <a-button v-if="canRestoreTask(record)" size="small" @click="restoreTask(record)">Phục hồi nháp</a-button>
+              <a-popconfirm
+                v-else
+                :title="`Hủy task ${record.code}?`"
+                ok-text="Hủy task"
+                cancel-text="Đóng"
+                @confirm="cancelTask(record)"
+              >
+                <a-button
+                  size="small"
+                  aria-label="Hủy task"
+                  :disabled="!canCancelTask(record)"
+                  :title="taskCancelDisabledReason(record)"
+                >
+                  Hủy task
+                </a-button>
+              </a-popconfirm>
+              <a-popconfirm
+                :title="`Xóa task ${record.code}?`"
+                ok-text="Xóa"
+                cancel-text="Hủy"
+                @confirm="deleteTask(record)"
+              >
+                <a-button
+                  size="small"
+                  danger
+                  aria-label="Xóa task"
+                  :disabled="!canDeleteTask(record)"
+                  :title="taskDeleteDisabledReason(record)"
+                >
+                  Xóa
+                </a-button>
+              </a-popconfirm>
             </a-space>
           </template>
         </template>
@@ -605,32 +747,79 @@ onMounted(() => {
 
   <a-drawer v-model:open="taskDrawerOpen" :title="taskForm.id ? 'Chi tiết task' : 'Tạo task'" width="620">
     <a-form layout="vertical" :model="taskForm" @finish="submitTask">
+      <a-alert
+        v-if="editingTask && taskFormReadonly"
+        class="settings-alert"
+        type="warning"
+        show-icon
+        :message="taskEditDisabledReason(editingTask)"
+      />
+      <a-space v-if="editingTask" class="settings-alert" wrap>
+        <a-tag :color="taskStatusColor(editingTask.status)">{{ taskStatusLabel(editingTask.status) }}</a-tag>
+        <a-tag v-if="editingTask.branchLinks?.[0]">{{ editingTask.branchLinks[0].branch.name }}</a-tag>
+        <a-tag v-else>Chưa link branch</a-tag>
+      </a-space>
       <a-form-item label="Tiêu đề" name="title" :rules="[{ required: true, message: 'Nhập tiêu đề task' }]">
-        <a-input v-model:value="taskForm.title" />
+        <a-input v-model:value="taskForm.title" :disabled="taskFormReadonly" />
       </a-form-item>
       <a-form-item label="Nhóm task">
-        <a-select v-model:value="taskForm.taskGroupId" allow-clear :options="taskGroupOptions" />
+        <a-select v-model:value="taskForm.taskGroupId" allow-clear :disabled="taskFormReadonly" :options="taskGroupOptions" />
       </a-form-item>
       <div class="form-grid">
-        <a-form-item label="Trạng thái">
-          <a-select v-model:value="taskForm.status" :options="statusOptions" />
-        </a-form-item>
         <a-form-item label="Ưu tiên">
-          <a-select v-model:value="taskForm.priority" :options="priorityOptions" />
+          <a-select v-model:value="taskForm.priority" :disabled="taskFormReadonly" :options="priorityOptions" />
         </a-form-item>
         <a-form-item label="Loại">
-          <a-select v-model:value="taskForm.type" :options="typeOptions" />
+          <a-select v-model:value="taskForm.type" :disabled="taskFormReadonly" :options="typeOptions" />
         </a-form-item>
       </div>
       <a-form-item label="Target date">
-        <a-input v-model:value="taskForm.targetDate" type="date" />
+        <a-input v-model:value="taskForm.targetDate" type="date" :disabled="taskFormReadonly" />
       </a-form-item>
       <a-form-item label="Mô tả">
-        <a-textarea v-model:value="taskForm.description" :rows="5" />
+        <a-textarea v-model:value="taskForm.description" :rows="5" :disabled="taskFormReadonly" />
       </a-form-item>
       <a-space>
-        <a-button type="primary" html-type="submit">{{ taskForm.id ? 'Lưu task' : 'Tạo task' }}</a-button>
-        <a-button v-if="editingTask" @click="markReadyProd(editingTask)">Sẵn sàng main</a-button>
+        <a-button
+          type="primary"
+          html-type="submit"
+          :disabled="taskFormReadonly"
+          :title="editingTask ? taskEditDisabledReason(editingTask) : ''"
+        >
+          {{ taskForm.id ? 'Lưu task' : 'Tạo task' }}
+        </a-button>
+        <a-button v-if="editingTask && canRestoreTask(editingTask)" @click="restoreTask(editingTask)">Phục hồi nháp</a-button>
+        <a-popconfirm
+          v-else-if="editingTask"
+          :title="`Hủy task ${editingTask.code}?`"
+          ok-text="Hủy task"
+          cancel-text="Đóng"
+          @confirm="cancelTask(editingTask)"
+        >
+          <a-button
+            aria-label="Hủy task"
+            :disabled="!canCancelTask(editingTask)"
+            :title="taskCancelDisabledReason(editingTask)"
+          >
+            Hủy task
+          </a-button>
+        </a-popconfirm>
+        <a-popconfirm
+          v-if="editingTask"
+          :title="`Xóa task ${editingTask.code}?`"
+          ok-text="Xóa"
+          cancel-text="Hủy"
+          @confirm="deleteTask(editingTask)"
+        >
+          <a-button
+            danger
+            aria-label="Xóa task"
+            :disabled="!canDeleteTask(editingTask)"
+            :title="taskDeleteDisabledReason(editingTask)"
+          >
+            Xóa
+          </a-button>
+        </a-popconfirm>
       </a-space>
       </a-form>
 

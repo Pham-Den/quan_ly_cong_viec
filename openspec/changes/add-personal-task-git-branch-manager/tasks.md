@@ -58,7 +58,7 @@
 - [x] 5.6 Build convert-note-to-task drawer with project, group, priority, type, and target date fields.
 - [x] 5.7 Build task table view with filters for project, group, status, priority, type, branch, and text query.
 - [x] 5.8 Build task detail drawer with editable fields and timeline tab placeholder.
-- [x] 5.9 Implement a dedicated mark-ready-prod task button/action used as a production-readiness planning signal, not a hard completion gate.
+- [x] 5.9 Implement the initial mark-ready-prod task button/action as a planning signal; superseded by phase 12 branch-derived task status rules.
 - [x] 5.10 Record timeline events for task creation and manual task status changes.
 - [x] 5.11 Stop for user review before moving to branch lifecycle implementation.
 
@@ -78,10 +78,10 @@
 - [x] 6.12 Implement hotfix branch metadata for branches checked out from `main`.
 - [x] 6.13 Implement two-week release branch tracking so tasks can be associated with the active release branch.
 - [x] 6.14 Implement `mark-merged-release` workflow action for feature branch -> release branch with branch timestamp, actual merged-into branch, status update, linked task updates, and timeline events.
-- [x] 6.15 Implement `mark-merged-main` workflow action that warns about tasks not marked ready, then allows confirmed main merge recording, updates branch timestamp/status, actual merged-into branch, linked task completion by lineage, and timeline events.
+- [x] 6.15 Implement `mark-merged-main` workflow action that records main merge truth, updates branch timestamp/status, actual merged-into branch, linked task completion by lineage, and timeline events.
 - [x] 6.16 Implement record-merged-into action for correcting or documenting actual merge destinations.
 - [x] 6.17 Ensure branch `B` created from task branch `A` can complete the carried task when `B` reaches `main`.
-- [x] 6.18 Ensure multi-branch tasks only require every independent required branch lineage, not every historical branch, to reach `main`.
+- [x] 6.18 Keep historical task-branch links from blocking completion after the task is reassigned to a single active branch.
 - [x] 6.19 Ensure closed branches never complete linked tasks automatically.
 - [x] 6.20 Build create-branch drawer with task selection, checkout source branch, inherited task links, intended merge target branch, branch type, branch name suggestion, and checkout command preview.
 - [x] 6.21 Build branch table view with status, repository, linked tasks, checkout source, intended target, actual merged-into, MR URL, aliases, current release branch, lineage, and quick actions.
@@ -109,7 +109,7 @@
 - [x] 8.6 Build first-phase branch board grouped by lifecycle status.
 - [x] 8.7 Add views for tasks without branch links and branches not merged to `main`.
 - [x] 8.8 Add task detail branch path display showing feature branch, checkout source, release target, actual merged-into branch, inherited branches, and `main` status without exposing lineage jargon to the user.
-- [x] 8.9 Build All Tasks view grouped by practical status buckets: not started, in progress, waiting/review/testing, in release, ready for main, done, blocked, and cancelled.
+- [x] 8.9 Build All Tasks view grouped by compact branch-derived buckets: not started, in progress, in release, and on prod/done.
 - [x] 8.10 Add group counts, project/group filters, and drawer opening from the All Tasks grouped view.
 - [x] 8.11 Stop for user review before moving to workflow settings implementation.
 
@@ -128,7 +128,7 @@
 ## 10. Verification
 
 - [x] 10.1 Add backend unit tests for feature branch -> release branch merge rules.
-- [x] 10.2 Add backend unit tests for main merge warning behavior when linked tasks are not release-ready.
+- [x] 10.2 Add backend unit tests for main merge completion behavior without a task-level ready-main gate.
 - [x] 10.3 Add backend unit tests for main merge completion rules, including multi-branch tasks.
 - [x] 10.4 Add backend tests for auth guard and protected APIs.
 - [x] 10.5 Add backend tests for task code generation with project groups.
@@ -153,7 +153,7 @@
 - [x] 11.8 Build Branch Kanban as one horizontal row of status columns, with each column kept in the same row and horizontally scrollable on small screens.
 - [x] 11.9 Add drag-and-drop for branch cards between allowed status columns, with optimistic UI only after backend validation succeeds.
 - [x] 11.10 When dropping into a restricted status, block the drop and show the correct action path, for example use `Merge release` or `Merge main`.
-- [x] 11.11 Keep branch cards compact but useful: branch name, repo, linked task codes, source/target path, status color, and quick actions.
+- [x] 11.11 Keep branch cards compact but useful: branch name, repo, linked task titles with task code as secondary reference, source/target path, status color, and quick actions.
 - [x] 11.12 Add UI test for dragging a branch into an allowed status and rejecting a restricted drop.
 - [x] 11.13 Stop for user review before moving to any GitLab automation.
 
@@ -174,7 +174,7 @@
 - [x] 12.13 Stop for user review before returning to GitLab webhook automation.
 - [x] 12.14 Treat each weekly release branch as a distinct release base branch that checks out from `main` and merges back to `main`.
 - [x] 12.15 Add release action support to attach or change a task branch's release branch while rejecting targets that are not distinct release branches.
-- [x] 12.16 Restrict release branch lifecycle so release branches start in `Vào release` and only move to `Vào main` through the main merge workflow.
+- [x] 12.16 Restrict release branch lifecycle so release branches start in `Release` and only move to `Main` through the main merge workflow.
 - [x] 12.17 Style release branch Kanban cards with a distinct background from normal task branch cards.
 - [x] 12.18 Render task branches merged into a release as child items under the release branch card instead of separate top-level cards.
 - [x] 12.19 Keep release child branch and linked task state following the release branch when the release parent moves to main.
@@ -185,6 +185,18 @@
 - [x] 12.24 Reject deleting branches already in `main`, and reject deleting release parent branches while they still contain child task branches.
 - [x] 12.25 Lock child task branches while their release parent is in `main`, so they cannot leave the parent by status move, release reassignment, or deletion until the parent is rolled back to release.
 - [x] 12.26 Add backend and browser coverage for branch deletion and release-child correction rules.
+- [x] 12.27 Review branch editability in `/branches`, disable fields that cannot be edited for the current branch state, and show unavailable actions/statuses as disabled instead of hiding them.
+- [x] 12.28 Allow release child task branches to be detached from a release parent before `main` by edit or drag, while keeping main-parent lock rules.
+- [x] 12.29 Sync `/tasks` status from the task's single active branch, enforce one active branch per task, and align task/branch status labels to the compact mapping.
+- [x] 12.30 Allow tasks to be deleted before they reach `main`, with backend guard, UI action, cascade cleanup, and timeline audit metadata.
+- [x] 12.31 Display task priority in the task table as compact colored tags with 1/2/3 bar priority icons and hover labels for Low, Medium, and High.
+- [x] 12.32 Add backend and browser coverage for task deletion and priority tag display.
+- [x] 12.33 Show linked task titles first in branch table, branch Kanban cards, release child items, branch drawer, and merge dialogs, keeping task codes as secondary references.
+- [x] 12.34 Review `/tasks` editability, remove the task-level ready-main action/field, keep task status branch-derived, and disable task edit/save/delete when the task is already in main/prod.
+- [x] 12.35 Color linked task chips inside branch views by task priority across branch table, Kanban cards, release child rows, and branch detail drawer.
+- [x] 12.36 Keep attach-release options limited to existing release branch records and reject targets whose release branch was deleted.
+- [x] 12.37 Allow branch task links to be edited while a task branch is still coding or in develop, while keeping release/main task links locked.
+- [x] 12.38 Add task cancel/restore-draft flow and make source-branch task inheritance skip tasks that are done or cancelled.
 
 ## 13. Later: Post-MVP Self-Hosted GitLab Automation
 

@@ -46,7 +46,6 @@ type Task = {
   code: string
   status: string
   doneAt: string | null
-  releaseReadyAt: string | null
 }
 
 type Branch = {
@@ -248,6 +247,110 @@ describe('task planning rules', () => {
     assert.equal(secondGroupTask.code, 'OPS-BE-002')
     assert.equal(projectTask.code, 'OPS-001')
   })
+
+  test('deletes tasks before prod and keeps branch/audit history', async () => {
+    const workspace = await setupWorkspace()
+    const task = await createTask(workspace, 'Xoa task nhap')
+    const branch = await createBranch(workspace, {
+      name: 'feature/OPS-BE-001',
+      checkoutSourceBranch: 'main',
+      taskIds: [task.id],
+    })
+    const deletion = await request<{ ok: boolean }>('DELETE', `/api/tasks/${task.id}`, workspace.token)
+    const deletedTask = await prisma.task.findUnique({ where: { id: task.id } })
+    const branchAfterDelete = await prisma.branch.findUnique({
+      where: { id: branch.id },
+      include: { taskLinks: true },
+    })
+    const deletedEvent = await prisma.timelineEvent.findFirst({
+      where: {
+        projectId: workspace.project.id,
+        eventType: 'TASK_DELETED',
+      },
+    })
+
+    assert.equal(deletion.response.statusCode, 200)
+    assert.equal(deletion.body.ok, true)
+    assert.equal(deletedTask, null)
+    assert.ok(branchAfterDelete)
+    assert.equal(branchAfterDelete.taskLinks.length, 0)
+    assert.match(deletedEvent?.metadataJson ?? '', new RegExp(task.id))
+    assert.match(deletedEvent?.metadataJson ?? '', new RegExp(branch.id))
+  })
+
+  test('cancels tasks without deleting and restores them to draft before relinking', async () => {
+    const workspace = await setupWorkspace()
+    const task = await createTask(workspace, 'Huy task nhung giu tracking')
+    const branch = await createBranch(workspace, {
+      name: 'feature/OPS-BE-001',
+      checkoutSourceBranch: 'main',
+      taskIds: [task.id],
+    })
+    const cancellation = await request<Task>('POST', `/api/tasks/${task.id}/cancel`, workspace.token)
+    const cancelledTask = await prisma.task.findUnique({ where: { id: task.id } })
+    const activeLinksAfterCancel = await prisma.taskBranch.count({
+      where: {
+        taskId: task.id,
+        active: true,
+      },
+    })
+    const cancelledEvent = await prisma.timelineEvent.findFirst({
+      where: {
+        projectId: workspace.project.id,
+        taskId: task.id,
+        eventType: 'TASK_CANCELLED',
+      },
+    })
+
+    assert.equal(cancellation.response.statusCode, 200)
+    assert.equal(cancellation.body.status, 'CANCELLED')
+    assert.equal(cancelledTask?.status, 'CANCELLED')
+    assert.equal(activeLinksAfterCancel, 0)
+    assert.match(cancelledEvent?.metadataJson ?? '', new RegExp(branch.id))
+
+    const relinkWhileCancelled = await request<{ message: string }>('PATCH', `/api/branches/${branch.id}`, workspace.token, {
+      name: branch.name,
+      status: 'CODING',
+      checkoutSourceBranch: 'main',
+      intendedMergeTarget: 'develop\nrelease/08072026\nmain',
+      taskIds: [task.id],
+    })
+
+    assert.equal(relinkWhileCancelled.response.statusCode, 400)
+    assert.match(relinkWhileCancelled.body.message, /phuc hoi/)
+
+    const restore = await request<Task>('POST', `/api/tasks/${task.id}/restore-draft`, workspace.token)
+    const restoredEvent = await prisma.timelineEvent.findFirst({
+      where: {
+        projectId: workspace.project.id,
+        taskId: task.id,
+        eventType: 'TASK_RESTORED_TO_DRAFT',
+      },
+    })
+
+    assert.equal(restore.response.statusCode, 200)
+    assert.equal(restore.body.status, 'PLANNED')
+    assert.ok(restoredEvent)
+
+    const relinkAfterRestore = await request<Branch>('PATCH', `/api/branches/${branch.id}`, workspace.token, {
+      name: branch.name,
+      status: 'CODING',
+      checkoutSourceBranch: 'main',
+      intendedMergeTarget: 'develop\nrelease/08072026\nmain',
+      taskIds: [task.id],
+    })
+    const activeLinksAfterRestore = await prisma.taskBranch.count({
+      where: {
+        taskId: task.id,
+        branchId: branch.id,
+        active: true,
+      },
+    })
+
+    assert.equal(relinkAfterRestore.response.statusCode, 200)
+    assert.equal(activeLinksAfterRestore, 1)
+    assert.equal((await getTask(task.id)).status, 'IN_PROGRESS')
+  })
 })
 
 describe('branch lifecycle rules', () => {
@@ -265,6 +368,7 @@ describe('branch lifecycle rules', () => {
     assert.equal(branchA.intendedMergeTarget, 'develop\nrelease/08072026\nmain')
     assert.equal(branchA.generatedCheckoutCommand?.includes('git checkout main'), true)
     assert.equal(branchA.taskLinks[0]?.task.id, task.id)
+    assert.equal((await getTask(task.id)).status, 'IN_PROGRESS')
 
     const releaseBranch = await getBranchByName(workspace.repo.id, 'release/08072026')
 
@@ -339,6 +443,11 @@ describe('branch lifecycle rules', () => {
       checkoutSourceBranch: 'main',
       taskIds: [task.id],
     })
+    await createBranch(workspace, {
+      name: 'release/15072026',
+      branchType: 'RELEASE',
+      checkoutSourceBranch: 'main',
+    })
     const merge = await request<Branch>(
       'POST',
       `/api/branches/${branch.id}/mark-merged-release`,
@@ -353,6 +462,40 @@ describe('branch lifecycle rules', () => {
     assert.equal(releaseBranch.branchType, 'RELEASE')
     assert.equal(releaseBranch.checkoutSourceBranch, 'main')
     assert.equal(releaseBranch.intendedMergeTarget, 'main')
+  })
+
+  test('rejects release attachment when release branch was deleted', async () => {
+    const workspace = await setupWorkspace()
+    const task = await createTask(workspace, 'Khong gan release da xoa')
+    const branch = await createBranch(workspace, {
+      name: 'feature/OPS-BE-001',
+      checkoutSourceBranch: 'main',
+      taskIds: [task.id],
+    })
+    const releaseBranch = await createBranch(workspace, {
+      name: 'release/09072026',
+      branchType: 'RELEASE',
+      checkoutSourceBranch: 'main',
+    })
+    const deletion = await request<{ ok: boolean }>('DELETE', `/api/branches/${releaseBranch.id}`, workspace.token)
+    const merge = await request<{ message: string }>(
+      'POST',
+      `/api/branches/${branch.id}/mark-merged-release`,
+      workspace.token,
+      { targetBranch: 'release/09072026' },
+    )
+    const releaseCycle = await prisma.releaseCycle.findFirst({
+      where: {
+        repositoryId: workspace.repo.id,
+        name: 'release/09072026',
+      },
+    })
+
+    assert.equal(deletion.response.statusCode, 200)
+    assert.equal(deletion.body.ok, true)
+    assert.equal(merge.response.statusCode, 400)
+    assert.match(merge.body.message, /Release branch chua ton tai/i)
+    assert.equal(releaseCycle?.status, 'CLOSED')
   })
 
   test('rejects release attachment when target name is already a task branch', async () => {
@@ -412,7 +555,7 @@ describe('branch lifecycle rules', () => {
 
     assert.equal(merge.response.statusCode, 400)
     assert.match(merge.body.message, /release/)
-    assert.equal((await getTask(task.id)).status, 'PLANNED')
+    assert.equal((await getTask(task.id)).status, 'IN_PROGRESS')
   })
 
   test('release branch main merge propagates completion to included task branches', async () => {
@@ -440,12 +583,41 @@ describe('branch lifecycle rules', () => {
     assert.equal(merge.response.statusCode, 200)
     assert.equal(merge.body.branch.status, 'MERGED_MAIN')
     assert.equal(merge.body.branch.actualMergedInto, 'main')
-    assert.equal(merge.body.warnings.length, 1)
-    assert.match(merge.body.warnings[0] ?? '', /OPS-BE-001/)
+    assert.deepEqual(merge.body.warnings, [])
     assert.equal(updatedFeatureBranch.status, 'MERGED_MAIN')
     assert.equal(updatedFeatureBranch.actualMergedInto, 'main')
     assert.equal(updatedTask.status, 'DONE')
     assert.ok(updatedTask.doneAt)
+  })
+
+  test('rejects deleting tasks that already reached main', async () => {
+    const workspace = await setupWorkspace()
+    const task = await createTask(workspace, 'Khong xoa task da len main')
+    const branch = await createBranch(workspace, {
+      name: 'feature/OPS-BE-001',
+      checkoutSourceBranch: 'main',
+      taskIds: [task.id],
+    })
+
+    await request('POST', `/api/branches/${branch.id}/mark-merged-release`, workspace.token, {
+      targetBranch: 'release/08072026',
+    })
+    const releaseBranch = await getBranchByName(workspace.repo.id, 'release/08072026')
+    await request('POST', `/api/branches/${releaseBranch.id}/mark-merged-main`, workspace.token, {
+      targetBranch: 'main',
+      confirmed: true,
+    })
+
+    const edit = await request<{ message: string }>('PATCH', `/api/tasks/${task.id}`, workspace.token, {
+      title: 'Doi sau prod',
+    })
+    const deletion = await request<{ message: string }>('DELETE', `/api/tasks/${task.id}`, workspace.token)
+
+    assert.equal(edit.response.statusCode, 400)
+    assert.match(edit.body.message, /prod|main/i)
+    assert.equal(deletion.response.statusCode, 400)
+    assert.match(deletion.body.message, /prod|main/i)
+    assert.equal((await getTask(task.id)).status, 'DONE')
   })
 
   test('moves a mistaken release main merge back to release with child branches and tasks', async () => {
@@ -519,6 +691,7 @@ describe('branch lifecycle rules', () => {
     assert.equal(deletion.body.ok, true)
     assert.equal(deletedBranch, null)
     assert.equal(deletedLinks, 0)
+    assert.equal((await getTask(task.id)).status, 'PLANNED')
     assert.match(deletedEvent?.metadataJson ?? '', new RegExp(branch.id))
   })
 
@@ -594,6 +767,11 @@ describe('branch lifecycle rules', () => {
       status: 'MERGED_RELEASE',
       confirmed: true,
     })
+    await createBranch(workspace, {
+      name: 'release/15072026',
+      branchType: 'RELEASE',
+      checkoutSourceBranch: 'main',
+    })
     const changeAfterRollback = await request<Branch>(
       'POST',
       `/api/branches/${branch.id}/mark-merged-release`,
@@ -609,7 +787,72 @@ describe('branch lifecycle rules', () => {
     assert.equal(deleteAfterRollback.body.ok, true)
   })
 
-  test('waits for every independent required branch flow before completing a task', async () => {
+  test('detaches release child branches by status move before main', async () => {
+    const workspace = await setupWorkspace()
+    const task = await createTask(workspace, 'Go nhanh khoi release')
+    const branch = await createBranch(workspace, {
+      name: 'feature/OPS-BE-001',
+      checkoutSourceBranch: 'main',
+      intendedMergeTarget: 'release/08072026',
+      taskIds: [task.id],
+    })
+
+    await request('POST', `/api/branches/${branch.id}/mark-merged-release`, workspace.token, {
+      targetBranch: 'release/08072026',
+    })
+    assert.equal((await getTask(task.id)).status, 'MERGED_RELEASE')
+
+    const detach = await request<Branch>('POST', `/api/branches/${branch.id}/move-status`, workspace.token, {
+      status: 'CODING',
+    })
+    const detachedBranch = await getBranch(branch.id)
+    const detachedTask = await getTask(task.id)
+    const detachEvent = await prisma.timelineEvent.findFirst({
+      where: {
+        branchId: branch.id,
+        eventType: 'BRANCH_RELEASE_DETACHED',
+      },
+    })
+
+    assert.equal(detach.response.statusCode, 200)
+    assert.equal(detach.body.status, 'CODING')
+    assert.equal(detachedBranch.releaseCycleId, null)
+    assert.equal(detachedBranch.actualMergedInto, null)
+    assert.equal(detachedBranch.mergedReleaseAt, null)
+    assert.equal(detachedTask.status, 'IN_PROGRESS')
+    assert.ok(detachEvent)
+  })
+
+  test('detaches release child branches by edit before main', async () => {
+    const workspace = await setupWorkspace()
+    const task = await createTask(workspace, 'Edit de go release')
+    const branch = await createBranch(workspace, {
+      name: 'feature/OPS-BE-001',
+      checkoutSourceBranch: 'main',
+      intendedMergeTarget: 'release/08072026',
+      taskIds: [task.id],
+    })
+
+    await request('POST', `/api/branches/${branch.id}/mark-merged-release`, workspace.token, {
+      targetBranch: 'release/08072026',
+    })
+
+    const detach = await request<Branch>('PATCH', `/api/branches/${branch.id}`, workspace.token, {
+      name: branch.name,
+      status: 'MERGED_DEVELOP',
+      checkoutSourceBranch: 'main',
+      intendedMergeTarget: 'develop\nrelease/08072026\nmain',
+    })
+    const detachedBranch = await getBranch(branch.id)
+
+    assert.equal(detach.response.statusCode, 200)
+    assert.equal(detach.body.status, 'MERGED_DEVELOP')
+    assert.equal(detachedBranch.releaseCycleId, null)
+    assert.equal(detachedBranch.actualMergedInto, null)
+    assert.equal((await getTask(task.id)).status, 'IN_PROGRESS')
+  })
+
+  test('uses the reassigned active branch as the task completion source', async () => {
     const workspace = await setupWorkspace()
     const task = await createTask(workspace, 'Dong bo hai module')
     const branchA = await createBranch(workspace, {
@@ -661,6 +904,46 @@ describe('branch lifecycle rules', () => {
     assert.equal((await getTask(task.id)).status, 'DONE')
   })
 
+  test('inherits only unfinished tasks from the source branch', async () => {
+    const workspace = await setupWorkspace()
+    const activeTask = await createTask(workspace, 'Task con tiep tuc lam')
+    const doneTask = await createTask(workspace, 'Task da done')
+    const cancelledTask = await createTask(workspace, 'Task da huy')
+    const sourceBranch = await createBranch(workspace, {
+      name: 'bugfix/OPS-BE-001-source',
+      branchType: 'BUGFIX',
+      checkoutSourceBranch: 'main',
+      intendedMergeTarget: 'main',
+      taskIds: [activeTask.id, doneTask.id, cancelledTask.id],
+    })
+
+    await prisma.task.update({
+      where: { id: doneTask.id },
+      data: {
+        status: 'DONE',
+        doneAt: new Date(),
+      },
+    })
+    await prisma.task.update({
+      where: { id: cancelledTask.id },
+      data: { status: 'CANCELLED' },
+    })
+
+    const childBranch = await createBranch(workspace, {
+      name: 'support/OPS-BE-001-child',
+      branchType: 'SUPPORT',
+      sourceBranchId: sourceBranch.id,
+      checkoutSourceBranch: sourceBranch.name,
+      intendedMergeTarget: 'main',
+      inheritTaskLinks: true,
+    })
+
+    assert.deepEqual(
+      childBranch.taskLinks.map((link) => link.task.id),
+      [activeTask.id],
+    )
+  })
+
   test('rejects creating task branch from another branch when source override is disabled', async () => {
     const workspace = await setupWorkspace()
     const task = await createTask(workspace, 'Sua loi export')
@@ -681,7 +964,7 @@ describe('branch lifecycle rules', () => {
 
     assert.equal(branchB.response.statusCode, 400)
     assert.match(branchB.body.message, /checkout tu main/)
-    assert.equal(updatedTask.status, 'PLANNED')
+    assert.equal(updatedTask.status, 'IN_PROGRESS')
   })
 
   test('records actual merge destination without overwriting intended target', async () => {
@@ -855,7 +1138,117 @@ describe('branch lifecycle rules', () => {
 
     assert.equal(move.response.statusCode, 200)
     assert.equal(move.body.status, 'MERGED_DEVELOP')
-    assert.equal(updatedTask.status, 'PLANNED')
+    assert.equal(updatedTask.status, 'IN_PROGRESS')
     assert.equal(updatedTask.doneAt, null)
+  })
+
+  test('keeps only one active branch link per task', async () => {
+    const workspace = await setupWorkspace()
+    const task = await createTask(workspace, 'Doi branch dang gan')
+    const branchA = await createBranch(workspace, {
+      name: 'feature/OPS-BE-001',
+      checkoutSourceBranch: 'main',
+      taskIds: [task.id],
+    })
+    const patternChange = await request<Repository>('PATCH', `/api/repositories/${workspace.repo.id}`, workspace.token, {
+      name: workspace.repo.name,
+      featureNamePattern: 'feature/{jiraCode}-rework',
+    })
+    assert.equal(patternChange.response.statusCode, 200)
+
+    const branchB = await createBranch(workspace, {
+      name: 'feature/OPS-BE-001-rework',
+      checkoutSourceBranch: 'main',
+      taskIds: [task.id],
+    })
+    const activeLinks = await prisma.taskBranch.findMany({
+      where: {
+        taskId: task.id,
+        active: true,
+      },
+    })
+
+    assert.notEqual(branchA.id, branchB.id)
+    assert.equal(activeLinks.length, 1)
+    assert.equal(activeLinks[0]?.branchId, branchB.id)
+    assert.equal((await getTask(task.id)).status, 'IN_PROGRESS')
+  })
+
+  test('allows adding tasks to coding and develop branches from branch edit', async () => {
+    const workspace = await setupWorkspace()
+    const taskA = await createTask(workspace, 'Task da co trong branch')
+    const taskB = await createTask(workspace, 'Task them khi dang code')
+    const taskC = await createTask(workspace, 'Task them khi o develop')
+    const branch = await createBranch(workspace, {
+      name: 'feature/OPS-BE-001',
+      checkoutSourceBranch: 'main',
+      taskIds: [taskA.id],
+    })
+    const addWhileCoding = await request<Branch>('PATCH', `/api/branches/${branch.id}`, workspace.token, {
+      name: branch.name,
+      status: 'CODING',
+      checkoutSourceBranch: 'main',
+      intendedMergeTarget: 'develop\nrelease/08072026\nmain',
+      taskIds: [taskA.id, taskB.id],
+    })
+    const moveDevelop = await request<Branch>('POST', `/api/branches/${branch.id}/move-status`, workspace.token, {
+      status: 'MERGED_DEVELOP',
+    })
+    const addWhileDevelop = await request<Branch>('PATCH', `/api/branches/${branch.id}`, workspace.token, {
+      name: branch.name,
+      status: 'MERGED_DEVELOP',
+      checkoutSourceBranch: 'main',
+      intendedMergeTarget: 'develop\nrelease/08072026\nmain',
+      taskIds: [taskA.id, taskB.id, taskC.id],
+    })
+    const activeLinks = await prisma.taskBranch.findMany({
+      where: {
+        taskId: { in: [taskA.id, taskB.id, taskC.id] },
+        branchId: branch.id,
+        active: true,
+      },
+    })
+
+    assert.equal(addWhileCoding.response.statusCode, 200)
+    assert.equal(moveDevelop.response.statusCode, 200)
+    assert.equal(addWhileDevelop.response.statusCode, 200)
+    assert.equal(activeLinks.length, 3)
+    assert.equal((await getTask(taskB.id)).status, 'IN_PROGRESS')
+    assert.equal((await getTask(taskC.id)).status, 'IN_PROGRESS')
+  })
+
+  test('rejects task link edits after a branch reaches release', async () => {
+    const workspace = await setupWorkspace()
+    const taskA = await createTask(workspace, 'Task da vao release')
+    const taskB = await createTask(workspace, 'Task khong duoc chen vao release')
+    const branch = await createBranch(workspace, {
+      name: 'feature/OPS-BE-001',
+      checkoutSourceBranch: 'main',
+      taskIds: [taskA.id],
+    })
+
+    await request('POST', `/api/branches/${branch.id}/mark-merged-release`, workspace.token, {
+      targetBranch: 'release/08072026',
+    })
+
+    const edit = await request<{ message: string }>('PATCH', `/api/branches/${branch.id}`, workspace.token, {
+      name: branch.name,
+      status: 'MERGED_RELEASE',
+      checkoutSourceBranch: 'main',
+      intendedMergeTarget: 'develop\nrelease/08072026\nmain',
+      taskIds: [taskA.id, taskB.id],
+    })
+    const rejectedLink = await prisma.taskBranch.findFirst({
+      where: {
+        taskId: taskB.id,
+        branchId: branch.id,
+        active: true,
+      },
+    })
+
+    assert.equal(edit.response.statusCode, 400)
+    assert.match(edit.body.message, /dang tien hanh|develop/i)
+    assert.equal(rejectedLink, null)
+    assert.equal((await getTask(taskB.id)).status, 'PLANNED')
   })
 })

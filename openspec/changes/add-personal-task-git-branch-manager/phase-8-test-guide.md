@@ -25,7 +25,7 @@ Vào `Tổng quan`.
 
 Kỳ vọng:
 
-- Bucket count hiển thị task theo nhóm: chưa làm, đang tiến hành, review/test, release, sẵn sàng main, done, blocked.
+- Bucket count hiển thị task theo nhóm branch-derived: chưa làm, đang tiến hành, đang ở release, lên prod/done.
 - Có block `Task đang chạy`.
 - Có block `Sắp/đã tới hạn`.
 - Có block `Blocked`.

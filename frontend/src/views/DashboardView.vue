@@ -82,11 +82,9 @@ const quickNote = reactive({
 const taskBuckets = computed(() => [
   { key: 'notStarted', label: 'Chưa làm', tone: taskStatusColor('PLANNED') },
   { key: 'inProgress', label: 'Đang tiến hành', tone: taskStatusColor('IN_PROGRESS') },
-  { key: 'waiting', label: 'Đang test/review', tone: taskStatusColor('TESTING') },
   { key: 'inRelease', label: 'Đang ở release', tone: taskStatusColor('MERGED_RELEASE') },
-  { key: 'readyMain', label: 'Sẵn sàng main', tone: taskStatusColor('READY_PROD') },
-  { key: 'done', label: 'Hoàn tất', tone: taskStatusColor('DONE') },
-  { key: 'blocked', label: 'Blocked', tone: taskStatusColor('BLOCKED') },
+  { key: 'done', label: 'Lên prod', tone: taskStatusColor('DONE') },
+  { key: 'cancelled', label: 'Đã hủy', tone: taskStatusColor('CANCELLED') },
 ])
 
 function dateValue(value: string | null) {

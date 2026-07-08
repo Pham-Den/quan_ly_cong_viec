@@ -80,8 +80,14 @@ Khuyen nghi phase nay:
    - Nen thuc hien tren release branch.
    - Khi release branch merge vao `main`, app tim tat ca task branch da nam trong release branch/cycle do.
    - Cap nhat cac branch con thanh da vao `main` ve mat tracking.
-   - Mark task `DONE` neu tat ca required branch cua task da duoc release do keo vao main.
+   - Mark task `DONE` khi active branch cua task da duoc release do keo vao main.
    - Ghi timeline cho release merge main, branch child propagated main, va task done.
+
+5. Go branch con khoi release truoc main:
+   - Neu release parent con o `MERGED_RELEASE`, child branch co the duoc go bang edit status hoac keo ra cot trang thai binh thuong.
+   - Khi go, app xoa release cycle/actual release target tren child branch va ghi timeline.
+   - Task lien quan quay ve dang tien hanh neu active branch khong con nam o release/main.
+   - Neu release parent da o `MERGED_MAIN`, child branch van bi khoa; muon sua thi phai keo parent ve `MERGED_RELEASE` truoc.
 
 ## UI flow de xuat
 
@@ -99,8 +105,9 @@ Khuyen nghi phase nay:
     - `Tao tu: main`
     - `Ke hoach: develop -> release/08072026 -> main`
     - `Thuc te: develop done / release/08072026 / chua vao main`
-  - Action `Merge release` yeu cau chon/confirm active release branch.
-  - Action `Merge main` tren release branch co the propagate task done.
+- Action `Merge release` yeu cau chon/confirm active release branch.
+- Action `Merge main` tren release branch co the propagate task done.
+- Child branch trong release co the keo ra cot binh thuong khi release parent chua vao `main`; neu parent da vao `main` thi action/status van hien nhung disable.
 
 - Settings:
   - Them tab `Git flow rules`.
@@ -113,6 +120,7 @@ Khuyen nghi phase nay:
 - Neu nhap source khac `main` khi override tat thi backend reject.
 - Merge feature vao develop khong done task.
 - Merge feature/hotfix vao active release khong done task.
+- Go child branch khoi active release truoc main bang edit status hoac keo tha, child branch hien lai nhu card doc lap va task quay ve trang thai dang tien hanh khi phu hop.
 - Merge release branch vao `main` propagate cac branch con trong release do va done task hop le.
 - Doi active release branch thi branch moi di vao release moi, branch cu van giu release da gan.
 - Settings doi pattern/target/source thi branch moi sinh theo rule moi, branch cu khong bi sua ke hoach goc.

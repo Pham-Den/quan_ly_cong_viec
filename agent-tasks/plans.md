@@ -20,11 +20,17 @@ npx -y @fission-ai/openspec@latest validate add-personal-task-git-branch-manager
 - Luồng branch chính: task branch checkout từ `main`, merge vào `develop` nếu là feature, merge vào release branch theo tuần, rồi release branch merge vào `main`.
 - Release branch là branch cha theo tuần, ví dụ `release/08072026`; nó checkout từ `main`, nhận các task branch con, rồi merge ngược vào `main`.
 - Task chỉ xem là hoàn tất khi branch chứa task đã đi theo release branch vào `main`.
+- Mỗi task chỉ có một branch active. Nếu task được gắn sang branch mới, link branch cũ sẽ bị tắt và trạng thái task đồng bộ theo branch mới.
+- Trạng thái task rút gọn theo branch: chưa có branch là `Chưa làm`, branch đang code/develop là `Đang tiến hành`, branch ở release là `Đang ở release`, branch theo main/prod là `Lên prod`.
+- Branch task link được phép thêm/gỡ khi branch còn ở `CODING` hoặc `MERGED_DEVELOP`. Từ `MERGED_RELEASE` trở đi thì task link bị khóa để không làm lệch lịch sử release/main.
 - Có thể kéo nhầm release branch từ `main` về lại `MERGED_RELEASE`; thao tác này kéo các child branch và task liên quan về trạng thái release.
+- Khi release parent còn ở `MERGED_RELEASE`, có thể gỡ child branch khỏi release bằng cách edit status hoặc kéo child ra cột trạng thái bình thường; app sẽ xóa release assignment/actual target và đưa task liên quan ra khỏi release nếu task không còn branch bắt buộc nào ở release/main.
 - Có thể xóa branch khi branch chưa vào `main`. Khi xóa, app ghi timeline audit trước rồi xóa branch record, alias và task link liên quan.
 - Không được xóa branch đã vào `main`.
 - Không được xóa release branch cha nếu nó còn child task branch bên trong.
+- Khi xóa release branch, app đóng release cycle cùng tên. Dropdown gắn/đổi release chỉ liệt kê release branch record còn tồn tại trong repository, và backend không tự tạo lại release branch cũ khi submit tên đã xóa.
 - Khi release parent đang ở `main`, child branch không được thoát cha: không đổi release, không kéo/đổi status riêng, không xóa. Muốn sửa nhầm thì kéo release parent về `MERGED_RELEASE` trước, sau đó mới đổi release hoặc xóa child branch.
+- UI `/branches` ưu tiên hiện đủ action/status để user thấy toàn bộ luồng, nhưng action/status/field nào không hợp lệ theo trạng thái hiện tại thì disable thay vì ẩn hoặc cho edit giả.
 
 # Plan xây mini app quản lý công việc cá nhân theo Git branch
 
@@ -151,19 +157,12 @@ Trường dữ liệu:
 - `created_at`
 - `updated_at`
 
-Status đề xuất:
+Status hiện tại:
 
-- `INBOX`: mới ghi nhận, chưa plan.
-- `PLANNED`: đã đưa vào plan.
-- `IN_PROGRESS`: đang code.
-- `IN_REVIEW`: đang review/PR/MR.
-- `TESTING`: đang test.
-- `READY_UAT`: sẵn sàng merge UAT.
-- `MERGED_UAT`: đã merge UAT.
-- `READY_PROD`: sẵn sàng merge production.
-- `DONE`: đã lên production xong.
-- `BLOCKED`: đang bị chặn.
-- `CANCELLED`: hủy/không làm.
+- `PLANNED`: chưa gắn branch nào.
+- `IN_PROGRESS`: đang code hoặc đã vào develop.
+- `MERGED_RELEASE`: active branch đã vào release.
+- `DONE`: release đã merge vào `main`/prod.
 
 Priority:
 
@@ -218,19 +217,12 @@ Branch fields:
 - `created_at`
 - `updated_at`
 
-Branch status đề xuất:
+Branch status hiện tại:
 
-- `DRAFT`
-- `CODING`
-- `READY_REVIEW`
-- `REVIEWING`
-- `READY_TEST`
-- `TESTING`
-- `READY_UAT`
-- `MERGED_UAT`
-- `READY_PROD`
-- `MERGED_PROD`
-- `CLOSED`
+- `CODING`: đang code.
+- `MERGED_DEVELOP`: vào develop.
+- `MERGED_RELEASE`: vào release.
+- `MERGED_MAIN`: vào main/prod.
 
 Liên kết task-branch:
 
@@ -284,16 +276,11 @@ Event type đề xuất:
 
 Luồng cập nhật khi merge:
 
-1. User đánh dấu branch `MERGED_UAT` hoặc backend nhận webhook merge vào nhánh UAT.
-2. App tạo event `MERGED_TO_UAT`.
-3. Các task link với branch được cập nhật:
-   - Nếu task chưa `DONE`, chuyển sang `MERGED_UAT`.
-   - Nếu còn branch khác chưa UAT, giữ status phù hợp và hiển thị cảnh báo "còn branch chưa merge".
-4. User đánh dấu branch `MERGED_PROD` hoặc backend nhận webhook merge vào nhánh PROD.
-5. App tạo event `MERGED_TO_PROD`.
-6. Các task link với branch được xét:
-   - Nếu toàn bộ branch liên quan đã merge PROD, chuyển task sang `DONE`.
-   - Nếu task còn branch khác chưa PROD, giữ `READY_PROD`/`MERGED_UAT` và hiển thị "partial prod".
+1. Feature/hotfix branch checkout từ `main`.
+2. Khi branch vào develop, task vẫn là `IN_PROGRESS`.
+3. Khi branch được gắn/merge vào release branch, task chuyển `MERGED_RELEASE`.
+4. Khi release branch merge vào `main`, các branch con đi theo release vào `MERGED_MAIN`.
+5. Task gắn với branch active chuyển `DONE` khi branch đó đã đi qua release và vào `main`.
 
 ## 5. Màn hình đề xuất
 
@@ -310,7 +297,7 @@ Mục tiêu: mở app lên là biết hôm nay cần làm gì.
 Blocks:
 
 - Tasks đang `IN_PROGRESS`.
-- Branch đang `TESTING`, `READY_UAT`, `READY_PROD`.
+- Branch đang `CODING`, `MERGED_DEVELOP`, `MERGED_RELEASE`.
 - Inbox notes chưa convert.
 - Việc bị `BLOCKED`.
 - Timeline gần đây.
@@ -339,7 +326,7 @@ Blocks:
 
 - Board hoặc table nhóm theo branch status.
 - Hiển thị branch name, repo, linked tasks, MR/PR URL, UAT/PROD status.
-- Quick action: mark ready UAT, mark merged UAT, mark ready PROD, mark merged PROD.
+- Quick action: merge develop, gắn/merge release, merge main.
 
 ### 5.7. Timeline
 
@@ -535,10 +522,10 @@ Kết quả: biết task nằm ở branch nào, branch đang ở trạng thái n
 
 ### Phase 3: UAT/PROD workflow
 
-- Quick actions `Mark merged UAT`, `Mark merged PROD`.
+- Quick actions `Merge develop`, `Gắn/Merge release`, `Merge main`.
 - Rule tự cập nhật task status theo branch merge.
 - Timeline merge events.
-- Dashboard hiển thị nhóm `READY_UAT`, `READY_PROD`, `BLOCKED`.
+- Dashboard hiển thị nhóm task/branch đang tiến hành, đang ở release, lên prod và blocked nếu có.
 
 Kết quả: merge prod xong thì task tự về `DONE` đúng quy tắc.
 
@@ -641,3 +628,21 @@ Nên làm MVP theo thứ tự này:
 8. Git webhook.
 
 Không nên làm webhook Git ngay từ đầu. Điểm đau hiện tại là thiếu nơi gom thông tin và liên kết task-branch; chỉ cần nhập tay nhanh, đúng rule, có timeline là đã giảm rối đáng kể.
+
+## 16. Bổ sung sau review phase 12
+
+- Task có thể tạo thủ công từ màn `/tasks` hoặc tạo từ note.
+- Task được phép xóa khi chưa lên `main/prod`; khi xóa phải ghi timeline `TASK_DELETED`, xóa link task-branch qua cascade, nhưng giữ branch record để không mất lịch sử branch.
+- Task đã `DONE` hoặc active branch đã vào `MERGED_MAIN` thì không cho xóa, vì lúc này task là một phần của lịch sử release/prod.
+- Ở màn nhánh, task liên quan hiển thị tiêu đề trước để dễ đọc trong công việc hằng ngày; mã task chỉ là ref phụ giống id, còn nhóm task chủ yếu dùng cho view/filter/task code.
+- Cột ưu tiên của task hiển thị dạng tag gọn:
+  - Low: xanh lá, icon 1 gạch.
+  - Medium: vàng, icon 2 gạch.
+  - High: đỏ, icon 3 gạch.
+- Hover vào tag ưu tiên phải thấy label Low/Medium/High để không phụ thuộc hoàn toàn vào màu sắc.
+- Màn `/tasks` không còn nút hoặc field `Sẵn sàng main`; trạng thái task là tag/summary đọc từ branch active.
+- Task đã `DONE` hoặc active branch đã vào `main/prod` chỉ được xem lại: field sửa, nút lưu và nút xóa phải disable; backend cũng chặn PATCH/DELETE để tránh sửa nhầm.
+- Merge release vào `main` không cần ready-main riêng ở task; `main/prod` là source of truth để task chuyển `DONE`.
+- Task chip nằm trong branch table, Kanban, release child và branch drawer dùng màu theo priority của task: Low xanh lá, Medium vàng, High đỏ.
+- Task có thể `Hủy` mà không xóa: hệ thống giữ record, chuyển status `CANCELLED`, gỡ active branch link và ghi timeline. Task hủy không được gắn/kế thừa vào branch; muốn dùng lại phải `Phục hồi nháp` về `PLANNED`, sau đó add vào branch như task mới chưa làm.
+- Nút `Kế thừa task từ branch nguồn` chỉ kế thừa task chưa done: bỏ qua task `DONE`, task `CANCELLED`, hoặc task đã có `done_at`, để branch mới không kéo theo việc đã hoàn tất hoặc đã hủy.

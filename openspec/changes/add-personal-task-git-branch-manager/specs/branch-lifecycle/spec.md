@@ -15,6 +15,10 @@ The system SHALL allow the user to create or register self-hosted GitLab branche
 - **WHEN** the user creates or edits a branch and selects multiple intended merge targets such as `develop`, `release/08072026`, and `main`
 - **THEN** the system stores the intended merge targets as the original plan and shows all of them on branch table and Kanban cards
 
+#### Scenario: Disable fields that are not editable
+- **WHEN** the user opens an existing branch detail drawer
+- **THEN** fields that cannot safely change for that branch state, such as repository, branch type, existing task links, release-child state, and main-merged branch identity, are shown but disabled instead of appearing editable
+
 #### Scenario: Create hotfix branch record from app
 - **WHEN** the user creates a hotfix branch from the app for Jira/task code `CRM-BE-001`
 - **THEN** the system uses checkout source `main`, suggests branch name `hotfix/CRM-BE-001-<date>`, stores intended targets active `release/...` and `main`, generates the checkout command, and links selected task references
@@ -45,11 +49,16 @@ The system SHALL allow the user to create or register self-hosted GitLab branche
 
 #### Scenario: Attach task branch to a release branch
 - **WHEN** the user records a feature or hotfix branch as merged to release
-- **THEN** the system lets the user choose or enter the release branch receiving the merge, requires that branch to be a distinct release branch, and stores that release branch/cycle on the task branch
+- **THEN** the system lets the user choose an existing release branch receiving the merge, requires that branch to be a distinct release branch, and stores that release branch/cycle on the task branch
 
 #### Scenario: Change release branch for a task branch
 - **WHEN** a task branch was previously attached to `release/08072026` and the user changes it to `release/15072026`
 - **THEN** the system updates the task branch release assignment, keeps both release branches separate from task branches, and records the change in timeline
+
+#### Scenario: Reject attaching to a deleted release branch
+- **WHEN** a release branch record has been deleted
+- **THEN** the system does not show that release branch in attach/change release options
+- **AND** the backend rejects attaching a task branch to that deleted release branch name
 
 #### Scenario: Reject changing release for a child branch already in main
 - **WHEN** a task branch is a child of a release branch that has already reached `main`
@@ -76,11 +85,19 @@ The system SHALL allow the user to create or register self-hosted GitLab branche
 - **THEN** the system rejects the deletion until the child branches are moved to another release or deleted
 
 ### Requirement: User can link tasks and branches
-The system SHALL support many-to-many links between tasks and branches with a relationship role so the user can see whether a task is in a feature branch, release branch, or `main`.
+The system SHALL allow each task to have at most one active branch link at a time, while allowing a branch to contain multiple tasks, so the user can see the single current branch path for each task.
 
 #### Scenario: Link task to branch
 - **WHEN** the user links a task to a branch with role `PRIMARY`
 - **THEN** the task detail shows the branch and the branch detail shows the task
+
+#### Scenario: Reject linking done or cancelled task to branch
+- **WHEN** the user tries to manually link a task whose status is `DONE` or `CANCELLED`
+- **THEN** the system rejects the link and explains that a cancelled task must be restored to draft before it can be added to a branch
+
+#### Scenario: Reassign task to another branch
+- **WHEN** a task already has an active branch and the user links it to another branch
+- **THEN** the system deactivates the previous task-branch link, keeps only the new link active, and syncs the task status from the new branch
 
 #### Scenario: View task branch path
 - **WHEN** the user opens a task linked to a feature branch
@@ -94,13 +111,21 @@ The system SHALL support many-to-many links between tasks and branches with a re
 - **WHEN** the user links multiple tasks to one branch
 - **THEN** merge actions on that branch evaluate every linked task
 
-#### Scenario: Task spans multiple independent branch flows
-- **WHEN** the user links one task to multiple independent required branch flows
-- **THEN** the task is not considered complete until every required flow has reached `main`
+#### Scenario: Add tasks to an active branch before release
+- **WHEN** a branch is still in coding or develop state
+- **THEN** the user can add or remove linked tasks on that branch, and each newly linked task becomes active on that branch while any previous active branch link for that task is superseded
+
+#### Scenario: Lock task links after release
+- **WHEN** a branch has reached release or main
+- **THEN** the system prevents adding or removing linked tasks on that branch so release and production history stay stable
 
 #### Scenario: Link branch with existing short name
 - **WHEN** the user links an existing short branch name to a task and adds a task-code alias
 - **THEN** the system stores the manual link and alias without requiring the real branch name to change
+
+#### Scenario: Inherit only unfinished tasks from source branch
+- **WHEN** the user creates a branch from a source branch with task inheritance enabled
+- **THEN** the system inherits only source tasks that are not `DONE`, not `CANCELLED`, and do not have `done_at`
 
 ### Requirement: User can update branch lifecycle status
 The system SHALL keep the branch lifecycle compact with four statuses: coding, merged to develop, merged to release, and merged to main.
@@ -123,7 +148,7 @@ The system SHALL keep the branch lifecycle compact with four statuses: coding, m
 
 #### Scenario: Develop status is manual tracking only
 - **WHEN** the user moves a branch to `MERGED_DEVELOP`
-- **THEN** the system records the branch status change without marking linked tasks done
+- **THEN** the system records the branch status change and keeps linked tasks in `IN_PROGRESS`
 
 #### Scenario: Release branch moves only to main
 - **WHEN** the user drags a release branch from `MERGED_RELEASE` to `MERGED_MAIN`
@@ -146,7 +171,19 @@ The system SHALL provide a Kanban view for `/branches` where branch lifecycle st
 
 #### Scenario: Compact branch card
 - **WHEN** a branch appears in the Kanban board
-- **THEN** the branch card shows branch name, repository, linked task codes, checkout source, intended targets, actual merged-into state, and quick actions without requiring the table view
+- **THEN** the branch card shows branch name, repository, linked task titles with task code as a secondary reference, checkout source, intended targets, actual merged-into state, and quick actions without requiring the table view
+
+#### Scenario: Linked task color follows task priority
+- **WHEN** a linked task appears inside a branch table row, Kanban card, release child row, or branch detail drawer
+- **THEN** the linked task chip uses the task priority color so Low is green, Medium is gold, and High is red
+
+#### Scenario: Show disabled unavailable actions
+- **WHEN** a branch row, branch card, or card action menu contains actions that are not valid for the current branch state
+- **THEN** the system still shows those actions but disables them instead of hiding them
+
+#### Scenario: Status menu lists disabled invalid statuses
+- **WHEN** the user opens a status selector for a branch action
+- **THEN** the system lists every enabled branch status while disabling statuses that cannot be selected for that branch state
 
 #### Scenario: Release branch card stands apart
 - **WHEN** a release branch appears in the Kanban board
@@ -168,9 +205,10 @@ The system SHALL provide a Kanban view for `/branches` where branch lifecycle st
 - **WHEN** a release branch card is moved to `MERGED_MAIN`
 - **THEN** every task branch sub-item under that release follows the release branch to `MERGED_MAIN`, and linked tasks are evaluated through the release-to-main workflow
 
-#### Scenario: Reject dragging release child branch out of parent
-- **WHEN** a branch already attached to a release branch is shown as a release child
-- **THEN** the user cannot drag that child branch independently into another lifecycle column; the UI explains that it follows the release branch
+#### Scenario: Detach release child branch before main
+- **WHEN** a task branch is attached to a release parent that is still in `MERGED_RELEASE`
+- **AND** the user changes that child branch to a normal lifecycle status by edit or by dragging it out to a normal Kanban column
+- **THEN** the system clears the child branch release assignment and actual release merge target, shows it again as a top-level branch, records a detach timeline event, and moves linked active tasks back out of release when the active branch is no longer in release or main
 
 #### Scenario: Lock release child branch while parent is in main
 - **WHEN** a release parent branch is in `MERGED_MAIN`
@@ -200,23 +238,15 @@ The system SHALL update release merge state and linked task state when a feature
 - **THEN** the task remains not done until that release branch reaches `main`
 
 ### Requirement: Main merge completes eligible linked branch flows
-The system SHALL treat recorded release branch merge into `main` as the source of truth for completion, update release and child branch main state, and mark linked tasks `DONE` when all required branch flows for each task have reached `main`. If linked tasks were not marked release-ready, the system SHALL warn but still allow the user to record the actual main merge.
+The system SHALL treat recorded release branch merge into `main` as the source of truth for completion, update release and child branch main state, and mark linked tasks `DONE` when each task's active branch reaches `main`.
 
-#### Scenario: Main merge warns when task was not ready
-- **WHEN** the user marks a release branch as merged into `main` while a linked task in that release is not release-ready
-- **THEN** the system warns which linked task was not marked ready and still allows the user to confirm the real main merge
+#### Scenario: Main merge does not require task ready-main flag
+- **WHEN** the user marks a release branch as merged into `main`
+- **THEN** the system records the real main merge and evaluates linked tasks without requiring any task-level ready-main flag
 
 #### Scenario: Release branch merged to main completes included task branches
 - **WHEN** release branch `release/08072026` is marked merged into `main`
 - **THEN** the system marks the release branch as merged to main, stores `main` as the release actual merged-into branch, propagates main state to task branches attached to that release, sets eligible task status to `DONE`, sets `done_at`, and records timeline events
-
-#### Scenario: Multi-branch task partially merged to main
-- **WHEN** one required independent branch flow for a task is included in a release branch merged to `main` but another required flow for the same task has not reached `main`
-- **THEN** the system keeps the task not done and shows that main completion is partial
-
-#### Scenario: Multi-branch task fully merged to main
-- **WHEN** all required independent branch flows linked to a task have reached `main` through their release branches
-- **THEN** the system marks the task `DONE` and records the completion event
 
 ### Requirement: User can record actual merge destination
 The system SHALL allow the user to record which branch a branch was actually merged into, independent of the originally intended merge target.

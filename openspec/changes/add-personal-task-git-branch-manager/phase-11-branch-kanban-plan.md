@@ -32,7 +32,7 @@ Default nen nhu sau:
 1. `/branches` co segmented control: `Bảng` / `Kanban`.
 2. Filter repository, status, search dung chung cho ca 2 view.
 3. Kanban hien column header gom mau status, ten status, so branch.
-4. Branch card gom: branch name, repo, task code, checkout source -> intended target -> actual merged/main state.
+4. Branch card gom: branch name, repo, task title first, task code as secondary id, checkout source -> intended target -> actual merged/main state.
 5. Keo card sang cot hop le thi goi API move status va ghi timeline.
 6. Keo vao cot bi chan thi card quay ve vi tri cu va hien message nhu: `Trang thai nay can dung nut Merge main`.
 7. Merge release/main van nam tren card hoac drawer nhu quick action rieng.

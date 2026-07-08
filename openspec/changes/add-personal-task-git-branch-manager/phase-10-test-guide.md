@@ -30,7 +30,7 @@ Noi dung cover:
 - Tao branch tren app co checkout source, intended target, checkout command.
 - Tao branch `B` tu branch `A` va ke thua task link.
 - Merge feature vao release chi dua task vao `MERGED_RELEASE`, khong done.
-- Merge vao `main` canh bao task chua san sang main nhung van ghi nhan su that va done task khi lineage hop le.
+- Merge release vao `main` khong can ready-main rieng va done task khi branch flow hop le.
 - Task co nhieu lineage chi done khi tat ca lineage bat buoc da vao `main`.
 - Branch `B` merge vao `main` co the done task duoc carry tu `A`.
 - Ghi nhan actual merged-into khong lam mat intended target.
@@ -51,7 +51,6 @@ Flow browser dang cover:
 - Tao project `OPS`, tao nhom task `BE`, tao repository GitLab noi bo.
 - Mo tab Workflow va luu status `DONE` label `Hoan tat`.
 - Tao note inbox, luu tru note, filter note, chuyen note thanh task.
-- Danh dau task san sang main.
 - Mo All Tasks va thay task theo trang thai.
 - Tao branch `A`, merge release.
 - Tao branch `B` tu `A`, merge main.

@@ -40,21 +40,41 @@ The system SHALL allow tasks to be created, viewed, updated, filtered, and assig
 - **WHEN** the user sets a target date on a task
 - **THEN** the system stores and displays that target date in task views and dashboard signals
 
-#### Scenario: Update task status
-- **WHEN** the user changes a task status manually
-- **THEN** the system updates the task and records a timeline event with the previous and new status
+#### Scenario: Task status follows branch
+- **WHEN** a task has no branch, an active branch in progress/develop, an active branch in release, or an active branch in main
+- **THEN** the system shows the task as `PLANNED`, `IN_PROGRESS`, `MERGED_RELEASE`, or `DONE` respectively and does not rely on manual task status editing
 
-### Requirement: User can mark task ready for production with dedicated action
-The system SHALL provide a dedicated task action for marking a task release-ready for production, separate from ordinary status editing. This action SHALL be a planning signal and MUST NOT be required for a task to become `DONE` after its branch flow reaches `main`.
+#### Scenario: Delete task before production
+- **WHEN** the user deletes a task that has not reached `main`
+- **THEN** the system removes the task, removes its task-branch links through cascade cleanup, keeps any branch records intact, and records a `TASK_DELETED` timeline audit event
 
-#### Scenario: Mark task ready for production
-- **WHEN** the user clicks the dedicated ready-for-production action on a task
-- **THEN** the system records the task as release-ready and writes a timeline event
+#### Scenario: Cancel task without deleting
+- **WHEN** the user cancels a task that has not reached `main`
+- **THEN** the system keeps the task record, sets status `CANCELLED`, deactivates active branch links, and records a `TASK_CANCELLED` timeline audit event
 
-#### Scenario: Production readiness is not a normal status edit
-- **WHEN** the user edits general task fields or changes a non-production status
-- **THEN** the system does not mark the task release-ready unless the dedicated action is used
+#### Scenario: Restore cancelled task to draft before branch linking
+- **WHEN** the user restores a `CANCELLED` task
+- **THEN** the system sets the task back to `PLANNED` without restoring old branch links, so the task can be explicitly added to a branch again
 
-#### Scenario: Main merge can complete task without readiness flag
-- **WHEN** the task was not marked ready for production but its required branch flow is recorded as merged into `main` through a release branch
-- **THEN** the system can still mark the task `DONE` and records that completion came from main merge
+#### Scenario: Reject deleting task already on production
+- **WHEN** the user tries to delete a task whose status is `DONE` or whose active branch already reached `main`
+- **THEN** the system rejects the deletion and keeps the task available for tracking history
+
+### Requirement: Task edit controls reflect branch-derived state
+The system SHALL keep task status branch-derived, SHALL NOT expose a separate ready-main task action, and SHALL disable task edit/delete controls when the task has already reached `main`/prod.
+
+#### Scenario: No ready-main action on task screen
+- **WHEN** the user views the task table or task detail drawer
+- **THEN** the system does not show a `Sẵn sàng main` action or field
+
+#### Scenario: Task status is read-only in detail drawer
+- **WHEN** the user opens a task detail drawer
+- **THEN** the system shows the branch-derived task status as a tag or summary and does not provide a manual status field
+
+#### Scenario: Task already on production is read-only
+- **WHEN** the user opens a task whose status is `DONE` or whose active branch already reached `main`
+- **THEN** edit fields, save action, and delete action are visible but disabled with a reason
+
+#### Scenario: Main merge completes task without ready-main flag
+- **WHEN** the task's active branch flow is recorded as merged into `main` through a release branch
+- **THEN** the system can mark the task `DONE` without any task-level ready-main action

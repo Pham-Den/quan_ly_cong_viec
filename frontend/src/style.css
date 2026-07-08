@@ -287,6 +287,47 @@ body {
   font-size: 12px;
 }
 
+.priority-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 22px;
+  margin-inline-end: 0;
+  padding-inline: 8px;
+  border-radius: 6px;
+}
+
+.priority-bars {
+  display: grid;
+  gap: 2px;
+  width: 20px;
+}
+
+.priority-bars span {
+  display: block;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.24;
+}
+
+.priority-bars span:nth-child(1) {
+  width: 8px;
+}
+
+.priority-bars span:nth-child(2) {
+  width: 14px;
+}
+
+.priority-bars span:nth-child(3) {
+  width: 20px;
+}
+
+.priority-bars span.is-active {
+  opacity: 1;
+}
+
 .branch-flow {
   display: grid;
   gap: 6px;
@@ -326,6 +367,81 @@ body {
 .branch-kanban-card-meta .ant-tag,
 .branch-kanban-status-tag {
   margin-inline-end: 0;
+}
+
+.task-ref-list {
+  max-width: 100%;
+}
+
+.task-ref-tag {
+  display: inline-grid;
+  max-width: 100%;
+  min-height: 24px;
+  margin-inline-end: 0;
+  vertical-align: middle;
+}
+
+.task-ref-priority-low {
+  border-color: #b7eb8f;
+  background: #f6ffed;
+  box-shadow: inset 3px 0 0 #52c41a;
+}
+
+.task-ref-priority-medium {
+  border-color: #ffe58f;
+  background: #fffbe6;
+  box-shadow: inset 3px 0 0 #faad14;
+}
+
+.task-ref-priority-high,
+.task-ref-priority-urgent {
+  border-color: #ffa39e;
+  background: #fff1f0;
+  box-shadow: inset 3px 0 0 #ff4d4f;
+}
+
+.task-ref-title {
+  display: block;
+  max-width: 220px;
+  overflow: hidden;
+  color: #344054;
+  font-weight: 500;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-ref-code {
+  display: block;
+  color: #98a2b3;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.task-ref-priority-low .task-ref-title {
+  color: #237804;
+}
+
+.task-ref-priority-medium .task-ref-title {
+  color: #ad6800;
+}
+
+.task-ref-priority-high .task-ref-title,
+.task-ref-priority-urgent .task-ref-title {
+  color: #a8071a;
+}
+
+.task-ref-priority-low .task-ref-code {
+  color: #389e0d;
+}
+
+.task-ref-priority-medium .task-ref-code {
+  color: #d48806;
+}
+
+.task-ref-priority-high .task-ref-code,
+.task-ref-priority-urgent .task-ref-code {
+  color: #cf1322;
 }
 
 .branch-flow-card {
@@ -480,11 +596,8 @@ body {
   gap: 4px;
 }
 
-.branch-release-child-tasks .ant-tag {
-  border-color: #91caff;
-  background: #f8fbff;
-  color: #175cd3;
-  margin-inline-end: 0;
+.branch-release-child-tasks .task-ref-title {
+  max-width: 176px;
 }
 
 .app-kanban-card-action-trigger {

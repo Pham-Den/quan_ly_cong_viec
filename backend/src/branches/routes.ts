@@ -4,6 +4,7 @@ import { createAuthGuard } from '../auth/guard.js'
 import type { AppPrismaClient } from '../db.js'
 import type { AppEnv } from '../env.js'
 import { branchKanbanDropRule, ensureWorkflowStatuses } from '../workflow/defaults.js'
+import { keepSingleActiveBranchPerTask, syncTasksWithLinkedBranches } from '../workflow/task-sync.js'
 
 type BranchRoutesContext = {
   env: AppEnv
@@ -361,6 +362,10 @@ async function selectReleaseCycleForTarget(
     return { error: `Ten release branch phai theo pattern ${repository.releaseBranchPattern}.` }
   }
 
+  if (!existingTargetBranch) {
+    return { error: 'Release branch chua ton tai. Hay tao release branch truoc khi gan.' }
+  }
+
   await prisma.releaseCycle.updateMany({
     where: {
       repositoryId: repository.id,
@@ -505,8 +510,8 @@ async function ensureBranch(prisma: AppPrismaClient, branchId: string, userId: s
               id: true,
               code: true,
               title: true,
+              priority: true,
               status: true,
-              releaseReadyAt: true,
             },
           },
         },
@@ -540,10 +545,33 @@ async function taskIdsInProject(prisma: BranchWriteClient, taskIds: string[], pr
       id: true,
       code: true,
       title: true,
+      status: true,
+      doneAt: true,
     },
   })
 
   return tasks
+}
+
+type LinkableTaskCandidate = {
+  code: string
+  title: string
+  status: string
+  doneAt: Date | string | null
+}
+
+function unlinkableBranchTasks<T extends LinkableTaskCandidate>(tasks: T[]) {
+  return tasks.filter((task) => !branchTaskCanBeLinked(task))
+}
+
+function branchTaskCanBeLinked(task: LinkableTaskCandidate) {
+  return task.status !== 'DONE' && task.status !== 'CANCELLED' && !task.doneAt
+}
+
+function unlinkableBranchTasksMessage(tasks: LinkableTaskCandidate[]) {
+  const taskList = tasks.map((task) => `${task.code} - ${task.title}`).join(', ')
+
+  return `Task da done/da huy khong the gan vao branch: ${taskList}. Hay phuc hoi task da huy ve nhap truoc.`
 }
 
 async function createBranchLinks(
@@ -555,21 +583,51 @@ async function createBranchLinks(
   lineageId: string,
   inheritedFromBranchId: string | null,
   completionRequired: boolean,
+  createdById?: string,
 ) {
   const tasks = await taskIdsInProject(prisma, taskIds, projectId)
+  const linkableTasks = tasks.filter(branchTaskCanBeLinked)
 
-  await prisma.taskBranch.createMany({
-    data: tasks.map((task) => ({
-      branchId,
-      taskId: task.id,
-      inheritedFromBranchId,
-      role,
-      lineageId,
-      completionRequired,
-    })),
-  })
+  await keepSingleActiveBranchPerTask(
+    prisma,
+    linkableTasks.map((task) => task.id),
+    branchId,
+  )
 
-  return tasks
+  for (const task of linkableTasks) {
+    await prisma.taskBranch.upsert({
+      where: {
+        taskId_branchId_role: {
+          taskId: task.id,
+          branchId,
+          role,
+        },
+      },
+      create: {
+        branchId,
+        taskId: task.id,
+        inheritedFromBranchId,
+        role,
+        lineageId,
+        completionRequired,
+      },
+      update: {
+        active: true,
+        inheritedFromBranchId,
+        lineageId,
+        completionRequired,
+      },
+    })
+  }
+
+  await syncTasksWithLinkedBranches(
+    prisma,
+    linkableTasks.map((task) => task.id),
+    projectId,
+    createdById,
+  )
+
+  return linkableTasks
 }
 
 async function syncBranchAliases(prisma: BranchWriteClient, branchId: string, aliases: string[]) {
@@ -618,7 +676,7 @@ async function markTaskDoneIfReady(prisma: BranchWriteClient, taskIds: string[],
   })
 
   for (const task of tasks) {
-    if (['DONE', 'CANCELLED'].includes(task.status) || !task.branchLinks.length) {
+    if (task.status === 'DONE' || task.status === 'CANCELLED' || !task.branchLinks.length) {
       continue
     }
 
@@ -725,6 +783,67 @@ async function revertTasksToReleaseAfterMainRollback(
           metadataJson: JSON.stringify({
             previousStatus: task.status,
             rollbackBranchIds: [...rollbackBranchIds],
+          }),
+        },
+      })
+    }
+  }
+}
+
+async function revertTasksAfterReleaseDetach(
+  prisma: Pick<AppPrismaClient, 'task' | 'timelineEvent'>,
+  taskIds: string[],
+  projectId: string,
+  detachedBranchId: string,
+  createdById?: string,
+) {
+  const tasks = await prisma.task.findMany({
+    where: {
+      id: { in: [...new Set(taskIds)] },
+      projectId,
+    },
+    include: {
+      branchLinks: {
+        where: {
+          active: true,
+          completionRequired: true,
+        },
+        include: {
+          branch: true,
+        },
+      },
+    },
+  })
+
+  for (const task of tasks) {
+    if (task.status === 'CANCELLED') {
+      continue
+    }
+
+    const stillHasReleaseOrMainBranch = task.branchLinks.some(
+      (link) => link.branchId !== detachedBranchId && ['MERGED_RELEASE', 'MERGED_MAIN'].includes(link.branch.status),
+    )
+
+    if (!stillHasReleaseOrMainBranch && task.status !== 'IN_PROGRESS') {
+      await prisma.task.update({
+        where: { id: task.id },
+        data: {
+          status: 'IN_PROGRESS',
+          doneAt: null,
+        },
+      })
+      await prisma.timelineEvent.create({
+        data: {
+          projectId,
+          taskId: task.id,
+          branchId: detachedBranchId,
+          createdById,
+          eventType: 'TASK_RELEASE_DETACHED',
+          title: `${task.code} khong con gan release`,
+          description: 'Task duoc dua ve dang tien hanh vi branch da go khoi release.',
+          metadataJson: JSON.stringify({
+            previousStatus: task.status,
+            detachedBranchId,
           }),
         },
       })
@@ -980,8 +1099,8 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
                 id: true,
                 code: true,
                 title: true,
+                priority: true,
                 status: true,
-                releaseReadyAt: true,
               },
             },
           },
@@ -1089,6 +1208,14 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
           include: {
             taskLinks: {
               where: { active: true },
+              include: {
+                task: {
+                  select: {
+                    status: true,
+                    doneAt: true,
+                  },
+                },
+              },
             },
           },
         })
@@ -1101,6 +1228,12 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
     const branchType = inferBranchType(name, text(body.branchType))
     const explicitTaskIds = stringList(body.taskIds)
     const linkedTaskCandidates = await taskIdsInProject(context.prisma, explicitTaskIds, repository.projectId)
+    const blockedLinkedTasks = unlinkableBranchTasks(linkedTaskCandidates)
+
+    if (blockedLinkedTasks.length) {
+      return reply.code(400).send({ message: unlinkableBranchTasksMessage(blockedLinkedTasks) })
+    }
+
     const firstTask = linkedTaskCandidates[0] ?? null
     const ruleDrivenBranch = isRuleDrivenBranchType(branchType)
     let releaseCycleForBranch: { id: string; name: string } | null = null
@@ -1240,11 +1373,12 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
         lineageId,
         null,
         body.completionRequired !== false,
+        request.authUser?.id,
       )
 
       if (sourceBranch && body.inheritTaskLinks === true) {
         const inheritedTaskIds = sourceBranch.taskLinks
-          .filter((link) => !explicitTaskIds.includes(link.taskId))
+          .filter((link) => !explicitTaskIds.includes(link.taskId) && link.task.status !== 'DONE' && link.task.status !== 'CANCELLED' && !link.task.doneAt)
           .map((link) => link.taskId)
 
         await createBranchLinks(
@@ -1256,6 +1390,7 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
           lineageId,
           sourceBranch.id,
           true,
+          request.authUser?.id,
         )
       }
 
@@ -1319,6 +1454,16 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
         ? branch.repository.productionBranch
         : text(body.checkoutSourceBranch) || branch.checkoutSourceBranch || branch.repository.defaultBranch
     const nextStatus = text(body.status) || branch.status
+    const detachingReleaseChild =
+      branch.branchType !== 'RELEASE' &&
+      branch.releaseCycleId &&
+      branch.status === 'MERGED_RELEASE' &&
+      !isReleaseLifecycleStatus(nextStatus)
+    const submittedTaskIds = body.taskIds === undefined ? null : uniqueStringList(body.taskIds)
+    const currentTaskIds = branch.taskLinks.map((link) => link.task.id)
+    const taskLinksChanged =
+      submittedTaskIds !== null &&
+      (submittedTaskIds.length !== currentTaskIds.length || submittedTaskIds.some((taskId) => !currentTaskIds.includes(taskId)))
 
     if (nextBranchType === 'RELEASE') {
       if (!isReleaseLifecycleStatus(nextStatus)) {
@@ -1334,11 +1479,31 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
       branch.branchType !== 'RELEASE' &&
       branch.releaseCycleId &&
       isReleaseLifecycleStatus(branch.status) &&
-      nextStatus !== branch.status
+      nextStatus !== branch.status &&
+      !detachingReleaseChild
     ) {
       return reply.code(400).send({
         message: 'Nhanh con trong release khong doi trang thai rieng. Hay doi release hoac xoa khi release parent dang o release.',
       })
+    }
+
+    if (
+      taskLinksChanged &&
+      (branch.branchType === 'RELEASE' ||
+        !['CODING', 'MERGED_DEVELOP'].includes(branch.status) ||
+        !['CODING', 'MERGED_DEVELOP'].includes(nextStatus))
+    ) {
+      return reply.code(400).send({ message: 'Chi them hoac go task khi branch dang tien hanh hoac o develop.' })
+    }
+
+    if (taskLinksChanged && submittedTaskIds) {
+      const addedTaskIds = submittedTaskIds.filter((taskId) => !currentTaskIds.includes(taskId))
+      const addedTaskCandidates = await taskIdsInProject(context.prisma, addedTaskIds, branch.repository.projectId)
+      const blockedAddedTasks = unlinkableBranchTasks(addedTaskCandidates)
+
+      if (blockedAddedTasks.length) {
+        return reply.code(400).send({ message: unlinkableBranchTasksMessage(blockedAddedTasks) })
+      }
     }
 
     const updatedBranch = await context.prisma.branch.update({
@@ -1350,11 +1515,17 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
         status: nextStatus,
         checkoutSourceBranch: checkoutSource,
         intendedMergeTarget: nullableStringListText(body.intendedMergeTarget),
-        actualMergedInto: nullableText(body.actualMergedInto),
+        actualMergedInto: detachingReleaseChild ? null : nullableText(body.actualMergedInto),
         baseBranch: nullableText(body.baseBranch) ?? checkoutSource,
         mergeRequestUrl: nullableText(body.mergeRequestUrl),
         releaseCycleDate: dateOrNull(body.releaseCycleDate) ?? releaseDateFromName(name),
         generatedCheckoutCommand: checkoutCommand(checkoutSource, name),
+        ...(detachingReleaseChild
+          ? {
+              releaseCycleId: null,
+              mergedReleaseAt: null,
+            }
+          : {}),
         ...(nextStatus !== branch.status
           ? { sortOrder: await nextBranchSortOrder(context.prisma, branch.repositoryId, nextStatus) }
           : {}),
@@ -1362,6 +1533,69 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
     })
 
     await syncBranchAliases(context.prisma, branch.id, stringList(body.aliases))
+
+    if (taskLinksChanged && submittedTaskIds) {
+      const removedTaskIds = currentTaskIds.filter((taskId) => !submittedTaskIds.includes(taskId))
+      const addedTaskIds = submittedTaskIds.filter((taskId) => !currentTaskIds.includes(taskId))
+
+      if (removedTaskIds.length) {
+        await context.prisma.taskBranch.updateMany({
+          where: {
+            branchId: branch.id,
+            taskId: { in: removedTaskIds },
+            active: true,
+          },
+          data: { active: false },
+        })
+
+        for (const taskId of removedTaskIds) {
+          await context.prisma.timelineEvent.create({
+            data: {
+              projectId: branch.repository.projectId,
+              branchId: branch.id,
+              taskId,
+              createdById: request.authUser?.id,
+              eventType: 'TASK_BRANCH_UNLINKED',
+              title: `Go task khoi ${branch.name}`,
+              metadataJson: JSON.stringify({ branchId: branch.id, taskId }),
+            },
+          })
+        }
+      }
+
+      const addedTasks = await createBranchLinks(
+        context.prisma,
+        branch.id,
+        addedTaskIds,
+        branch.repository.projectId,
+        'PRIMARY',
+        branch.lineageId || branch.id,
+        null,
+        true,
+        request.authUser?.id,
+      )
+
+      for (const task of addedTasks) {
+        await context.prisma.timelineEvent.create({
+          data: {
+            projectId: branch.repository.projectId,
+            branchId: branch.id,
+            taskId: task.id,
+            createdById: request.authUser?.id,
+            eventType: 'TASK_BRANCH_LINKED',
+            title: `Link task vao ${branch.name}`,
+            metadataJson: JSON.stringify({ branchId: branch.id, taskId: task.id, source: 'branch-edit' }),
+          },
+        })
+      }
+
+      await syncTasksWithLinkedBranches(
+        context.prisma,
+        [...removedTaskIds, ...addedTaskIds],
+        branch.repository.projectId,
+        request.authUser?.id,
+      )
+    }
 
     if (nextStatus !== branch.status) {
       await context.prisma.timelineEvent.create({
@@ -1375,6 +1609,39 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
           metadataJson: JSON.stringify({ from: branch.status, to: nextStatus }),
         },
       })
+    }
+
+    if (detachingReleaseChild) {
+      await context.prisma.timelineEvent.create({
+        data: {
+          projectId: branch.repository.projectId,
+          branchId: branch.id,
+          createdById: request.authUser?.id,
+          eventType: 'BRANCH_RELEASE_DETACHED',
+          title: `${branch.name} go khoi release`,
+          description: `Branch duoc go khoi ${branch.actualMergedInto ?? 'release'} va chuyen sang ${nextStatus}.`,
+          metadataJson: JSON.stringify({
+            fromReleaseCycleId: branch.releaseCycleId,
+            fromReleaseBranch: branch.actualMergedInto,
+            toStatus: nextStatus,
+            source: 'edit',
+          }),
+        },
+      })
+      await revertTasksAfterReleaseDetach(
+        context.prisma,
+        branch.taskLinks.map((link) => link.task.id),
+        branch.repository.projectId,
+        branch.id,
+        request.authUser?.id,
+      )
+    } else if (nextStatus !== branch.status) {
+      await syncTasksWithLinkedBranches(
+        context.prisma,
+        branch.taskLinks.map((link) => link.task.id),
+        branch.repository.projectId,
+        request.authUser?.id,
+      )
     }
 
     return updatedBranch
@@ -1393,23 +1660,22 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
       })
     }
 
+    let deletedReleaseCycleId: string | null = null
+
     if (branch.branchType === 'RELEASE') {
-      const releaseCycle =
-        branch.releaseCycleId ||
-        (
-          await context.prisma.releaseCycle.findFirst({
-            where: {
-              repositoryId: branch.repositoryId,
-              name: branch.name,
-            },
-            select: { id: true },
-          })
-        )?.id
-      const childBranchCount = releaseCycle
+      const releaseCycle = await context.prisma.releaseCycle.findFirst({
+        where: {
+          repositoryId: branch.repositoryId,
+          name: branch.name,
+        },
+        select: { id: true },
+      })
+      deletedReleaseCycleId = branch.releaseCycleId || releaseCycle?.id || null
+      const childBranchCount = deletedReleaseCycleId
         ? await context.prisma.branch.count({
             where: {
               repositoryId: branch.repositoryId,
-              releaseCycleId: releaseCycle,
+              releaseCycleId: deletedReleaseCycleId,
               id: { not: branch.id },
               branchType: { not: 'RELEASE' },
             },
@@ -1442,9 +1708,26 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
       },
     })
 
+    const linkedTaskIds = branch.taskLinks.map((link) => link.task.id)
+
     await context.prisma.branch.delete({
       where: { id: branch.id },
     })
+
+    if (branch.branchType === 'RELEASE') {
+      await context.prisma.releaseCycle.updateMany({
+        where: {
+          repositoryId: branch.repositoryId,
+          ...(deletedReleaseCycleId ? { OR: [{ id: deletedReleaseCycleId }, { name: branch.name }] } : { name: branch.name }),
+        },
+        data: {
+          status: 'CLOSED',
+          endDate: new Date(),
+        },
+      })
+    }
+
+    await syncTasksWithLinkedBranches(context.prisma, linkedTaskIds, branch.repository.projectId, request.authUser?.id)
 
     return { ok: true }
   })
@@ -1463,6 +1746,16 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
       return reply.code(400).send({ message: 'Can chon task de link.' })
     }
 
+    const [task] = await taskIdsInProject(context.prisma, [taskId], branch.repository.projectId)
+
+    if (!task) {
+      return reply.code(400).send({ message: 'Task khong thuoc project cua branch.' })
+    }
+
+    if (!branchTaskCanBeLinked(task)) {
+      return reply.code(400).send({ message: unlinkableBranchTasksMessage([task]) })
+    }
+
     await createBranchLinks(
       context.prisma,
       branch.id,
@@ -1472,6 +1765,7 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
       branch.lineageId || branch.id,
       null,
       body.completionRequired !== false,
+      request.authUser?.id,
     )
     await context.prisma.timelineEvent.create({
       data: {
@@ -1503,6 +1797,12 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
       },
       data: { active: false },
     })
+    await syncTasksWithLinkedBranches(
+      context.prisma,
+      [params.taskId ?? ''],
+      branch.repository.projectId,
+      request.authUser?.id,
+    )
 
     return { ok: true }
   })
@@ -1524,7 +1824,12 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
       return reply.code(400).send({ message: 'Release branch chi chuyen main bang thao tac Merge main.' })
     }
 
-    if (branch.releaseCycleId && isReleaseLifecycleStatus(branch.status) && nextStatus !== branch.status) {
+    const detachingReleaseChild =
+      branch.releaseCycleId &&
+      branch.status === 'MERGED_RELEASE' &&
+      !isReleaseLifecycleStatus(nextStatus)
+
+    if (branch.releaseCycleId && isReleaseLifecycleStatus(branch.status) && nextStatus !== branch.status && !detachingReleaseChild) {
       return reply.code(400).send({
         message: 'Nhanh con trong release khong doi trang thai rieng. Hay doi release hoac xoa khi release parent dang o release.',
       })
@@ -1534,6 +1839,13 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
       where: { id: branch.id },
       data: {
         status: nextStatus,
+        ...(detachingReleaseChild
+          ? {
+              releaseCycleId: null,
+              mergedReleaseAt: null,
+              actualMergedInto: null,
+            }
+          : {}),
         sortOrder: await nextBranchSortOrder(context.prisma, branch.repositoryId, nextStatus),
       },
     })
@@ -1549,6 +1861,39 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
         metadataJson: JSON.stringify({ from: branch.status, to: nextStatus }),
       },
     })
+
+    if (detachingReleaseChild) {
+      await context.prisma.timelineEvent.create({
+        data: {
+          projectId: branch.repository.projectId,
+          branchId: branch.id,
+          createdById: request.authUser?.id,
+          eventType: 'BRANCH_RELEASE_DETACHED',
+          title: `${branch.name} go khoi release`,
+          description: `Branch duoc go khoi ${branch.actualMergedInto ?? 'release'} va chuyen sang ${nextStatus}.`,
+          metadataJson: JSON.stringify({
+            fromReleaseCycleId: branch.releaseCycleId,
+            fromReleaseBranch: branch.actualMergedInto,
+            toStatus: nextStatus,
+            source: 'status',
+          }),
+        },
+      })
+      await revertTasksAfterReleaseDetach(
+        context.prisma,
+        branch.taskLinks.map((link) => link.task.id),
+        branch.repository.projectId,
+        branch.id,
+        request.authUser?.id,
+      )
+    } else {
+      await syncTasksWithLinkedBranches(
+        context.prisma,
+        branch.taskLinks.map((link) => link.task.id),
+        branch.repository.projectId,
+        request.authUser?.id,
+      )
+    }
 
     return updatedBranch
   })
@@ -1571,7 +1916,13 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
       return branch
     }
 
-    if (branch.branchType !== 'RELEASE' && branch.releaseCycleId && isReleaseLifecycleStatus(branch.status)) {
+    const detachingReleaseChild =
+      branch.branchType !== 'RELEASE' &&
+      branch.releaseCycleId &&
+      branch.status === 'MERGED_RELEASE' &&
+      !isReleaseLifecycleStatus(nextStatus)
+
+    if (branch.branchType !== 'RELEASE' && branch.releaseCycleId && isReleaseLifecycleStatus(branch.status) && !detachingReleaseChild) {
       return reply.code(400).send({
         message: 'Nhanh con trong release se di theo release branch, khong keo rieng.',
         blocked: true,
@@ -1644,27 +1995,74 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
       })
     }
 
-    const updatedBranch = await context.prisma.branch.update({
-      where: { id: branch.id },
-      data: {
-        status: nextStatus,
-        sortOrder: await nextBranchSortOrder(context.prisma, branch.repositoryId, nextStatus),
-      },
-    })
+    return context.prisma.$transaction(async (tx) => {
+      const updatedBranch = await tx.branch.update({
+        where: { id: branch.id },
+        data: {
+          status: nextStatus,
+          ...(detachingReleaseChild
+            ? {
+                releaseCycleId: null,
+                mergedReleaseAt: null,
+                actualMergedInto: null,
+              }
+            : {}),
+          sortOrder: await nextBranchSortOrder(tx, branch.repositoryId, nextStatus),
+        },
+      })
 
-    await context.prisma.timelineEvent.create({
-      data: {
-        projectId: branch.repository.projectId,
-        branchId: branch.id,
-        createdById: request.authUser?.id,
-        eventType: 'BRANCH_STATUS_CHANGED',
-        title: `Keo branch ${branch.name}`,
-        description: `${branch.status} -> ${nextStatus}`,
-        metadataJson: JSON.stringify({ from: branch.status, to: nextStatus, source: 'kanban' }),
-      },
-    })
+      await tx.timelineEvent.create({
+        data: {
+          projectId: branch.repository.projectId,
+          branchId: branch.id,
+          createdById: request.authUser?.id,
+          eventType: 'BRANCH_STATUS_CHANGED',
+          title: `Keo branch ${branch.name}`,
+          description: `${branch.status} -> ${nextStatus}`,
+          metadataJson: JSON.stringify({
+            from: branch.status,
+            to: nextStatus,
+            source: 'kanban',
+            detachedReleaseCycleId: detachingReleaseChild ? branch.releaseCycleId : null,
+          }),
+        },
+      })
 
-    return updatedBranch
+      if (detachingReleaseChild) {
+        await tx.timelineEvent.create({
+          data: {
+            projectId: branch.repository.projectId,
+            branchId: branch.id,
+            createdById: request.authUser?.id,
+            eventType: 'BRANCH_RELEASE_DETACHED',
+            title: `${branch.name} go khoi release`,
+            description: `Branch duoc go khoi ${branch.actualMergedInto ?? 'release'} va chuyen sang ${nextStatus}.`,
+            metadataJson: JSON.stringify({
+              fromReleaseCycleId: branch.releaseCycleId,
+              fromReleaseBranch: branch.actualMergedInto,
+              toStatus: nextStatus,
+              source: 'kanban',
+            }),
+          },
+        })
+        await revertTasksAfterReleaseDetach(
+          tx,
+          branch.taskLinks.map((link) => link.task.id),
+          branch.repository.projectId,
+          branch.id,
+          request.authUser?.id,
+        )
+      } else {
+        await syncTasksWithLinkedBranches(
+          tx,
+          branch.taskLinks.map((link) => link.task.id),
+          branch.repository.projectId,
+          request.authUser?.id,
+        )
+      }
+
+      return updatedBranch
+    })
   })
 
   app.post('/api/branches/:branchId/mark-merged-release', { preHandler: requireAuth }, async (request, reply) => {
@@ -1720,7 +2118,7 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
       for (const taskId of taskIds) {
         const task = await tx.task.findUnique({ where: { id: taskId } })
 
-        if (task && !['DONE', 'CANCELLED', 'READY_PROD'].includes(task.status)) {
+        if (task && task.status !== 'DONE' && task.status !== 'CANCELLED') {
           await tx.task.update({
             where: { id: task.id },
             data: { status: 'MERGED_RELEASE' },
@@ -1783,9 +2181,7 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
 
     if (branch.branchType !== 'RELEASE') {
       const taskIds = branch.taskLinks.map((link) => link.task.id)
-      const warnings = branch.taskLinks
-        .filter((link) => !link.task.releaseReadyAt && link.task.status !== 'DONE')
-        .map((link) => `${link.task.code} chua duoc danh dau san sang main.`)
+      const warnings: string[] = []
 
       return context.prisma.$transaction(async (tx) => {
         const updatedBranch = await tx.branch.update({
@@ -1850,7 +2246,6 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
                 id: true,
                 code: true,
                 status: true,
-                releaseReadyAt: true,
               },
             },
           },
@@ -1858,10 +2253,7 @@ export function registerBranchRoutes(app: FastifyInstance, context: BranchRoutes
       },
     })
     const taskIds = childBranches.flatMap((childBranch) => childBranch.taskLinks.map((link) => link.task.id))
-    const warnings = childBranches
-      .flatMap((childBranch) => childBranch.taskLinks)
-      .filter((link) => !link.task.releaseReadyAt && link.task.status !== 'DONE')
-      .map((link) => `${link.task.code} chua duoc danh dau san sang main.`)
+    const warnings: string[] = []
 
     return context.prisma.$transaction(async (tx) => {
       const updatedBranch = await tx.branch.update({

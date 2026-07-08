@@ -68,7 +68,6 @@ const eventTypeOptions = [
   { label: 'Task đổi trạng thái', value: 'TASK_STATUS_CHANGED' },
   { label: 'Task blocked', value: 'TASK_BLOCKED' },
   { label: 'Task unblocked', value: 'TASK_UNBLOCKED' },
-  { label: 'Task sẵn sàng main', value: 'TASK_READY_PROD' },
   { label: 'Task vào release', value: 'TASK_MERGED_RELEASE' },
   { label: 'Task done bởi main', value: 'TASK_DONE_BY_MAIN_MERGE' },
   { label: 'Branch tạo', value: 'BRANCH_CREATED' },

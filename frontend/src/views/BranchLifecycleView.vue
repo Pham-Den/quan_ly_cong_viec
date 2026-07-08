@@ -39,8 +39,8 @@ type TaskRecord = {
   id: string
   code: string
   title: string
+  priority: string
   status: string
-  releaseReadyAt: string | null
 }
 
 type BranchTaskLink = {
@@ -134,10 +134,13 @@ const repositoryOptions = computed(() =>
   })),
 )
 const taskOptions = computed(() =>
-  tasks.value.map((task) => ({
-    label: `${task.code} - ${task.title}`,
-    value: task.id,
-  })),
+  tasks.value
+    .filter((task) => !['DONE', 'CANCELLED'].includes(task.status) || branchForm.taskIds.includes(task.id))
+    .map((task) => ({
+      label: `${task.title} (${task.code})`,
+      value: task.id,
+      disabled: ['DONE', 'CANCELLED'].includes(task.status),
+    })),
 )
 const sourceBranchOptions = computed(() =>
   branches.value
@@ -193,7 +196,7 @@ const branchColumns = [
   { title: 'Branch', key: 'branch' },
   { title: 'Repo', key: 'repository', width: 150 },
   { title: 'Trạng thái', key: 'status', width: 150 },
-  { title: 'Task', key: 'tasks', width: 220 },
+  { title: 'Task', key: 'tasks', width: 280 },
   { title: 'Luồng', key: 'path', width: 260 },
   { title: '', key: 'actions', width: 260 },
 ]
@@ -202,17 +205,42 @@ const branchViewModeOptions = [
   { label: 'Kanban', value: 'kanban' },
 ]
 const branchStatusOptions = computed(() => workflowOptions(workflowStatuses.value, 'BRANCH'))
-const releaseBranchStatusKeys = ['MERGED_RELEASE', 'MERGED_MAIN']
 const branchFormStatusOptions = computed(() => {
-  if (branchForm.branchType === 'RELEASE') {
-    return branchStatusOptions.value.filter((status) => releaseBranchStatusKeys.includes(status.value))
+  return branchStatusOptions.value.map((status) => ({
+    ...status,
+    disabled: Boolean(branchStatusEditDisabledReason(status.value)),
+  }))
+})
+const isEditingBranch = computed(() => Boolean(branchForm.id))
+const branchIdentityLocked = computed(() =>
+  Boolean(editingBranch.value && (editingBranch.value.status === 'MERGED_MAIN' || isReleaseBranch(editingBranch.value) || isReleaseChildBranch(editingBranch.value))),
+)
+const branchPlanLocked = computed(() =>
+  Boolean(editingBranch.value && (editingBranch.value.status === 'MERGED_MAIN' || isReleaseBranch(editingBranch.value) || isReleaseChildBranch(editingBranch.value))),
+)
+const branchActualTargetLocked = computed(() =>
+  Boolean(editingBranch.value && (editingBranch.value.status === 'MERGED_MAIN' || isReleaseChildBranch(editingBranch.value))),
+)
+const branchReleaseDateLocked = computed(() =>
+  Boolean(editingBranch.value && editingBranch.value.status === 'MERGED_MAIN'),
+)
+const branchTaskEditDisabledReason = computed(() => {
+  const branch = editingBranch.value
+
+  if (!branch) {
+    return ''
   }
 
-  return branchStatusOptions.value
+  if (branch.branchType === 'RELEASE') {
+    return 'Release branch không gắn task trực tiếp.'
+  }
+
+  if (['CODING', 'MERGED_DEVELOP'].includes(branch.status)) {
+    return ''
+  }
+
+  return 'Chỉ thêm hoặc gỡ task khi branch đang tiến hành hoặc ở develop.'
 })
-const branchStatusLocked = computed(() =>
-  branchForm.branchType === 'RELEASE' || Boolean(editingBranch.value && isReleaseChildBranch(editingBranch.value)),
-)
 const branchTypeOptions = [
   { label: 'Feature', value: 'FEATURE' },
   { label: 'Bugfix', value: 'BUGFIX' },
@@ -282,27 +310,10 @@ const releaseActionOptions = computed(() => {
     return []
   }
 
-  const names = new Set<string>()
-
-  names.add(activeReleaseName(branch.repository))
-
-  for (const target of branchIntendedMergeTargets(branch)) {
-    if (target.startsWith('release/')) {
-      names.add(target)
-    }
-  }
-
-  if (branch.actualMergedInto?.startsWith('release/')) {
-    names.add(branch.actualMergedInto)
-  }
-
-  for (const releaseBranch of branches.value) {
-    if (releaseBranch.repositoryId === branch.repositoryId && releaseBranch.branchType === 'RELEASE') {
-      names.add(releaseBranch.name)
-    }
-  }
-
-  return Array.from(names)
+  return branches.value
+    .filter((releaseBranch) => releaseBranch.repositoryId === branch.repositoryId && releaseBranch.branchType === 'RELEASE')
+    .map((releaseBranch) => releaseBranch.name)
+    .filter((name, index, names) => name && names.indexOf(name) === index)
     .filter(Boolean)
     .sort((left, right) => left.localeCompare(right))
     .map((name) => ({ value: name, label: name }))
@@ -427,6 +438,18 @@ function branchAliasText(branch: BranchRecord) {
   return branch.aliases.map((alias) => alias.alias).join(', ')
 }
 
+function taskReferenceTitle(task: TaskRecord) {
+  return task.title || task.code
+}
+
+function taskReferenceTooltip(task: TaskRecord) {
+  return task.title ? `${task.title} (${task.code})` : task.code
+}
+
+function taskPriorityClass(task: TaskRecord) {
+  return `task-ref-priority-${(task.priority || 'MEDIUM').toLowerCase()}`
+}
+
 function branchSourceText(branch: BranchRecord) {
   return branch.sourceBranch?.name ?? branch.checkoutSourceBranch ?? branch.baseBranch ?? '-'
 }
@@ -517,31 +540,173 @@ function kanbanItemsForStatus(status: string) {
   return sortBranchesByManualOrder(branches.value.filter((branch) => branch.status === status && !hasVisibleReleaseParent(branch)))
 }
 
+function releaseParentForChild(branch: BranchRecord) {
+  if (!isReleaseChildBranch(branch)) {
+    return null
+  }
+
+  return branches.value.find((parentBranch) => isChildOfReleaseParent(branch, parentBranch)) ?? null
+}
+
+function branchActionDisabledReason(branch: BranchRecord, action: 'release' | 'main' | 'delete') {
+  if (action === 'release') {
+    if (branch.status === 'CLOSED') return 'Branch đã đóng.'
+    if (branch.branchType === 'RELEASE') return 'Release branch là nhánh cha, không gắn vào release khác.'
+    if (branch.status === 'MERGED_MAIN') return 'Branch đang ở main, cần kéo release parent về release trước.'
+
+    return ''
+  }
+
+  if (action === 'main') {
+    if (branch.status === 'CLOSED') return 'Branch đã đóng.'
+    if (branch.status === 'MERGED_MAIN') return 'Branch đã ở main.'
+    if (branch.branchType === 'RELEASE') {
+      return branch.status === 'MERGED_RELEASE' ? '' : 'Release branch chỉ merge main từ trạng thái release.'
+    }
+    if (!branch.repository.allowDirectTaskBranchMainMerge) {
+      return 'Merge main thực hiện trên release branch.'
+    }
+
+    return ''
+  }
+
+  if (branch.status === 'MERGED_MAIN') {
+    return 'Branch đã vào main nên không thể xóa.'
+  }
+
+  if (branch.branchType === 'RELEASE' && releaseChildBranches(branch).length > 0) {
+    return 'Release branch còn nhánh con.'
+  }
+
+  return ''
+}
+
 function canMergeRelease(branch: BranchRecord) {
-  return branch.branchType !== 'RELEASE' && branch.status !== 'MERGED_MAIN'
+  return !branchActionDisabledReason(branch, 'release')
 }
 
 function canMergeMain(branch: BranchRecord) {
-  return branch.branchType === 'RELEASE' || branch.repository.allowDirectTaskBranchMainMerge
+  return !branchActionDisabledReason(branch, 'main')
 }
 
 function canDeleteBranch(branch: BranchRecord) {
-  if (branch.status === 'MERGED_MAIN') {
-    return false
+  return !branchActionDisabledReason(branch, 'delete')
+}
+
+function branchStatusActionDisabledReason(branch: BranchRecord, status: string) {
+  if (branch.status === status) {
+    return 'Branch đang ở trạng thái này.'
   }
 
-  return !isReleaseBranch(branch) || releaseChildBranches(branch).length === 0
+  if (branch.status === 'CLOSED') {
+    return 'Branch đã đóng.'
+  }
+
+  if (isReleaseChildBranch(branch)) {
+    if (releaseParentForChild(branch)?.status === 'MERGED_MAIN') {
+      return 'Nhánh con đang theo release parent ở main.'
+    }
+
+    if (branch.status === 'MERGED_RELEASE' && !isReleaseChildStatus(status)) {
+      const rule = kanbanDropRule(status)
+
+      return rule.allowKanbanDrop ? '' : rule.dropBlockReason ?? 'Không thể chọn trạng thái này.'
+    }
+
+    return 'Nhánh con trong release đi theo release parent.'
+  }
+
+  if (branch.branchType === 'RELEASE') {
+    if (branch.status === 'MERGED_MAIN' && status === 'MERGED_RELEASE') {
+      return ''
+    }
+
+    if (branch.status === 'MERGED_RELEASE' && status === 'MERGED_MAIN') {
+      return ''
+    }
+
+    return 'Release branch chỉ ở release hoặc main.'
+  }
+
+  if (['MERGED_RELEASE', 'MERGED_MAIN'].includes(status)) {
+    const rule = kanbanDropRule(status)
+
+    return rule.dropBlockReason ?? 'Trạng thái này cần action riêng.'
+  }
+
+  const rule = kanbanDropRule(status)
+
+  if (!rule.allowKanbanDrop) {
+    return rule.dropBlockReason ?? 'Không thể kéo branch vào trạng thái này.'
+  }
+
+  return ''
+}
+
+function branchStatusEditDisabledReason(status: string) {
+  const branch = editingBranch.value
+
+  if (!branch) {
+    if (branchForm.branchType === 'RELEASE') {
+      return status === 'MERGED_RELEASE' ? '' : 'Release branch khởi tạo ở release.'
+    }
+
+    if (['MERGED_RELEASE', 'MERGED_MAIN'].includes(status)) {
+      return 'Trạng thái merge dùng action riêng.'
+    }
+
+    const rule = kanbanDropRule(status)
+
+    return rule.allowKanbanDrop ? '' : rule.dropBlockReason ?? 'Không thể chọn trạng thái này.'
+  }
+
+  if (branch.status === status) {
+    return 'Branch đang ở trạng thái này.'
+  }
+
+  if (branch.branchType === 'RELEASE') {
+    return 'Release branch đổi trạng thái bằng action Kanban hoặc Merge main.'
+  }
+
+  if (isReleaseChildBranch(branch)) {
+    if (releaseParentForChild(branch)?.status === 'MERGED_MAIN') {
+      return 'Nhánh con đang theo release parent ở main.'
+    }
+
+    if (branch.status === 'MERGED_RELEASE' && !isReleaseChildStatus(status)) {
+      const rule = kanbanDropRule(status)
+
+      return rule.allowKanbanDrop ? '' : rule.dropBlockReason ?? 'Không thể chọn trạng thái này.'
+    }
+
+    return 'Nhánh con trong release đi theo release parent.'
+  }
+
+  if (branch.status === 'MERGED_MAIN') {
+    return 'Branch đã vào main.'
+  }
+
+  if (['MERGED_RELEASE', 'MERGED_MAIN'].includes(status)) {
+    return 'Trạng thái merge dùng action riêng.'
+  }
+
+  const rule = kanbanDropRule(status)
+
+  return rule.allowKanbanDrop ? '' : rule.dropBlockReason ?? 'Không thể chọn trạng thái này.'
 }
 
 function branchStatusOptionsForBranch(branch: BranchRecord) {
-  if (branch.branchType === 'RELEASE') {
-    return branchStatusOptions.value.filter((status) => releaseBranchStatusKeys.includes(status.value))
-  }
-
-  return branchStatusOptions.value
+  return branchStatusOptions.value.map((status) => ({
+    ...status,
+    disabled: Boolean(branchStatusActionDisabledReason(branch, status.value)),
+  }))
 }
 
 function releaseActionLabel(branch: BranchRecord) {
+  if (branch.branchType === 'RELEASE') {
+    return 'Gắn release'
+  }
+
   return branch.status === 'MERGED_RELEASE' ? 'Đổi release' : 'Gắn release'
 }
 
@@ -868,9 +1033,9 @@ async function submitBranch() {
 
 function openReleaseAction(branch: BranchRecord) {
   releaseActionBranch.value = branch
-  releaseActionTarget.value = branch.actualMergedInto?.startsWith('release/')
-    ? branch.actualMergedInto
-    : branchReleaseTarget(branch) || activeReleaseName(branch.repository)
+  const releaseBranches = releaseActionOptions.value.map((option) => option.value)
+  const preferredTarget = branch.actualMergedInto?.startsWith('release/') ? branch.actualMergedInto : branchReleaseTarget(branch)
+  releaseActionTarget.value = preferredTarget && releaseBranches.includes(preferredTarget) ? preferredTarget : releaseBranches[0] || ''
   releaseActionOpen.value = true
 }
 
@@ -880,6 +1045,11 @@ async function submitReleaseAction() {
 
   if (!branch || !targetBranch) {
     message.warning('Chọn release branch trước khi gắn.')
+    return
+  }
+
+  if (!releaseActionOptions.value.some((option) => option.value === targetBranch)) {
+    message.warning('Release branch không còn tồn tại. Hãy tạo hoặc chọn release branch khác.')
     return
   }
 
@@ -901,17 +1071,6 @@ async function submitReleaseAction() {
 }
 
 async function markMergedMain(branch: BranchRecord) {
-  const warnings =
-    branch.branchType === 'RELEASE'
-      ? []
-      : branch.taskLinks
-          .filter((link) => !link.task.releaseReadyAt && link.task.status !== 'DONE')
-          .map((link) => `${link.task.code} chưa được đánh dấu sẵn sàng main.`)
-
-  if (warnings.length && !window.confirm(`${warnings.join('\n')}\nVẫn ghi nhận merge main?`)) {
-    return
-  }
-
   try {
     await api.post(`/api/branches/${branch.id}/mark-merged-main`, {
       targetBranch: branch.repository.productionBranch,
@@ -1095,6 +1254,45 @@ async function dropReleaseChildBefore(parentBranch: BranchRecord, targetChildBra
   clearReleaseChildDrag()
 }
 
+async function dropReleaseChildIntoStatus(payload: { itemKey: string; column: { key: string } }) {
+  const childBranch = branches.value.find((branch) => branch.id === payload.itemKey)
+
+  clearReleaseChildDrag()
+
+  if (!childBranch || !isReleaseChildBranch(childBranch)) {
+    return
+  }
+
+  const status = payload.column.key
+  const disabledReason = branchStatusActionDisabledReason(childBranch, status)
+
+  if (disabledReason) {
+    message.warning(disabledReason)
+    return
+  }
+
+  const rule = kanbanDropRule(status)
+  const confirmed = rule.requiresConfirmation
+    ? window.confirm(`Gỡ ${childBranch.name} khỏi release và chuyển sang ${branchStatusLabel(status)}?`)
+    : true
+
+  if (!confirmed) {
+    return
+  }
+
+  try {
+    await api.post(`/api/branches/${childBranch.id}/move-status`, {
+      status,
+      confirmed,
+    })
+    message.success(`Đã gỡ ${childBranch.name} khỏi release.`)
+    await refreshBranches()
+    await loadTasks()
+  } catch (error) {
+    message.error(toErrorMessage(error, 'Không thể gỡ branch khỏi release.'))
+  }
+}
+
 async function dropBranchIntoStatus(payload: { item: Record<string, unknown>; column: { key: string } }) {
   const branch = payload.item as unknown as BranchRecord
   const status = payload.column.key
@@ -1256,10 +1454,13 @@ onMounted(() => {
           <a-tag :color="branchStatusColor(record.status)">{{ branchStatusLabel(record.status) }}</a-tag>
         </template>
         <template v-if="column.key === 'tasks'">
-          <a-space wrap>
-            <a-tag v-for="link in record.taskLinks" :key="link.id">
-              {{ link.task.code }}
-            </a-tag>
+          <a-space class="task-ref-list" wrap>
+            <a-tooltip v-for="link in record.taskLinks" :key="link.id" :title="taskReferenceTooltip(link.task)">
+              <a-tag :class="['task-ref-tag', taskPriorityClass(link.task)]">
+                <span class="task-ref-title">{{ taskReferenceTitle(link.task) }}</span>
+                <span class="task-ref-code">{{ link.task.code }}</span>
+              </a-tag>
+            </a-tooltip>
           </a-space>
           <span v-if="!record.taskLinks.length" class="muted-text">Chưa link task</span>
         </template>
@@ -1285,9 +1486,32 @@ onMounted(() => {
         <template v-if="column.key === 'actions'">
           <a-space wrap>
             <a-button size="small" @click="openBranchDrawer(record)">Chi tiết</a-button>
-            <a-button v-if="canMergeRelease(record)" size="small" @click="openReleaseAction(record)">{{ releaseActionLabel(record) }}</a-button>
-            <a-button v-if="canMergeMain(record)" size="small" type="primary" @click="markMergedMain(record)">Merge main</a-button>
-            <a-button v-if="canDeleteBranch(record)" size="small" danger @click="deleteBranch(record)">Xóa</a-button>
+            <a-button
+              size="small"
+              :disabled="!canMergeRelease(record)"
+              :title="branchActionDisabledReason(record, 'release')"
+              @click="openReleaseAction(record)"
+            >
+              {{ releaseActionLabel(record) }}
+            </a-button>
+            <a-button
+              size="small"
+              type="primary"
+              :disabled="!canMergeMain(record)"
+              :title="branchActionDisabledReason(record, 'main')"
+              @click="markMergedMain(record)"
+            >
+              Merge main
+            </a-button>
+            <a-button
+              size="small"
+              danger
+              :disabled="!canDeleteBranch(record)"
+              :title="branchActionDisabledReason(record, 'delete')"
+              @click="deleteBranch(record)"
+            >
+              Xóa
+            </a-button>
           </a-space>
         </template>
       </template>
@@ -1302,6 +1526,7 @@ onMounted(() => {
       :get-card-test-id="branchKanbanCardTestId"
       :get-item-class="branchKanbanCardClass"
       @blocked-drop="showBlockedKanbanDrop"
+      @external-drop="dropReleaseChildIntoStatus"
       @item-click="openBranchFromKanban"
       @item-drop="dropBranchIntoStatus"
       @item-reorder="reorderKanbanItem"
@@ -1337,7 +1562,12 @@ onMounted(() => {
           </div>
         </div>
         <div class="app-kanban-card-tags">
-          <a-tag v-for="link in branchFromKanban(item).taskLinks" :key="link.id">{{ link.task.code }}</a-tag>
+          <a-tooltip v-for="link in branchFromKanban(item).taskLinks" :key="link.id" :title="taskReferenceTooltip(link.task)">
+            <a-tag :class="['task-ref-tag', taskPriorityClass(link.task)]">
+              <span class="task-ref-title">{{ taskReferenceTitle(link.task) }}</span>
+              <span class="task-ref-code">{{ link.task.code }}</span>
+            </a-tag>
+          </a-tooltip>
           <a-tag v-if="!branchFromKanban(item).taskLinks.length">Chưa link task</a-tag>
         </div>
         <div
@@ -1367,18 +1597,44 @@ onMounted(() => {
             <strong>{{ childBranch.name }}</strong>
             <span>{{ childBranch.status === 'MERGED_MAIN' ? 'Đã theo main' : 'Đã vào release' }}</span>
             <span class="branch-release-child-tasks">
-              <a-tag v-for="link in childBranch.taskLinks" :key="link.id">{{ link.task.code }}</a-tag>
+              <a-tooltip v-for="link in childBranch.taskLinks" :key="link.id" :title="taskReferenceTooltip(link.task)">
+                <a-tag :class="['task-ref-tag', taskPriorityClass(link.task)]">
+                  <span class="task-ref-title">{{ taskReferenceTitle(link.task) }}</span>
+                  <span class="task-ref-code">{{ link.task.code }}</span>
+                </a-tag>
+              </a-tooltip>
               <a-tag v-if="!childBranch.taskLinks.length">Chưa link task</a-tag>
             </span>
           </button>
         </div>
         <div class="app-kanban-card-actions branch-kanban-card-actions">
           <a-button size="small" @click.stop="openBranchDrawer(branchFromKanban(item))">Chi tiết</a-button>
-          <a-button v-if="canMergeRelease(branchFromKanban(item))" size="small" @click.stop="openReleaseAction(branchFromKanban(item))">
+          <a-button
+            size="small"
+            :disabled="!canMergeRelease(branchFromKanban(item))"
+            :title="branchActionDisabledReason(branchFromKanban(item), 'release')"
+            @click.stop="openReleaseAction(branchFromKanban(item))"
+          >
             {{ releaseActionLabel(branchFromKanban(item)) }}
           </a-button>
-          <a-button v-if="canMergeMain(branchFromKanban(item))" size="small" type="primary" @click.stop="markMergedMain(branchFromKanban(item))">Merge main</a-button>
-          <a-button v-if="canDeleteBranch(branchFromKanban(item))" size="small" danger @click.stop="deleteBranch(branchFromKanban(item))">Xóa</a-button>
+          <a-button
+            size="small"
+            type="primary"
+            :disabled="!canMergeMain(branchFromKanban(item))"
+            :title="branchActionDisabledReason(branchFromKanban(item), 'main')"
+            @click.stop="markMergedMain(branchFromKanban(item))"
+          >
+            Merge main
+          </a-button>
+          <a-button
+            size="small"
+            danger
+            :disabled="!canDeleteBranch(branchFromKanban(item))"
+            :title="branchActionDisabledReason(branchFromKanban(item), 'delete')"
+            @click.stop="deleteBranch(branchFromKanban(item))"
+          >
+            Xóa
+          </a-button>
         </div>
       </template>
       <template #card-actions="{ item, closeActions }">
@@ -1391,10 +1647,30 @@ onMounted(() => {
           @change="moveBranchFromAction(item, $event, closeActions)"
         />
         <a-button
-          v-if="canDeleteBranch(branchFromKanban(item))"
+          block
+          size="small"
+          :disabled="!canMergeRelease(branchFromKanban(item))"
+          :title="branchActionDisabledReason(branchFromKanban(item), 'release')"
+          @click.stop="openReleaseAction(branchFromKanban(item)); closeActions()"
+        >
+          {{ releaseActionLabel(branchFromKanban(item)) }}
+        </a-button>
+        <a-button
+          block
+          size="small"
+          type="primary"
+          :disabled="!canMergeMain(branchFromKanban(item))"
+          :title="branchActionDisabledReason(branchFromKanban(item), 'main')"
+          @click.stop="markMergedMain(branchFromKanban(item)); closeActions()"
+        >
+          Merge main
+        </a-button>
+        <a-button
           danger
           block
           size="small"
+          :disabled="!canDeleteBranch(branchFromKanban(item))"
+          :title="branchActionDisabledReason(branchFromKanban(item), 'delete')"
           @click.stop="deleteBranch(branchFromKanban(item), closeActions)"
         >
           Xóa branch
@@ -1432,13 +1708,13 @@ onMounted(() => {
     <a-form layout="vertical" :model="branchForm" @finish="submitBranch">
       <div class="form-grid">
         <a-form-item label="Repository" name="repositoryId" :rules="[{ required: true, message: 'Chọn repository' }]">
-          <a-select v-model:value="branchForm.repositoryId" :options="repositoryOptions" />
+          <a-select v-model:value="branchForm.repositoryId" :options="repositoryOptions" :disabled="isEditingBranch" />
         </a-form-item>
         <a-form-item label="Loại branch">
-          <a-select v-model:value="branchForm.branchType" :options="branchTypeOptions" />
+          <a-select v-model:value="branchForm.branchType" :options="branchTypeOptions" :disabled="isEditingBranch" />
         </a-form-item>
         <a-form-item label="Trạng thái">
-          <a-select v-model:value="branchForm.status" :options="branchFormStatusOptions" :disabled="branchStatusLocked" />
+          <a-select v-model:value="branchForm.status" :options="branchFormStatusOptions" />
         </a-form-item>
       </div>
 
@@ -1449,15 +1725,17 @@ onMounted(() => {
           allow-clear
           placeholder="Chọn task"
           :options="taskOptions"
+          :disabled="Boolean(branchTaskEditDisabledReason)"
+          :title="branchTaskEditDisabledReason"
         />
       </a-form-item>
 
       <a-space class="form-actions">
-        <a-button @click="suggestBranchName">Gợi ý tên branch</a-button>
-        <a-checkbox v-model:checked="branchForm.inheritTaskLinks" :disabled="branchSourceLocked">
-          Kế thừa task từ branch nguồn
+        <a-button :disabled="isEditingBranch || !branchForm.taskIds.length" @click="suggestBranchName">Gợi ý tên branch</a-button>
+        <a-checkbox v-model:checked="branchForm.inheritTaskLinks" :disabled="isEditingBranch || branchSourceLocked">
+          Kế thừa task chưa done từ branch nguồn
         </a-checkbox>
-        <a-checkbox v-if="selectedRepository?.hasGitlabAccessToken" v-model:checked="branchForm.createRemote">
+        <a-checkbox v-if="!isEditingBranch && selectedRepository?.hasGitlabAccessToken" v-model:checked="branchForm.createRemote">
           Tạo trên GitLab
         </a-checkbox>
       </a-space>
@@ -1471,7 +1749,7 @@ onMounted(() => {
       />
 
       <a-form-item label="Tên branch" name="name" :rules="[{ required: true, message: 'Nhập tên branch' }]">
-        <a-input v-model:value="branchForm.name" placeholder="feature/OPS-BE-001" />
+        <a-input v-model:value="branchForm.name" placeholder="feature/OPS-BE-001" :disabled="branchIdentityLocked" />
       </a-form-item>
 
       <div class="form-grid">
@@ -1481,7 +1759,7 @@ onMounted(() => {
             allow-clear
             placeholder="Nếu tạo từ branch đã lưu"
             :options="sourceBranchOptions"
-            :disabled="branchSourceLocked"
+            :disabled="isEditingBranch || branchSourceLocked || branchPlanLocked"
             @change="handleSourceBranchChange"
           />
         </a-form-item>
@@ -1493,7 +1771,7 @@ onMounted(() => {
             option-filter-prop="label"
             placeholder="Chọn branch nguồn"
             :options="branchNameOptions"
-            :disabled="branchSourceLocked"
+            :disabled="branchSourceLocked || branchPlanLocked"
             @change="handleCheckoutSourceBranchChange"
           />
         </a-form-item>
@@ -1509,7 +1787,7 @@ onMounted(() => {
             option-filter-prop="label"
             placeholder="Chọn một hoặc nhiều branch"
             :options="branchNameOptions"
-            :disabled="!branchForm.id && isRuleDrivenBranchType(branchForm.branchType)"
+            :disabled="branchPlanLocked || (!branchForm.id && isRuleDrivenBranchType(branchForm.branchType))"
             @change="handleIntendedMergeTargetChange"
           />
         </a-form-item>
@@ -1521,6 +1799,7 @@ onMounted(() => {
             option-filter-prop="label"
             placeholder="Để trống nếu chưa merge"
             :options="branchNameOptions"
+            :disabled="branchActualTargetLocked"
             @change="handleActualMergedIntoChange"
           />
         </a-form-item>
@@ -1528,7 +1807,7 @@ onMounted(() => {
 
       <div class="form-grid">
         <a-form-item label="Ngày release">
-          <a-input v-model:value="branchForm.releaseCycleDate" type="date" />
+          <a-input v-model:value="branchForm.releaseCycleDate" type="date" :disabled="branchReleaseDateLocked" />
         </a-form-item>
       </div>
 
@@ -1550,11 +1829,32 @@ onMounted(() => {
 
       <a-space>
         <a-button type="primary" html-type="submit">{{ branchForm.id ? 'Lưu branch' : 'Tạo branch' }}</a-button>
-        <a-button v-if="editingBranch && canMergeRelease(editingBranch)" @click="openReleaseAction(editingBranch)">
+        <a-button
+          v-if="editingBranch"
+          :disabled="!canMergeRelease(editingBranch)"
+          :title="branchActionDisabledReason(editingBranch, 'release')"
+          @click="openReleaseAction(editingBranch)"
+        >
           {{ releaseActionLabel(editingBranch) }}
         </a-button>
-        <a-button v-if="editingBranch && canMergeMain(editingBranch)" type="primary" @click="markMergedMain(editingBranch)">Merge main</a-button>
-        <a-button v-if="editingBranch && canDeleteBranch(editingBranch)" danger @click="deleteBranch(editingBranch)">Xóa branch</a-button>
+        <a-button
+          v-if="editingBranch"
+          type="primary"
+          :disabled="!canMergeMain(editingBranch)"
+          :title="branchActionDisabledReason(editingBranch, 'main')"
+          @click="markMergedMain(editingBranch)"
+        >
+          Merge main
+        </a-button>
+        <a-button
+          v-if="editingBranch"
+          danger
+          :disabled="!canDeleteBranch(editingBranch)"
+          :title="branchActionDisabledReason(editingBranch, 'delete')"
+          @click="deleteBranch(editingBranch)"
+        >
+          Xóa branch
+        </a-button>
       </a-space>
     </a-form>
 
@@ -1563,7 +1863,15 @@ onMounted(() => {
       <a-list size="small" :data-source="editingBranch.taskLinks">
         <template #renderItem="{ item }">
           <a-list-item>
-            <a-list-item-meta :title="`${item.task.code} - ${item.task.title}`" :description="`${item.role} - ${taskStatusLabel(item.task.status)}`" />
+            <div class="task-ref-list">
+              <a-tooltip :title="taskReferenceTooltip(item.task)">
+                <a-tag :class="['task-ref-tag', taskPriorityClass(item.task)]">
+                  <span class="task-ref-title">{{ taskReferenceTitle(item.task) }}</span>
+                  <span class="task-ref-code">{{ item.task.code }}</span>
+                </a-tag>
+              </a-tooltip>
+              <div class="muted-text">{{ item.role }} - {{ taskStatusLabel(item.task.status) }}</div>
+            </div>
           </a-list-item>
         </template>
       </a-list>
