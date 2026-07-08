@@ -1,0 +1,30 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+context: |
+  Project: mini app quan ly cong viec ca nhan theo Git branch lifecycle.
+  Primary language for product copy and docs: Vietnamese.
+  Frontend target: Vue 3, Vite, TypeScript, Ant Design Vue, Vue Router, Pinia.
+  Backend target: Node.js API with a compact Fastify implementation, TypeScript, Prisma ORM, SQLite for local MVP, and a driver/database switch path for PostgreSQL or another durable database later.
+  Runtime target: local-first, with Docker Compose planned for consistent local startup.
+  Domain goal: capture small work requests, convert them into planned tasks, link tasks to Git branches, track whether each task is still in a feature branch, already in a release branch, or already merged into `main`, and mark tasks done only after main merge rules are satisfied.
+  Git workflow: self-hosted GitLab first. The required branch flow is `feature/task-branch -> release/DDMMYYYY -> main`. A new release branch is created roughly every 2 weeks, for example `release/08072026`. A task is only DONE after it is merged into `main`.
+  Branch tracking: users can create branch records from the app at any time, choose any checkout source branch, choose the intended merge target branch, and later record which branch it was actually merged into. A branch created from another branch can inherit/carry that source branch's linked tasks; if the derived branch reaches `main`, it can complete the task for that branch lineage.
+  UX style: Vietnamese UI, compact internal tool, dense but readable, no marketing landing page, drawer-based details, strong search and filters, custom status colors, no dark mode in MVP.
+  Core model: projects, user-managed task groups, notes, tasks, repositories, branches, many-to-many task-branch links, timeline events, users/auth.
+  Scope: one personal user in MVP, but keep schema/API ready for future multi-user expansion. Login is simple.
+  Safety rule: branch and task state transitions must be auditable through timeline events.
+  Collaboration rule: do not implement, scaffold, or mutate application code until the user reviews and explicitly approves the OpenSpec artifacts or the next phase.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours

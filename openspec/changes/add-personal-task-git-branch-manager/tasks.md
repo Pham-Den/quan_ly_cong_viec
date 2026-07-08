@@ -1,0 +1,147 @@
+## 1. Bootstrap
+
+- [ ] 1.1 Wait for user review and explicit approval before starting any implementation.
+- [ ] 1.2 Use Fastify as the compact backend framework.
+- [ ] 1.3 Create monorepo structure with `frontend/` and `backend/`.
+- [ ] 1.4 Create Vue 3 + Vite + TypeScript frontend project.
+- [ ] 1.5 Install and configure Ant Design Vue, Vue Router, Pinia, Axios or TanStack Query, and Day.js.
+- [ ] 1.6 Create compact backend API project with TypeScript.
+- [ ] 1.7 Install and configure Prisma with SQLite for local MVP and a documented database driver switch path.
+- [ ] 1.8 Add Docker Compose for local startup of frontend, backend, and database volume.
+- [ ] 1.9 Add shared environment configuration for frontend API URL, backend port, database URL, JWT secrets, and local setup behavior.
+- [ ] 1.10 Stop for user review before moving to database/auth implementation.
+
+## 2. Database Schema
+
+- [ ] 2.1 Define Prisma models for users and refresh tokens.
+- [ ] 2.2 Define Prisma models for projects, task groups, and repositories.
+- [ ] 2.3 Define Prisma models for workflow statuses and status colors.
+- [ ] 2.4 Define Prisma models for notes and tasks, including task group and target date.
+- [ ] 2.5 Define Prisma models for branches, branch aliases, and task-branch links.
+- [ ] 2.6 Define Prisma model for timeline events with JSON metadata.
+- [ ] 2.7 Add indexes for project/status, task code, task group, branch repo/name, branch aliases, branch status, task-branch links, and timeline project/date.
+- [ ] 2.8 Seed one sample project, default workflow statuses, self-hosted GitLab repository defaults, and custom status colors; do not seed a user because the first-run setup screen creates the first account.
+- [ ] 2.9 Stop for user review before moving to auth/app shell implementation.
+
+## 3. Auth And App Shell
+
+- [ ] 3.1 Implement first-run setup API for creating the initial local account when no user exists.
+- [ ] 3.2 Implement login API with password hash verification and JWT session issuing.
+- [ ] 3.3 Implement refresh/logout/current-user APIs.
+- [ ] 3.4 Add backend auth guard for protected APIs.
+- [ ] 3.5 Build frontend first-run setup account screen.
+- [ ] 3.6 Build frontend login page.
+- [ ] 3.7 Build protected Vietnamese layout with sidebar, header, project switcher, global search slot, and user menu.
+- [ ] 3.8 Add frontend route guards and session restore behavior.
+- [ ] 3.9 Stop for user review before moving to project/repository workspace implementation.
+
+## 4. Project And Repository Workspace
+
+- [ ] 4.1 Implement project CRUD APIs.
+- [ ] 4.2 Implement task group CRUD APIs scoped by project.
+- [ ] 4.3 Implement repository CRUD APIs scoped by project.
+- [ ] 4.4 Build project list, project selector, and project settings UI.
+- [ ] 4.5 Build task group settings UI.
+- [ ] 4.6 Build repository settings UI with provider `GITLAB_SELF_HOSTED`, internal GitLab URL, optional GitLab project id/path, default branch, production branch `main`, and release branch pattern `release/DDMMYYYY`.
+- [ ] 4.7 Add optional self-hosted GitLab API credential configuration for branch creation, keeping MVP usable without credentials.
+- [ ] 4.8 Implement project and group based task sequence generation.
+- [ ] 4.9 Stop for user review before moving to inbox/task planning implementation.
+
+## 5. Inbox And Task Planning
+
+- [ ] 5.1 Implement note list/create/update/archive APIs.
+- [ ] 5.2 Implement convert-note-to-task API that links the source note and writes timeline events.
+- [ ] 5.3 Implement task CRUD and task status APIs.
+- [ ] 5.4 Build dashboard inbox quick-add panel.
+- [ ] 5.5 Build inbox page with active, converted, and archived filters.
+- [ ] 5.6 Build convert-note-to-task drawer with project, group, priority, type, and target date fields.
+- [ ] 5.7 Build task table view with filters for project, group, status, priority, type, branch, and text query.
+- [ ] 5.8 Build task detail drawer with editable fields and timeline tab placeholder.
+- [ ] 5.9 Implement a dedicated mark-ready-prod task button/action used as a production-readiness planning signal, not a hard completion gate.
+- [ ] 5.10 Record timeline events for task creation and manual task status changes.
+- [ ] 5.11 Stop for user review before moving to branch lifecycle implementation.
+
+## 6. Branch Lifecycle
+
+- [ ] 6.1 Implement branch CRUD APIs scoped by repository and project.
+- [ ] 6.2 Add branch fields for checkout source branch, source branch record id, lineage id, intended merge target branch, actual merged-into branch, generated checkout command, and remote-created flag.
+- [ ] 6.3 Add task-branch fields for lineage id, inherited/carry role, active/superseded flag, and completion-required flag.
+- [ ] 6.4 Implement app-assisted branch creation API that stores the app branch record and links selected tasks.
+- [ ] 6.5 Allow app-assisted branch creation from any selected source branch, including `main`, feature branches, release branches, and hotfix branches.
+- [ ] 6.6 Implement task-link inheritance when creating branch `B` from tracked branch `A`.
+- [ ] 6.7 Implement optional self-hosted GitLab remote branch creation when API credentials are configured.
+- [ ] 6.8 Implement branch alias CRUD support.
+- [ ] 6.9 Implement task-branch link and unlink APIs with relationship role.
+- [ ] 6.10 Implement branch status update API with timeline event creation.
+- [ ] 6.11 Implement self-hosted GitLab release branch recognition for names like `release/08072026`.
+- [ ] 6.12 Implement hotfix branch metadata for branches checked out from `main`.
+- [ ] 6.13 Implement two-week release branch tracking so tasks can be associated with the active release branch.
+- [ ] 6.14 Implement `mark-merged-release` workflow action for feature branch -> release branch with branch timestamp, actual merged-into branch, status update, linked task updates, and timeline events.
+- [ ] 6.15 Implement `mark-merged-main` workflow action that warns about tasks not marked ready, then allows confirmed main merge recording, updates branch timestamp/status, actual merged-into branch, linked task completion by lineage, and timeline events.
+- [ ] 6.16 Implement record-merged-into action for correcting or documenting actual merge destinations.
+- [ ] 6.17 Ensure branch `B` created from task branch `A` can complete the carried task when `B` reaches `main`.
+- [ ] 6.18 Ensure multi-branch tasks only require every independent required branch lineage, not every historical branch, to reach `main`.
+- [ ] 6.19 Ensure closed branches never complete linked tasks automatically.
+- [ ] 6.20 Build create-branch drawer with task selection, checkout source branch, inherited task links, intended merge target branch, branch type, branch name suggestion, and checkout command preview.
+- [ ] 6.21 Build branch table view with status, repository, linked tasks, checkout source, intended target, actual merged-into, MR URL, aliases, current release branch, lineage, and quick actions.
+- [ ] 6.22 Build branch detail drawer with linked tasks, branch path, merge target history, lineage, and timeline tab placeholder.
+- [ ] 6.23 Add branch suggestion helper for names like `feature/PROJECT-GROUP-001-short-title` and `hotfix/PROJECT-GROUP-001-short-title`.
+- [ ] 6.24 Stop for user review before moving to timeline implementation.
+
+## 7. Timeline And Audit
+
+- [ ] 7.1 Implement timeline query API with project, task, branch, event type, and date filters.
+- [ ] 7.2 Implement timeline comment API.
+- [ ] 7.3 Build timeline page with compact filters and event list.
+- [ ] 7.4 Add timeline tab to task detail drawer.
+- [ ] 7.5 Add timeline tab to branch detail drawer.
+- [ ] 7.6 Verify all important note, task, branch, link, release merge, main merge, comment, blocked, and unblocked events are recorded.
+- [ ] 7.7 Stop for user review before moving to work visibility implementation.
+
+## 8. Work Visibility
+
+- [ ] 8.1 Build dashboard blocks for active tasks, branches ready for test/release/main, blocked work, inbox notes, and recent timeline events.
+- [ ] 8.2 Add dashboard signals for target dates near or past today.
+- [ ] 8.3 Implement global search API across task code, task group, task title, note content, branch name, and branch alias.
+- [ ] 8.4 Build global search UI that opens task or branch drawers from results.
+- [ ] 8.5 Build first-phase task board grouped by status.
+- [ ] 8.6 Build first-phase branch board grouped by lifecycle status.
+- [ ] 8.7 Add views for tasks without branch links and branches not merged to `main`.
+- [ ] 8.8 Add task detail branch path display showing feature branch, checkout source, release target, actual merged-into branch, inherited branches, and `main` status without exposing lineage jargon to the user.
+- [ ] 8.9 Build All Tasks view grouped by practical status buckets: not started, in progress, waiting/review/testing, in release, ready for main, done, blocked, and cancelled.
+- [ ] 8.10 Add group counts, project/group filters, and drawer opening from the All Tasks grouped view.
+- [ ] 8.11 Stop for user review before moving to workflow settings implementation.
+
+## 9. Workflow Settings And UI Polish
+
+- [ ] 9.1 Implement workflow settings APIs for task statuses, branch statuses, labels, display order, enabled flag, and custom colors.
+- [ ] 9.2 Build workflow settings UI.
+- [ ] 9.3 Apply custom status colors consistently to dashboard, tables, boards, drawers, and timeline.
+- [ ] 9.4 Ensure Vietnamese UI labels across navigation, forms, buttons, empty states, filters, and validation messages.
+- [ ] 9.5 Add dark mode to the post-MVP backlog without making it part of MVP acceptance.
+- [ ] 9.6 Stop for user review before moving to verification.
+
+## 10. Verification
+
+- [ ] 10.1 Add backend unit tests for feature branch -> release branch merge rules.
+- [ ] 10.2 Add backend unit tests for main merge warning behavior when linked tasks are not release-ready.
+- [ ] 10.3 Add backend unit tests for main merge completion rules, including multi-branch tasks.
+- [ ] 10.4 Add backend tests for auth guard and protected APIs.
+- [ ] 10.5 Add backend tests for task code generation with project groups.
+- [ ] 10.6 Add backend tests for app-assisted branch creation with checkout source and intended merge target.
+- [ ] 10.7 Add backend tests for creating branch `B` from task branch `A` and inheriting task links.
+- [ ] 10.8 Add backend tests proving branch `B` merged to `main` completes the carried task even if `A` did not reach `main`.
+- [ ] 10.9 Add backend tests for actual merged-into branch tracking.
+- [ ] 10.10 Add frontend component or integration tests for login, note conversion, task drawer, branch creation drawer, branch drawer, All Tasks grouped view, workflow settings, and merge quick actions.
+- [ ] 10.11 Run typecheck, lint, backend tests, frontend tests, and build.
+- [ ] 10.12 Manually verify the MVP flow: note -> task -> create feature branch A -> create branch B from A -> B reaches main -> task done -> All Tasks done bucket -> timeline.
+- [ ] 10.13 Stop for user review before considering post-MVP Git automation.
+
+## 11. Post-MVP Self-Hosted GitLab Automation
+
+- [ ] 11.1 Add self-hosted GitLab webhook configuration storage.
+- [ ] 11.2 Implement self-hosted GitLab webhook endpoint for merge request merge events.
+- [ ] 11.3 Match GitLab source and target branch names to registered branches, aliases, `main`, and `release/DDMMYYYY`.
+- [ ] 11.4 Write timeline events from webhook processing.
+- [ ] 11.5 Keep manual override actions available after webhook automation is enabled.
+- [ ] 11.6 Review whether local Git repository scanning is needed in addition to GitLab webhooks.
