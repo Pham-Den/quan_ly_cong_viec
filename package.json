@@ -13,9 +13,12 @@
     "build": "npm --workspaces --if-present run build",
     "typecheck": "npm --workspaces --if-present run typecheck",
     "lint": "npm --workspaces --if-present run lint",
-    "prisma:generate": "npm --workspace backend run prisma:generate"
+    "prisma:generate": "npm --workspace backend run prisma:generate",
+    "test:ui": "playwright test",
+    "test:ui:headed": "playwright test --headed"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "concurrently": "^9.2.1"
   },
   "engines": {

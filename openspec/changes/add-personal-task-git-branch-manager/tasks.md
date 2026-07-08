@@ -34,6 +34,7 @@
 - [x] 3.7 Build protected Vietnamese layout with sidebar, header, project switcher, global search slot, and user menu.
 - [x] 3.8 Add frontend route guards and session restore behavior.
 - [x] 3.9 Stop for user review before moving to project/repository workspace implementation.
+- [x] 3.10 Add Playwright browser smoke test for setup, login, logout, session restore, and protected app shell before review.
 
 ## 4. Project And Repository Workspace
 

@@ -27,25 +27,24 @@ const selectedProjectId = computed({
   get: () => session.selectedProjectId,
   set: (value: string | null) => session.selectProject(value),
 })
-const userMenu = computed(() => ({
-  items: [
-    {
-      key: 'profile',
-      label: session.user?.email ?? '',
-      disabled: true,
-    },
-    {
-      key: 'logout',
-      label: 'Đăng xuất',
-    },
-  ],
-  onClick: async ({ key }: { key: string }) => {
-    if (key === 'logout') {
-      await session.logout()
-      await router.push({ name: 'login' })
-    }
+const userMenuItems = computed(() => [
+  {
+    key: 'profile',
+    label: session.user?.email ?? '',
+    disabled: true,
   },
-}))
+  {
+    key: 'logout',
+    label: 'Đăng xuất',
+  },
+])
+
+async function handleUserMenuClick({ key }: { key: string }) {
+  if (key === 'logout') {
+    await session.logout()
+    await router.push({ name: 'login' })
+  }
+}
 
 async function handleMenuClick({ key }: { key: string | number }) {
   if (key === 'dashboard') {
@@ -86,10 +85,13 @@ async function handleMenuClick({ key }: { key: string | number }) {
           <a-input-search class="global-search" placeholder="Tìm task, branch..." disabled />
         </a-space>
 
-        <a-dropdown :menu="userMenu" :trigger="['click']">
+        <a-dropdown :trigger="['click']">
           <a-button class="user-button">
             {{ session.user?.name ?? 'Tài khoản' }}
           </a-button>
+          <template #overlay>
+            <a-menu :items="userMenuItems" @click="handleUserMenuClick" />
+          </template>
         </a-dropdown>
       </a-layout-header>
 

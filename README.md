@@ -27,6 +27,15 @@ After starting the app, open `http://localhost:5173`. If there is no user yet,
 the app redirects to `/setup` so you can create the first local account. After
 that, use `/login` with the same email and password.
 
+## UI smoke test
+
+```bash
+npm run test:ui
+```
+
+The Playwright test uses a separate SQLite database at `backend/prisma/e2e.db`
+and test-only ports `4100` and `5174`.
+
 ## Docker Compose
 
 ```bash

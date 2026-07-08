@@ -15,8 +15,12 @@ dist/
 **/dist/
 coverage/
 **/coverage/
+playwright-report/
+test-results/
 
 # Local data
 backend/data/
 backend/prisma/*.db
 backend/prisma/*.db-journal
+backend/prisma/**/*.db
+backend/prisma/**/*.db-journal
