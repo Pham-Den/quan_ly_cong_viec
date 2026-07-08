@@ -64,30 +64,30 @@
 
 ## 6. Branch Lifecycle
 
-- [ ] 6.1 Implement branch CRUD APIs scoped by repository and project.
-- [ ] 6.2 Add branch fields for checkout source branch, source branch record id, lineage id, intended merge target branch, actual merged-into branch, generated checkout command, and remote-created flag.
-- [ ] 6.3 Add task-branch fields for lineage id, inherited/carry role, active/superseded flag, and completion-required flag.
-- [ ] 6.4 Implement app-assisted branch creation API that stores the app branch record and links selected tasks.
-- [ ] 6.5 Allow app-assisted branch creation from any selected source branch, including `main`, feature branches, release branches, and hotfix branches.
-- [ ] 6.6 Implement task-link inheritance when creating branch `B` from tracked branch `A`.
-- [ ] 6.7 Implement optional self-hosted GitLab remote branch creation when API credentials are configured.
-- [ ] 6.8 Implement branch alias CRUD support.
-- [ ] 6.9 Implement task-branch link and unlink APIs with relationship role.
-- [ ] 6.10 Implement branch status update API with timeline event creation.
-- [ ] 6.11 Implement self-hosted GitLab release branch recognition for names like `release/08072026`.
-- [ ] 6.12 Implement hotfix branch metadata for branches checked out from `main`.
-- [ ] 6.13 Implement two-week release branch tracking so tasks can be associated with the active release branch.
-- [ ] 6.14 Implement `mark-merged-release` workflow action for feature branch -> release branch with branch timestamp, actual merged-into branch, status update, linked task updates, and timeline events.
-- [ ] 6.15 Implement `mark-merged-main` workflow action that warns about tasks not marked ready, then allows confirmed main merge recording, updates branch timestamp/status, actual merged-into branch, linked task completion by lineage, and timeline events.
-- [ ] 6.16 Implement record-merged-into action for correcting or documenting actual merge destinations.
-- [ ] 6.17 Ensure branch `B` created from task branch `A` can complete the carried task when `B` reaches `main`.
-- [ ] 6.18 Ensure multi-branch tasks only require every independent required branch lineage, not every historical branch, to reach `main`.
-- [ ] 6.19 Ensure closed branches never complete linked tasks automatically.
-- [ ] 6.20 Build create-branch drawer with task selection, checkout source branch, inherited task links, intended merge target branch, branch type, branch name suggestion, and checkout command preview.
-- [ ] 6.21 Build branch table view with status, repository, linked tasks, checkout source, intended target, actual merged-into, MR URL, aliases, current release branch, lineage, and quick actions.
-- [ ] 6.22 Build branch detail drawer with linked tasks, branch path, merge target history, lineage, and timeline tab placeholder.
-- [ ] 6.23 Add branch suggestion helper for names like `feature/PROJECT-GROUP-001-short-title` and `hotfix/PROJECT-GROUP-001-short-title`.
-- [ ] 6.24 Stop for user review before moving to timeline implementation.
+- [x] 6.1 Implement branch CRUD APIs scoped by repository and project.
+- [x] 6.2 Add branch fields for checkout source branch, source branch record id, lineage id, intended merge target branch, actual merged-into branch, generated checkout command, and remote-created flag.
+- [x] 6.3 Add task-branch fields for lineage id, inherited/carry role, active/superseded flag, and completion-required flag.
+- [x] 6.4 Implement app-assisted branch creation API that stores the app branch record and links selected tasks.
+- [x] 6.5 Allow app-assisted branch creation from any selected source branch, including `main`, feature branches, release branches, and hotfix branches.
+- [x] 6.6 Implement task-link inheritance when creating branch `B` from tracked branch `A`.
+- [x] 6.7 Implement optional self-hosted GitLab remote branch creation when API credentials are configured.
+- [x] 6.8 Implement branch alias CRUD support.
+- [x] 6.9 Implement task-branch link and unlink APIs with relationship role.
+- [x] 6.10 Implement branch status update API with timeline event creation.
+- [x] 6.11 Implement self-hosted GitLab release branch recognition for names like `release/08072026`.
+- [x] 6.12 Implement hotfix branch metadata for branches checked out from `main`.
+- [x] 6.13 Implement two-week release branch tracking so tasks can be associated with the active release branch.
+- [x] 6.14 Implement `mark-merged-release` workflow action for feature branch -> release branch with branch timestamp, actual merged-into branch, status update, linked task updates, and timeline events.
+- [x] 6.15 Implement `mark-merged-main` workflow action that warns about tasks not marked ready, then allows confirmed main merge recording, updates branch timestamp/status, actual merged-into branch, linked task completion by lineage, and timeline events.
+- [x] 6.16 Implement record-merged-into action for correcting or documenting actual merge destinations.
+- [x] 6.17 Ensure branch `B` created from task branch `A` can complete the carried task when `B` reaches `main`.
+- [x] 6.18 Ensure multi-branch tasks only require every independent required branch lineage, not every historical branch, to reach `main`.
+- [x] 6.19 Ensure closed branches never complete linked tasks automatically.
+- [x] 6.20 Build create-branch drawer with task selection, checkout source branch, inherited task links, intended merge target branch, branch type, branch name suggestion, and checkout command preview.
+- [x] 6.21 Build branch table view with status, repository, linked tasks, checkout source, intended target, actual merged-into, MR URL, aliases, current release branch, lineage, and quick actions.
+- [x] 6.22 Build branch detail drawer with linked tasks, branch path, merge target history, lineage, and timeline tab placeholder.
+- [x] 6.23 Add branch suggestion helper for names like `feature/PROJECT-GROUP-001-short-title` and `hotfix/PROJECT-GROUP-001-short-title`.
+- [x] 6.24 Stop for user review before moving to timeline implementation.
 
 ## 7. Timeline And Audit
 

@@ -12,7 +12,7 @@ const menuItems = [
   { key: 'dashboard', label: 'Tổng quan' },
   { key: 'inbox', label: 'Inbox' },
   { key: 'tasks', label: 'All Tasks' },
-  { key: 'branches', label: 'Branches', disabled: true },
+  { key: 'branches', label: 'Branches' },
   { key: 'timeline', label: 'Timeline', disabled: true },
   { key: 'settings', label: 'Cài đặt' },
 ]
@@ -62,6 +62,10 @@ async function handleMenuClick({ key }: { key: string | number }) {
 
   if (key === 'tasks') {
     await router.push({ name: 'tasks' })
+  }
+
+  if (key === 'branches') {
+    await router.push({ name: 'branches' })
   }
 }
 </script>

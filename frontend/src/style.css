@@ -255,6 +255,18 @@ body {
   font-size: 12px;
 }
 
+.branch-path {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.branch-path span {
+  color: #98a2b3;
+}
+
 @media (max-width: 900px) {
   .app-sidebar {
     display: none;

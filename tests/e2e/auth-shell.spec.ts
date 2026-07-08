@@ -93,4 +93,33 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
   await page.getByRole('menuitem', { name: 'All Tasks' }).click()
   await expect(page.getByRole('heading', { name: 'All Tasks' })).toBeVisible()
   await expect(page.getByText('Tạo API export báo cáo')).toBeVisible()
+
+  await page.getByRole('menuitem', { name: 'Branches' }).click()
+  await expect(page.getByRole('heading', { name: 'Branches' })).toBeVisible()
+  await page.getByRole('button', { name: 'Tạo branch' }).click()
+  const branchDrawer = page.locator('.ant-drawer')
+  await branchDrawer.locator('.ant-select').nth(3).click()
+  await page.locator('.ant-select-dropdown:visible .ant-select-item-option-content').getByText(/OPS-001/).click()
+  await branchDrawer.getByPlaceholder('feature/OPS-BE-001-export-report').fill('feature/OPS-001-export-report')
+  await branchDrawer.getByRole('button', { name: 'Tạo branch' }).click()
+
+  await expect(page.getByText('feature/OPS-001-export-report')).toBeVisible()
+  await page.getByRole('button', { name: 'Merge release' }).first().click()
+  await expect(page.getByText('MERGED_RELEASE')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Tạo branch' }).click()
+  await branchDrawer.locator('.ant-select').nth(4).click()
+  await page
+    .locator('.ant-select-dropdown:visible .ant-select-item-option-content')
+    .getByText('feature/OPS-001-export-report', { exact: true })
+    .click()
+  await branchDrawer.getByPlaceholder('feature/OPS-BE-001-export-report').fill('feature/OPS-001-export-report-fix')
+  await branchDrawer.getByRole('button', { name: 'Tạo branch' }).click()
+
+  await expect(page.getByText('feature/OPS-001-export-report-fix')).toBeVisible()
+  await page.getByRole('button', { name: 'Merge main' }).first().click()
+  await expect(page.getByText('MERGED_MAIN')).toBeVisible()
+
+  await page.getByRole('menuitem', { name: 'All Tasks' }).click()
+  await expect(page.getByText('DONE')).toBeVisible()
 })

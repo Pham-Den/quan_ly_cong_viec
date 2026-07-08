@@ -2,6 +2,7 @@ import cors from '@fastify/cors'
 import Fastify from 'fastify'
 
 import { registerAuthRoutes } from './auth/routes.js'
+import { registerBranchRoutes } from './branches/routes.js'
 import { createPrismaClient } from './db.js'
 import type { AppEnv } from './env.js'
 import { registerPlanningRoutes } from './planning/routes.js'
@@ -35,6 +36,7 @@ export function buildServer(env: AppEnv) {
   registerAuthRoutes(app, { env, prisma })
   registerWorkspaceRoutes(app, { env, prisma })
   registerPlanningRoutes(app, { env, prisma })
+  registerBranchRoutes(app, { env, prisma })
 
   return app
 }

@@ -4,6 +4,7 @@ import ProtectedLayout from '../layouts/ProtectedLayout.vue'
 import { useSessionStore } from '../stores/session'
 import LoginView from '../views/auth/LoginView.vue'
 import SetupView from '../views/auth/SetupView.vue'
+import BranchLifecycleView from '../views/BranchLifecycleView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import TaskPlanningView from '../views/TaskPlanningView.vue'
 import WorkspaceSettingsView from '../views/WorkspaceSettingsView.vue'
@@ -37,6 +38,11 @@ export const router = createRouter({
           path: 'tasks',
           name: 'tasks',
           component: TaskPlanningView,
+        },
+        {
+          path: 'branches',
+          name: 'branches',
+          component: BranchLifecycleView,
         },
       ],
     },
