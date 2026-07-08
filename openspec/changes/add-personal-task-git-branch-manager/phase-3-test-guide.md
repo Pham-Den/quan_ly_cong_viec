@@ -8,9 +8,14 @@ Chạy từ root project:
 
 ```bash
 cd /home/khanh-pham/Documents/MH/Tools/quan_ly_cong_viec
-npm --workspace backend run db:push
-npm --workspace backend run db:seed
-npm run dev
+./dev.sh
+```
+
+`dev.sh` sẽ tự chạy `db:push`, `db:seed`, start backend và frontend. Nếu trước đó bạn đã chạy server bằng cách cũ hoặc port đang bận, dừng trước bằng:
+
+```bash
+./stop.sh
+./dev.sh
 ```
 
 Mở:
@@ -173,10 +178,9 @@ npm run test:ui:headed
 Nếu muốn quay lại trạng thái chưa có user:
 
 ```bash
+./stop.sh
 rm -f backend/prisma/dev.db backend/prisma/dev.db-journal
-npm --workspace backend run db:push
-npm --workspace backend run db:seed
-npm run dev
+./dev.sh
 ```
 
 Sau đó mở lại:
@@ -186,6 +190,12 @@ http://localhost:5173
 ```
 
 Kỳ vọng app quay lại flow `/setup`.
+
+Sau khi review xong, dừng cả frontend và backend:
+
+```bash
+./stop.sh
+```
 
 ## 10. Checklist Review
 
