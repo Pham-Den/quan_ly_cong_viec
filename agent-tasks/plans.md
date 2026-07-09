@@ -8,12 +8,33 @@ Plan nay da duoc chuyen sang OpenSpec change:
 - Tasks: `openspec/changes/add-personal-task-git-branch-manager/tasks.md`
 - Specs: `openspec/changes/add-personal-task-git-branch-manager/specs/*/spec.md`
 
+Change API Lab moi dang cho review:
+
+- Change ID: `add-api-lab-workflows`
+- Proposal: `openspec/changes/add-api-lab-workflows/proposal.md`
+- Design: `openspec/changes/add-api-lab-workflows/design.md`
+- Tasks: `openspec/changes/add-api-lab-workflows/tasks.md`
+- Specs: `openspec/changes/add-api-lab-workflows/specs/api-lab/spec.md`
+
 Lenh kiem tra:
 
 ```bash
 npx -y @fission-ai/openspec@latest status --change add-personal-task-git-branch-manager
 npx -y @fission-ai/openspec@latest validate add-personal-task-git-branch-manager --strict
+npx -y @fission-ai/openspec@latest status --change add-api-lab-workflows
+npx -y @fission-ai/openspec@latest validate add-api-lab-workflows --strict
 ```
+
+## Ghi chú plan API Lab
+
+- Them menu `API Lab` moi, tach rieng voi `/tasks` va `/branches`, nhung co the link request/flow/run vao task.
+- Ho tro luu environment local/dev/uat/prod/custom, variable variant, request, flow nhieu step, capture output tu API truoc de lam input cho API sau bang bien `{{variableName}}`.
+- Goi request qua backend de tranh CORS, co timeout, gioi han response size, mask secret, va chi luu run metadata mac dinh; response body chi luu khi user chu dong.
+- Ho tro import cURL trong MVP.
+- Ho tro keo tha sap xep step va keo field tu response JSON sang request sau de tao mapping.
+- Co assertion don gian cho status code, JSON path, header, body contains, va duration.
+- Co the attach ket qua run vao timeline task nhu bang chung test API, nhung khong lam thay doi status task/branch.
+- Trien khai theo phase va dung review sau tung phase; khong implement khi chua co dong y.
 
 ## Ghi chú rule hiện tại - Phase 12
 
