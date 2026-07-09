@@ -29,6 +29,17 @@ export const fallbackBranchStatuses = [
   { label: 'Main', value: 'MERGED_MAIN', color: '#52c41a' },
 ]
 
+export const taskWorkStatusOptions = [
+  { label: 'Chưa làm', value: 'TODO', color: '#64748b' },
+  { label: 'Đang làm', value: 'DOING', color: '#1677ff' },
+  { label: 'Đang test', value: 'TESTING', color: '#faad14' },
+  { label: 'Đã xong', value: 'DONE', color: '#52c41a' },
+]
+
+export function taskWorkStatusMeta(status: string) {
+  return taskWorkStatusOptions.find((option) => option.value === status) ?? taskWorkStatusOptions[0]
+}
+
 export const defaultBranchKanbanDropRules: Record<
   string,
   { allowKanbanDrop: boolean; dropBlockReason: string | null; requiresConfirmation: boolean }

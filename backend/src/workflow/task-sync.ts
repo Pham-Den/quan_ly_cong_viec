@@ -72,6 +72,7 @@ export async function syncTasksWithLinkedBranches(
       where: { id: task.id },
       data: {
         status: nextStatus,
+        ...(nextStatus === 'DONE' ? { workStatus: 'DONE' } : {}),
         doneAt: nextStatus === 'DONE' ? task.doneAt ?? new Date() : null,
       },
     })

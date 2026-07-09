@@ -66,6 +66,7 @@ const eventTypeOptions = [
   { label: 'Note thành task', value: 'NOTE_CONVERTED' },
   { label: 'Task tạo', value: 'TASK_CREATED' },
   { label: 'Task đổi trạng thái', value: 'TASK_STATUS_CHANGED' },
+  { label: 'Task đổi trạng thái công việc', value: 'TASK_WORK_STATUS_CHANGED' },
   { label: 'Task blocked', value: 'TASK_BLOCKED' },
   { label: 'Task unblocked', value: 'TASK_UNBLOCKED' },
   { label: 'Task vào release', value: 'TASK_MERGED_RELEASE' },

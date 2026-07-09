@@ -116,6 +116,7 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
   const manualTaskRow = page.getByRole('row').filter({ hasText: 'Task thủ công ưu tiên cao' })
   await expect(manualTaskRow).toBeVisible()
   await expect(manualTaskRow.getByTestId('priority-tag-HIGH')).toBeVisible()
+  await expect(manualTaskRow.locator('.task-work-status-tag')).toContainText('Chưa làm')
   await manualTaskRow.getByRole('button', { name: 'Hủy task' }).click()
   await page.locator('.ant-popover:visible').getByRole('button', { name: 'Hủy task' }).click()
   await expect(manualTaskRow.getByText('Đã hủy')).toBeVisible()
@@ -139,6 +140,9 @@ test('first-run setup, logout, login, and session restore', async ({ page }) => 
   await expect(firstBranchRow.getByText('Tạo API export báo cáo')).toBeVisible()
   await expect(firstBranchRow.locator('.task-ref-priority-medium').first()).toBeVisible()
   await expect(firstBranchRow.getByText(releaseName()).first()).toBeVisible()
+  await firstBranchRow.locator('.task-work-status-tag').click()
+  await page.locator('.ant-dropdown:visible').getByText('Đang test', { exact: true }).click()
+  await expect(firstBranchRow.locator('.task-work-status-tag')).toContainText('Đang test')
 
   const accessToken = await page.evaluate(() => localStorage.getItem('qlcv.accessToken'))
 

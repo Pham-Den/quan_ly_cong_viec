@@ -45,6 +45,7 @@ type Task = {
   id: string
   code: string
   status: string
+  workStatus: string
   doneAt: string | null
 }
 
@@ -276,6 +277,34 @@ describe('task planning rules', () => {
     assert.equal(branchAfterDelete.taskLinks.length, 0)
     assert.match(deletedEvent?.metadataJson ?? '', new RegExp(task.id))
     assert.match(deletedEvent?.metadataJson ?? '', new RegExp(branch.id))
+  })
+
+  test('updates task work status separately from branch-derived status', async () => {
+    const workspace = await setupWorkspace()
+    const task = await createTask(workspace, 'Doi trang thai lam viec rieng')
+    const branch = await createBranch(workspace, {
+      name: 'feature/OPS-BE-001',
+      checkoutSourceBranch: 'main',
+      taskIds: [task.id],
+    })
+    const update = await request<Task>('PATCH', `/api/tasks/${task.id}/work-status`, workspace.token, {
+      workStatus: 'TESTING',
+    })
+    const updatedTask = await getTask(task.id)
+    const event = await prisma.timelineEvent.findFirst({
+      where: {
+        projectId: workspace.project.id,
+        taskId: task.id,
+        eventType: 'TASK_WORK_STATUS_CHANGED',
+      },
+    })
+
+    assert.equal(update.response.statusCode, 200)
+    assert.equal(update.body.workStatus, 'TESTING')
+    assert.equal(updatedTask.status, 'IN_PROGRESS')
+    assert.equal(updatedTask.workStatus, 'TESTING')
+    assert.match(event?.metadataJson ?? '', /TESTING/)
+    assert.equal((await getBranch(branch.id)).status, 'CODING')
   })
 
   test('cancels tasks without deleting and restores them to draft before relinking', async () => {

@@ -5,8 +5,14 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import AppKanbanBoard from '../core/components/AppKanbanBoard.vue'
+import TaskWorkStatusTag from '../core/components/TaskWorkStatusTag.vue'
 import { api } from '../services/api'
-import { branchKanbanDropRule, statusMeta, workflowOptions, type WorkflowStatusRecord } from '../services/workflow'
+import {
+  branchKanbanDropRule,
+  statusMeta,
+  workflowOptions,
+  type WorkflowStatusRecord,
+} from '../services/workflow'
 import { useSessionStore } from '../stores/session'
 
 type RepositoryRecord = {
@@ -41,6 +47,7 @@ type TaskRecord = {
   title: string
   priority: string
   status: string
+  workStatus: string
 }
 
 type BranchTaskLink = {
@@ -903,6 +910,24 @@ async function loadBranches() {
   branches.value = data
 }
 
+async function updateTaskWorkStatus(task: TaskRecord, workStatus: string) {
+  if (task.status === 'CANCELLED') {
+    message.warning('Task đã hủy, hãy phục hồi về nháp trước khi đổi trạng thái công việc.')
+    return
+  }
+
+  try {
+    await api.patch(`/api/tasks/${task.id}/work-status`, { workStatus })
+    await Promise.all([loadTasks(), loadBranches()])
+
+    if (editingBranch.value) {
+      await openBranchById(editingBranch.value.id)
+    }
+  } catch (error) {
+    message.error(toErrorMessage(error, 'Không thể đổi trạng thái task.'))
+  }
+}
+
 async function refreshBranches() {
   loading.value = true
 
@@ -1455,12 +1480,19 @@ onMounted(() => {
         </template>
         <template v-if="column.key === 'tasks'">
           <a-space class="task-ref-list" wrap>
-            <a-tooltip v-for="link in record.taskLinks" :key="link.id" :title="taskReferenceTooltip(link.task)">
-              <a-tag :class="['task-ref-tag', taskPriorityClass(link.task)]">
-                <span class="task-ref-title">{{ taskReferenceTitle(link.task) }}</span>
-                <span class="task-ref-code">{{ link.task.code }}</span>
-              </a-tag>
-            </a-tooltip>
+            <span v-for="link in record.taskLinks" :key="link.id" class="task-ref-status-line">
+              <a-tooltip :title="taskReferenceTooltip(link.task)">
+                <a-tag :class="['task-ref-tag', taskPriorityClass(link.task)]">
+                  <span class="task-ref-title">{{ taskReferenceTitle(link.task) }}</span>
+                  <span class="task-ref-code">{{ link.task.code }}</span>
+                </a-tag>
+              </a-tooltip>
+              <TaskWorkStatusTag
+                :value="link.task.workStatus || 'TODO'"
+                :disabled="link.task.status === 'CANCELLED'"
+                @change="(value) => updateTaskWorkStatus(link.task, value)"
+              />
+            </span>
           </a-space>
           <span v-if="!record.taskLinks.length" class="muted-text">Chưa link task</span>
         </template>
@@ -1562,12 +1594,19 @@ onMounted(() => {
           </div>
         </div>
         <div class="app-kanban-card-tags">
-          <a-tooltip v-for="link in branchFromKanban(item).taskLinks" :key="link.id" :title="taskReferenceTooltip(link.task)">
-            <a-tag :class="['task-ref-tag', taskPriorityClass(link.task)]">
-              <span class="task-ref-title">{{ taskReferenceTitle(link.task) }}</span>
-              <span class="task-ref-code">{{ link.task.code }}</span>
-            </a-tag>
-          </a-tooltip>
+          <span v-for="link in branchFromKanban(item).taskLinks" :key="link.id" class="task-ref-status-line">
+            <a-tooltip :title="taskReferenceTooltip(link.task)">
+              <a-tag :class="['task-ref-tag', taskPriorityClass(link.task)]">
+                <span class="task-ref-title">{{ taskReferenceTitle(link.task) }}</span>
+                <span class="task-ref-code">{{ link.task.code }}</span>
+              </a-tag>
+            </a-tooltip>
+            <TaskWorkStatusTag
+              :value="link.task.workStatus || 'TODO'"
+              :disabled="link.task.status === 'CANCELLED'"
+              @change="(value) => updateTaskWorkStatus(link.task, value)"
+            />
+          </span>
           <a-tag v-if="!branchFromKanban(item).taskLinks.length">Chưa link task</a-tag>
         </div>
         <div
@@ -1597,12 +1636,19 @@ onMounted(() => {
             <strong>{{ childBranch.name }}</strong>
             <span>{{ childBranch.status === 'MERGED_MAIN' ? 'Đã theo main' : 'Đã vào release' }}</span>
             <span class="branch-release-child-tasks">
-              <a-tooltip v-for="link in childBranch.taskLinks" :key="link.id" :title="taskReferenceTooltip(link.task)">
-                <a-tag :class="['task-ref-tag', taskPriorityClass(link.task)]">
-                  <span class="task-ref-title">{{ taskReferenceTitle(link.task) }}</span>
-                  <span class="task-ref-code">{{ link.task.code }}</span>
-                </a-tag>
-              </a-tooltip>
+              <span v-for="link in childBranch.taskLinks" :key="link.id" class="task-ref-status-line">
+                <a-tooltip :title="taskReferenceTooltip(link.task)">
+                  <a-tag :class="['task-ref-tag', taskPriorityClass(link.task)]">
+                    <span class="task-ref-title">{{ taskReferenceTitle(link.task) }}</span>
+                    <span class="task-ref-code">{{ link.task.code }}</span>
+                  </a-tag>
+                </a-tooltip>
+                <TaskWorkStatusTag
+                  :value="link.task.workStatus || 'TODO'"
+                  :disabled="link.task.status === 'CANCELLED'"
+                  @change="(value) => updateTaskWorkStatus(link.task, value)"
+                />
+              </span>
               <a-tag v-if="!childBranch.taskLinks.length">Chưa link task</a-tag>
             </span>
           </button>
@@ -1870,7 +1916,14 @@ onMounted(() => {
                   <span class="task-ref-code">{{ item.task.code }}</span>
                 </a-tag>
               </a-tooltip>
-              <div class="muted-text">{{ item.role }} - {{ taskStatusLabel(item.task.status) }}</div>
+              <div class="task-ref-status-line">
+                <span class="muted-text">{{ item.role }} - {{ taskStatusLabel(item.task.status) }}</span>
+                <TaskWorkStatusTag
+                  :value="item.task.workStatus || 'TODO'"
+                  :disabled="item.task.status === 'CANCELLED'"
+                  @change="(value) => updateTaskWorkStatus(item.task, value)"
+                />
+              </div>
             </div>
           </a-list-item>
         </template>

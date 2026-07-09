@@ -41,6 +41,10 @@ The system SHALL provide task table and task board views with filters for projec
 - **WHEN** the user views the task table
 - **THEN** each task priority is shown as a compact colored tag using green Low, gold Medium, and red High with 1/2/3 bar icons and hover text for the priority label
 
+#### Scenario: Task table shows branch and work status
+- **WHEN** the user views the task table
+- **THEN** each task shows its active branch, branch-derived progress status, and separate task work status
+
 ### Requirement: User can view all tasks grouped by practical status
 The system SHALL provide an All Tasks view that groups tasks into personal workflow buckets for quick status review.
 
@@ -81,6 +85,14 @@ The system SHALL open task and branch details in drawers from dashboard, table, 
 #### Scenario: Open task drawer from search
 - **WHEN** the user selects a task search result
 - **THEN** the system opens the task detail drawer without losing the current list context
+
+#### Scenario: Task drawer uses wide detail space
+- **WHEN** the user opens task detail
+- **THEN** the drawer uses a wide layout around 70 percent of the viewport so task description and timeline are easier to read
+
+#### Scenario: View JSON-like task description as code
+- **WHEN** a task description contains JSON or code-like text
+- **THEN** the task drawer shows a formatted code block preview while preserving the editable description field
 
 ### Requirement: UI uses Vietnamese labels
 The system SHALL use Vietnamese labels, navigation text, empty states, and action text for the application UI.

@@ -29,6 +29,7 @@ type TaskBody = {
   title?: unknown
   description?: unknown
   status?: unknown
+  workStatus?: unknown
   priority?: unknown
   type?: unknown
   targetDate?: unknown
@@ -62,6 +63,14 @@ function dateOrNull(value: unknown) {
   const date = new Date(nextValue)
 
   return Number.isNaN(date.getTime()) ? null : date
+}
+
+const taskWorkStatuses = new Set(['TODO', 'DOING', 'TESTING', 'DONE'])
+
+function taskWorkStatus(value: unknown, fallback = 'TODO') {
+  const nextValue = text(value).toUpperCase()
+
+  return taskWorkStatuses.has(nextValue) ? nextValue : fallback
 }
 
 async function ensureProject(prisma: AppPrismaClient, projectId: string, userId: string, reply: FastifyReply) {
@@ -424,6 +433,7 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
         code: taskCode,
         title,
         description: nullableText(body.description) ?? note.content,
+        workStatus: taskWorkStatus(body.workStatus),
         priority: text(body.priority) || 'MEDIUM',
         type: text(body.type) || 'FEATURE',
         targetDate: dateOrNull(body.targetDate),
@@ -469,6 +479,7 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
     const projectId = url.searchParams.get('projectId') || undefined
     const taskGroupId = url.searchParams.get('taskGroupId') || undefined
     const status = url.searchParams.get('status') || undefined
+    const workStatus = url.searchParams.get('workStatus') || undefined
     const priority = url.searchParams.get('priority') || undefined
     const type = url.searchParams.get('type') || undefined
     const branch = url.searchParams.get('branch')?.trim() || undefined
@@ -483,6 +494,7 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
         ...(projectId ? { projectId } : {}),
         ...(taskGroupId ? { taskGroupId } : {}),
         ...(status ? { status } : {}),
+        ...(workStatus ? { workStatus } : {}),
         ...(priority ? { priority } : {}),
         ...(type ? { type } : {}),
         ...(branch
@@ -569,6 +581,7 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
         code: taskCode,
         title,
         description: nullableText(body.description),
+        workStatus: taskWorkStatus(body.workStatus),
         priority: text(body.priority) || 'MEDIUM',
         type: text(body.type) || 'FEATURE',
         targetDate: dateOrNull(body.targetDate),
@@ -625,6 +638,7 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
         taskGroupId,
         title: text(body.title) || task.title,
         description: nullableText(body.description),
+        workStatus: body.workStatus === undefined ? task.workStatus : taskWorkStatus(body.workStatus, task.workStatus),
         priority: text(body.priority) || task.priority,
         type: text(body.type) || task.type,
         targetDate: dateOrNull(body.targetDate),
@@ -632,6 +646,53 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
     })
 
     await syncTasksWithLinkedBranches(context.prisma, [task.id], task.projectId, request.authUser?.id)
+
+    return ensureTask(context.prisma, task.id, request.authUser?.id ?? '', reply)
+  })
+
+  app.patch('/api/tasks/:taskId/work-status', { preHandler: requireAuth }, async (request, reply) => {
+    const taskId = paramsAs(request.params).taskId ?? ''
+    const task = await ensureTask(context.prisma, taskId, request.authUser?.id ?? '', reply)
+
+    if (!task) {
+      return
+    }
+
+    if (task.status === 'CANCELLED') {
+      return reply.code(400).send({ message: 'Task da huy. Hay phuc hoi ve nhap truoc khi doi trang thai cong viec.' })
+    }
+
+    const body = bodyAs<TaskBody>(request.body)
+    const nextWorkStatus = taskWorkStatus(body.workStatus, '')
+
+    if (!nextWorkStatus) {
+      return reply.code(400).send({ message: 'Trang thai cong viec khong hop le.' })
+    }
+
+    if (task.workStatus === nextWorkStatus) {
+      return task
+    }
+
+    await context.prisma.$transaction(async (tx) => {
+      await tx.task.update({
+        where: { id: task.id },
+        data: { workStatus: nextWorkStatus },
+      })
+      await tx.timelineEvent.create({
+        data: {
+          projectId: task.projectId,
+          taskId: task.id,
+          createdById: request.authUser?.id,
+          eventType: 'TASK_WORK_STATUS_CHANGED',
+          title: `Doi trang thai cong viec ${task.code}`,
+          description: `${task.workStatus} -> ${nextWorkStatus}`,
+          metadataJson: JSON.stringify({
+            from: task.workStatus,
+            to: nextWorkStatus,
+          }),
+        },
+      })
+    })
 
     return ensureTask(context.prisma, task.id, request.authUser?.id ?? '', reply)
   })
@@ -710,6 +771,7 @@ export function registerPlanningRoutes(app: FastifyInstance, context: PlanningRo
         where: { id: task.id },
         data: {
           status: 'PLANNED',
+          workStatus: 'TODO',
           doneAt: null,
         },
       })

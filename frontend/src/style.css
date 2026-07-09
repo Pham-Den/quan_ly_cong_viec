@@ -328,6 +328,21 @@ body {
   opacity: 1;
 }
 
+.json-code-block {
+  max-height: 320px;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  color: #172033;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f8fafc;
+  border: 1px solid #e5e9f0;
+  border-radius: 8px;
+}
+
 .branch-flow {
   display: grid;
   gap: 6px;
@@ -442,6 +457,35 @@ body {
 .task-ref-priority-high .task-ref-code,
 .task-ref-priority-urgent .task-ref-code {
   color: #cf1322;
+}
+
+.task-work-status-dropdown {
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.task-work-status-tag {
+  margin-inline-end: 0;
+  border-radius: 6px;
+}
+
+.task-work-status-tag.is-clickable {
+  cursor: pointer;
+}
+
+.task-work-status-menu-tag {
+  min-width: 76px;
+  margin-inline-end: 0;
+  text-align: center;
+  border-radius: 6px;
+}
+
+.task-ref-status-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 6px;
 }
 
 .branch-flow-card {

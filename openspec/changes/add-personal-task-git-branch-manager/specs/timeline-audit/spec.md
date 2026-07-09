@@ -7,6 +7,10 @@ The system SHALL create timeline events for note creation, task creation, task d
 - **WHEN** a task status changes
 - **THEN** the system records a timeline event containing task reference, previous status, new status, actor, and timestamp
 
+#### Scenario: Task work status event
+- **WHEN** a task work status changes
+- **THEN** the system records a timeline event containing task reference, previous work status, new work status, actor, and timestamp
+
 #### Scenario: Branch merge event
 - **WHEN** a branch is marked merged to a release branch or `main`
 - **THEN** the system records a timeline event containing branch reference, linked task references, merge target, actor, and timestamp

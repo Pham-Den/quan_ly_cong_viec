@@ -646,3 +646,6 @@ Không nên làm webhook Git ngay từ đầu. Điểm đau hiện tại là thi
 - Task chip nằm trong branch table, Kanban, release child và branch drawer dùng màu theo priority của task: Low xanh lá, Medium vàng, High đỏ.
 - Task có thể `Hủy` mà không xóa: hệ thống giữ record, chuyển status `CANCELLED`, gỡ active branch link và ghi timeline. Task hủy không được gắn/kế thừa vào branch; muốn dùng lại phải `Phục hồi nháp` về `PLANNED`, sau đó add vào branch như task mới chưa làm.
 - Nút `Kế thừa task từ branch nguồn` chỉ kế thừa task chưa done: bỏ qua task `DONE`, task `CANCELLED`, hoặc task đã có `done_at`, để branch mới không kéo theo việc đã hoàn tất hoặc đã hủy.
+- Task có thêm trạng thái công việc riêng `workStatus`: `TODO`/Chưa làm, `DOING`/Đang làm, `TESTING`/Đang test, `DONE`/Đã xong. Field này không thay thế status theo branch; `/tasks` phải hiển thị cả active branch, status theo branch và workStatus.
+- Màn `/branches` cho phép đổi `workStatus` ngay trên task linked trong table, Kanban, release child và drawer; đổi workStatus chỉ ghi timeline `TASK_WORK_STATUS_CHANGED`, không đổi lifecycle branch.
+- Task drawer mở rộng khoảng 70% viewport để đọc chi tiết dễ hơn. Mô tả task vẫn edit bằng textarea, đồng thời có preview code block để đọc JSON/code-like text.

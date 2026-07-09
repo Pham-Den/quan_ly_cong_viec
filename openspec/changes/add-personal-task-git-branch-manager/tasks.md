@@ -197,6 +197,7 @@
 - [x] 12.36 Keep attach-release options limited to existing release branch records and reject targets whose release branch was deleted.
 - [x] 12.37 Allow branch task links to be edited while a task branch is still coding or in develop, while keeping release/main task links locked.
 - [x] 12.38 Add task cancel/restore-draft flow and make source-branch task inheritance skip tasks that are done or cancelled.
+- [x] 12.39 Add separate task work status, show active branch in `/tasks`, allow work-status updates from `/branches`, widen task drawer, and render JSON-like descriptions as code.
 
 ## 13. Later: Post-MVP Self-Hosted GitLab Automation
 

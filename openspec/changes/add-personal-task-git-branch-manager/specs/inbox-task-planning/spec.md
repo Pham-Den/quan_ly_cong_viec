@@ -44,6 +44,10 @@ The system SHALL allow tasks to be created, viewed, updated, filtered, and assig
 - **WHEN** a task has no branch, an active branch in progress/develop, an active branch in release, or an active branch in main
 - **THEN** the system shows the task as `PLANNED`, `IN_PROGRESS`, `MERGED_RELEASE`, or `DONE` respectively and does not rely on manual task status editing
 
+#### Scenario: Task work status is separate from branch progress
+- **WHEN** the user changes a task work status to `TODO`, `DOING`, `TESTING`, or `DONE`
+- **THEN** the system stores that work status separately from the branch-derived task status and does not move the task between branch progress buckets
+
 #### Scenario: Delete task before production
 - **WHEN** the user deletes a task that has not reached `main`
 - **THEN** the system removes the task, removes its task-branch links through cascade cleanup, keeps any branch records intact, and records a `TASK_DELETED` timeline audit event

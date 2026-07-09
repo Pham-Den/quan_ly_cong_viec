@@ -177,6 +177,10 @@ The system SHALL provide a Kanban view for `/branches` where branch lifecycle st
 - **WHEN** a linked task appears inside a branch table row, Kanban card, release child row, or branch detail drawer
 - **THEN** the linked task chip uses the task priority color so Low is green, Medium is gold, and High is red
 
+#### Scenario: Change linked task work status from branch views
+- **WHEN** a linked task appears inside the branch table, branch Kanban card, release child row, or branch detail drawer
+- **THEN** the system shows the task work status and allows the user to change it without changing the branch lifecycle status
+
 #### Scenario: Show disabled unavailable actions
 - **WHEN** a branch row, branch card, or card action menu contains actions that are not valid for the current branch state
 - **THEN** the system still shows those actions but disables them instead of hiding them

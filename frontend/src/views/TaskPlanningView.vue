@@ -3,8 +3,17 @@ import { message } from 'ant-design-vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
+import AppJsonCodeBlock from '../core/components/AppJsonCodeBlock.vue'
+import TaskWorkStatusTag from '../core/components/TaskWorkStatusTag.vue'
 import { api } from '../services/api'
-import { noteStatusMeta, statusMeta, workflowOptions, type WorkflowStatusRecord } from '../services/workflow'
+import {
+  noteStatusMeta,
+  statusMeta,
+  taskWorkStatusMeta,
+  taskWorkStatusOptions,
+  workflowOptions,
+  type WorkflowStatusRecord,
+} from '../services/workflow'
 import { useSessionStore } from '../stores/session'
 
 type TaskGroupRecord = {
@@ -39,6 +48,7 @@ type TaskRecord = {
   title: string
   description: string | null
   status: string
+  workStatus: string
   priority: string
   type: string
   targetDate: string | null
@@ -86,6 +96,7 @@ const noteStatus = ref('ACTIONABLE')
 const noteQuery = ref('')
 const taskQuery = ref('')
 const taskStatus = ref('')
+const taskWorkStatusFilter = ref('')
 const taskPriority = ref('')
 const taskType = ref('')
 const taskGroupFilter = ref('')
@@ -126,6 +137,7 @@ const convertForm = reactive({
   title: '',
   description: '',
   taskGroupId: null as string | null,
+  workStatus: 'TODO',
   priority: 'MEDIUM',
   type: 'FEATURE',
   targetDate: '',
@@ -135,6 +147,7 @@ const taskForm = reactive({
   title: '',
   description: '',
   taskGroupId: null as string | null,
+  workStatus: 'TODO',
   priority: 'MEDIUM',
   type: 'FEATURE',
   targetDate: '',
@@ -147,9 +160,11 @@ const noteColumns = [
 ]
 const taskColumns = [
   { title: 'Mã', dataIndex: 'code', key: 'code', width: 132 },
-  { title: 'Task', key: 'task' },
+  { title: 'Task', key: 'task', width: 260 },
+  { title: 'Branch', key: 'branch', width: 220 },
   { title: 'Nhóm', key: 'group', width: 150 },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 140 },
+  { title: 'Theo branch', dataIndex: 'status', key: 'status', width: 140 },
+  { title: 'Trạng thái task', dataIndex: 'workStatus', key: 'workStatus', width: 150 },
   { title: 'Ưu tiên', dataIndex: 'priority', key: 'priority', width: 96 },
   { title: '', key: 'actions', width: 260 },
 ]
@@ -180,6 +195,7 @@ function resetTaskForm() {
   taskForm.title = ''
   taskForm.description = ''
   taskForm.taskGroupId = null
+  taskForm.workStatus = 'TODO'
   taskForm.priority = 'MEDIUM'
   taskForm.type = 'FEATURE'
   taskForm.targetDate = ''
@@ -215,12 +231,24 @@ function branchPath(branch: TaskBranchLink['branch']) {
   return `${branch.checkoutSourceBranch || '-'} -> ${plannedTargets} -> ${branch.actualMergedInto || (branch.mergedMainAt ? 'main' : 'Chưa merge')}`
 }
 
+function taskBranchName(task: TaskRecord) {
+  return task.branchLinks?.[0]?.branch.name || ''
+}
+
 function taskStatusLabel(status: string) {
   return statusMeta(workflowStatuses.value, 'TASK', status).label
 }
 
 function taskStatusColor(status: string) {
   return statusMeta(workflowStatuses.value, 'TASK', status).color
+}
+
+function taskWorkStatusLabel(status: string) {
+  return taskWorkStatusMeta(status).label
+}
+
+function taskWorkStatusColor(status: string) {
+  return taskWorkStatusMeta(status).color
 }
 
 function branchStatusLabel(status: string) {
@@ -350,6 +378,10 @@ async function loadTasks() {
     params.set('status', taskStatus.value)
   }
 
+  if (taskWorkStatusFilter.value) {
+    params.set('workStatus', taskWorkStatusFilter.value)
+  }
+
   if (taskGroupFilter.value) {
     params.set('taskGroupId', taskGroupFilter.value)
   }
@@ -447,6 +479,7 @@ function setTaskDrawerData(data: TaskRecord) {
   taskForm.title = data.title
   taskForm.description = data.description ?? ''
   taskForm.taskGroupId = data.taskGroupId
+  taskForm.workStatus = data.workStatus || 'TODO'
   taskForm.priority = data.priority
   taskForm.type = data.type
   taskForm.targetDate = dateValue(data.targetDate)
@@ -480,6 +513,7 @@ async function submitTask() {
     title: taskForm.title,
     description: taskForm.description,
     taskGroupId: taskForm.taskGroupId,
+    workStatus: taskForm.workStatus,
     priority: taskForm.priority,
     type: taskForm.type,
     targetDate: taskForm.targetDate,
@@ -494,6 +528,29 @@ async function submitTask() {
   taskDrawerOpen.value = false
   resetTaskForm()
   await loadTasks()
+}
+
+async function updateTaskWorkStatus(task: TaskRecord, workStatus: string) {
+  if (task.status === 'CANCELLED') {
+    message.warning('Task đã hủy, hãy phục hồi về nháp trước khi đổi trạng thái công việc.')
+    return
+  }
+
+  try {
+    const { data } = await api.patch<TaskRecord>(`/api/tasks/${task.id}/work-status`, { workStatus })
+
+    tasks.value = tasks.value.map((item) => (item.id === data.id ? { ...item, workStatus: data.workStatus } : item))
+
+    if (editingTask.value?.id === data.id) {
+      editingTask.value = {
+        ...editingTask.value,
+        workStatus: data.workStatus,
+      }
+      taskForm.workStatus = data.workStatus
+    }
+  } catch {
+    message.error('Không thể đổi trạng thái task.')
+  }
 }
 
 async function deleteTask(task: TaskRecord) {
@@ -538,7 +595,7 @@ async function restoreTask(task: TaskRecord) {
 }
 
 watch(selectedProjectId, refreshPlanning)
-watch([noteStatus, noteQuery, taskStatus, taskPriority, taskType, taskGroupFilter, taskBranch, taskQuery], refreshPlanning)
+watch([noteStatus, noteQuery, taskStatus, taskWorkStatusFilter, taskPriority, taskType, taskGroupFilter, taskBranch, taskQuery], refreshPlanning)
 watch(
   () => route.query.taskId,
   (taskId) => {
@@ -646,7 +703,14 @@ onMounted(() => {
       <a-space class="filter-row">
         <a-input-search v-model:value="taskQuery" class="filter-control" placeholder="Tìm mã hoặc tiêu đề" />
         <a-select v-model:value="taskGroupFilter" class="filter-control" allow-clear placeholder="Nhóm" :options="taskGroupOptions" />
-        <a-select v-model:value="taskStatus" class="filter-control" allow-clear placeholder="Trạng thái" :options="statusOptions" />
+        <a-select v-model:value="taskStatus" class="filter-control" allow-clear placeholder="Theo branch" :options="statusOptions" />
+        <a-select
+          v-model:value="taskWorkStatusFilter"
+          class="filter-control"
+          allow-clear
+          placeholder="Trạng thái task"
+          :options="taskWorkStatusOptions"
+        />
         <a-select v-model:value="taskPriority" class="filter-control" allow-clear placeholder="Ưu tiên" :options="priorityOptions" />
         <a-select v-model:value="taskType" class="filter-control" allow-clear placeholder="Loại" :options="typeOptions" />
         <a-input v-model:value="taskBranch" class="filter-control" placeholder="Branch" />
@@ -657,11 +721,22 @@ onMounted(() => {
             <strong>{{ record.title }}</strong>
             <div class="muted-text">{{ record.project?.code }} {{ record.targetDate ? `- hạn ${dateValue(record.targetDate)}` : '' }}</div>
           </template>
+          <template v-if="column.key === 'branch'">
+            <a-tag v-if="taskBranchName(record)" color="blue">{{ taskBranchName(record) }}</a-tag>
+            <span v-else class="muted-text">Chưa link branch</span>
+          </template>
           <template v-if="column.key === 'group'">
             {{ record.taskGroup ? `${record.taskGroup.code} - ${record.taskGroup.name}` : '-' }}
           </template>
           <template v-if="column.key === 'status'">
             <a-tag :color="taskStatusColor(record.status)">{{ taskStatusLabel(record.status) }}</a-tag>
+          </template>
+          <template v-if="column.key === 'workStatus'">
+            <TaskWorkStatusTag
+              :value="record.workStatus || 'TODO'"
+              :disabled="record.status === 'CANCELLED'"
+              @change="(value) => updateTaskWorkStatus(record, value)"
+            />
           </template>
           <template v-if="column.key === 'priority'">
             <a-tooltip :title="priorityMeta(record.priority).label">
@@ -745,7 +820,7 @@ onMounted(() => {
     </a-form>
   </a-drawer>
 
-  <a-drawer v-model:open="taskDrawerOpen" :title="taskForm.id ? 'Chi tiết task' : 'Tạo task'" width="620">
+  <a-drawer v-model:open="taskDrawerOpen" :title="taskForm.id ? 'Chi tiết task' : 'Tạo task'" width="70%">
     <a-form layout="vertical" :model="taskForm" @finish="submitTask">
       <a-alert
         v-if="editingTask && taskFormReadonly"
@@ -756,6 +831,7 @@ onMounted(() => {
       />
       <a-space v-if="editingTask" class="settings-alert" wrap>
         <a-tag :color="taskStatusColor(editingTask.status)">{{ taskStatusLabel(editingTask.status) }}</a-tag>
+        <a-tag :color="taskWorkStatusColor(editingTask.workStatus)">{{ taskWorkStatusLabel(editingTask.workStatus) }}</a-tag>
         <a-tag v-if="editingTask.branchLinks?.[0]">{{ editingTask.branchLinks[0].branch.name }}</a-tag>
         <a-tag v-else>Chưa link branch</a-tag>
       </a-space>
@@ -766,6 +842,13 @@ onMounted(() => {
         <a-select v-model:value="taskForm.taskGroupId" allow-clear :disabled="taskFormReadonly" :options="taskGroupOptions" />
       </a-form-item>
       <div class="form-grid">
+        <a-form-item label="Trạng thái task">
+          <TaskWorkStatusTag
+            :value="taskForm.workStatus"
+            :disabled="editingTask?.status === 'CANCELLED'"
+            @change="(value) => (editingTask ? updateTaskWorkStatus(editingTask, value) : (taskForm.workStatus = value))"
+          />
+        </a-form-item>
         <a-form-item label="Ưu tiên">
           <a-select v-model:value="taskForm.priority" :disabled="taskFormReadonly" :options="priorityOptions" />
         </a-form-item>
@@ -778,6 +861,9 @@ onMounted(() => {
       </a-form-item>
       <a-form-item label="Mô tả">
         <a-textarea v-model:value="taskForm.description" :rows="5" :disabled="taskFormReadonly" />
+      </a-form-item>
+      <a-form-item v-if="taskForm.description" label="Xem mô tả">
+        <AppJsonCodeBlock :value="taskForm.description" />
       </a-form-item>
       <a-space>
         <a-button

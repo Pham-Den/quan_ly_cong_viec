@@ -173,6 +173,7 @@ model Task {
   title          String
   description    String?
   status         String    @default("PLANNED")
+  workStatus     String    @default("TODO")
   priority       String    @default("MEDIUM")
   type           String    @default("FEATURE")
   targetDate     DateTime?
@@ -188,6 +189,7 @@ model Task {
   timelineEvents TimelineEvent[]
 
   @@index([projectId, status])
+  @@index([projectId, workStatus])
   @@index([projectId, taskGroupId])
   @@index([status])
   @@index([targetDate])
