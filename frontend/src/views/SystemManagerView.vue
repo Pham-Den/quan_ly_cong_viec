@@ -260,7 +260,7 @@ const groupedSearchResults = computed(() => {
       groups.Configs.push({
         id: `edge:${edge.id}`,
         group: 'Configs',
-        label: edge.label,
+        label: edgeDisplayLabel(edge),
         description: `${nodeName(edge.source)} -> ${nodeName(edge.target)}`,
         targetType: 'edge',
         targetId: edge.id,
@@ -360,6 +360,16 @@ function isEdgeNeighbor(edge: TopologyEdgeRecord) {
 
 function nodeName(nodeId: string) {
   return visibleNodes.value.find((node) => node.id === nodeId)?.name ?? nodeId
+}
+
+function dependencyName(edge: TopologyEdgeRecord) {
+  return edge.label.trim().replace(/\s+(?:\+\d+|\((?:\d+|chưa thêm config)\))$/i, '') || edge.id
+}
+
+function edgeDisplayLabel(edge: TopologyEdgeRecord) {
+  const configCount = edge.configItems.length
+
+  return `${dependencyName(edge)} (${configCount || 'chưa thêm config'})`
 }
 
 function nodesForMode(data: TopologyEnvironmentData = topology.value) {
@@ -518,6 +528,13 @@ function selectEdge(edgeId: string) {
   selectedNodeId.value = ''
   activeTab.value = 'configs'
   flowActive.value = false
+
+  if (detailPanelCollapsed.value) {
+    detailPanelCollapsed.value = false
+    window.setTimeout(() => centerGraph(edge.source, edge.target), 260)
+    return
+  }
+
   centerGraph(edge.source, edge.target)
 }
 
@@ -974,7 +991,7 @@ onMounted(() => {
                     type="button"
                     @click.stop="selectEdge(edgeProps.id)"
                   >
-                    {{ edgeProps.data.record.label }}
+                    {{ edgeDisplayLabel(edgeProps.data.record) }}
                   </button>
                   <a-tooltip title="Xem config nhanh">
                     <button
@@ -1003,7 +1020,7 @@ onMounted(() => {
           <div class="detail-header">
             <div class="detail-title">
               <span>Config detail</span>
-              <h2>{{ selectedEdge.label }}</h2>
+              <h2>{{ edgeDisplayLabel(selectedEdge) }}</h2>
             </div>
             <div class="detail-actions">
               <a-tag color="purple">{{ selectedEdge.direction }}</a-tag>
@@ -1151,7 +1168,7 @@ onMounted(() => {
                   @click="selectEdge(edge.id)"
                 >
                   <span>{{ nodeName(edge.target) }}</span>
-                  <small>{{ edge.label }} - {{ edge.direction }}</small>
+                  <small>{{ edgeDisplayLabel(edge) }} - {{ edge.direction }}</small>
                 </button>
               </div>
               <div class="dependency-section">
@@ -1165,7 +1182,7 @@ onMounted(() => {
                   @click="selectEdge(edge.id)"
                 >
                   <span>{{ nodeName(edge.source) }}</span>
-                  <small>{{ edge.label }} - {{ edge.direction }}</small>
+                  <small>{{ edgeDisplayLabel(edge) }} - {{ edge.direction }}</small>
                 </button>
               </div>
             </a-tab-pane>
@@ -1186,7 +1203,7 @@ onMounted(() => {
                   @click="selectEdge(edge.id)"
                 >
                   <span>{{ nodeName(edge.target) }}</span>
-                  <small>{{ edge.label }} / {{ edge.direction }}</small>
+                  <small>{{ edgeDisplayLabel(edge) }} / {{ edge.direction }}</small>
                 </button>
               </div>
             </a-tab-pane>
@@ -1208,7 +1225,7 @@ onMounted(() => {
       <header>
         <div>
           <span>Config nhanh</span>
-          <strong>{{ quickConfigEdge.label }}</strong>
+          <strong>{{ edgeDisplayLabel(quickConfigEdge) }}</strong>
         </div>
         <a-tooltip title="Đóng">
           <button
@@ -1511,7 +1528,7 @@ onMounted(() => {
 
 .edge-config-popover {
   position: fixed;
-  z-index: 30;
+  z-index: 1200;
   width: min(320px, 70vw);
   padding: 10px;
   pointer-events: all;

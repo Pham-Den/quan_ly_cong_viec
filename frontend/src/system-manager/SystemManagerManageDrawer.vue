@@ -668,7 +668,7 @@ async function saveNode() {
 
     resetNodeForm()
     message.success('Đã lưu node')
-    emit('saved', savedEnvironment)
+    emit('saved', currentEnvironment.value)
   } catch (error) {
     console.error(error)
     message.error('Không lưu được node')
@@ -742,7 +742,7 @@ async function saveDependency() {
 
     resetDependencyForm()
     message.success('Đã lưu dependency')
-    emit('saved', savedEnvironment)
+    emit('saved', currentEnvironment.value)
   } catch (error) {
     console.error(error)
     message.error('Không lưu được dependency')

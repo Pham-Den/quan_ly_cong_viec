@@ -23,6 +23,7 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
   await page.getByPlaceholder('Tìm name, IP, config key...').fill('DB_HOST')
   await page.getByRole('button', { name: /DB_HOST/ }).first().click()
   await expect(page.getByText('Config detail')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'DB_HOST (1)' })).toBeVisible()
   await expect(page.getByText('DB_HOST=mariadb-local.company.local')).toBeVisible()
   const detailPanel = page.locator('.detail-panel')
   await expect(page.getByRole('button', { name: 'Copy config line' }).first()).toBeVisible()
@@ -41,8 +42,9 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
       }, localStateKey),
     )
     .toBe(true)
-  await page.getByRole('button', { name: 'Hiện sidebar' }).click()
+  await page.getByRole('button', { name: /^DB_HOST \(1\)$/ }).first().click()
   await expect(detailPanel).toBeVisible()
+  await expect(page.getByText('Config detail')).toBeVisible()
   await expect
     .poll(() =>
       page.evaluate((key) => {
@@ -57,6 +59,7 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
   await expect(page.getByText('Config detail')).not.toBeVisible()
   await page.getByRole('button', { name: 'Xem config nhanh' }).first().dispatchEvent('click')
   await expect(page.getByText('Config nhanh')).toBeVisible()
+  await expect(page.locator('.edge-config-popover')).toHaveCSS('z-index', '1200')
   await expect(page.getByRole('button', { name: 'Copy config nhanh' }).first()).toBeVisible()
   await page.getByRole('button', { name: 'Đóng config nhanh' }).click()
   await expect(page.getByText('Config nhanh')).not.toBeVisible()
@@ -91,7 +94,10 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
   await page.getByRole('button', { name: 'Start flow' }).click()
   await expect(page.getByRole('tab', { name: 'Flow' })).toHaveAttribute('aria-selected', 'true')
   await expect(page.locator('.flow-step').filter({ hasText: 'Redis' })).toBeVisible()
-  await expect(page.locator('.flow-step').filter({ hasText: /REDIS_HOST \+3/ })).toBeVisible()
+  await expect(page.locator('.flow-step').filter({ hasText: /REDIS_HOST \(4\)/ })).toBeVisible()
+
+  await page.locator('.ant-segmented-item').filter({ hasText: 'Dev' }).click()
+  await expect(page.locator('.vue-flow__node').filter({ hasText: 'B2P' }).first()).toBeVisible()
 
   await page.getByRole('button', { name: 'Quản lý dữ liệu' }).click()
   const drawer = page.locator('.ant-drawer').filter({ hasText: 'Quản lý dữ liệu System Manager' })
@@ -99,11 +105,13 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
   const activeFormContent = activeDrawerPanel.locator('.manager-form-content')
   await expect(drawer).toBeVisible()
   await expect(drawer.getByRole('tab', { name: 'Nodes' })).toBeVisible()
+  await expect(activeDrawerPanel.getByText('Node global; runtime/config bên dưới áp dụng cho environment: Dev')).toBeVisible()
   await expect(drawer.getByRole('button', { name: /B2P Web\/API/ })).toBeVisible()
   await expect(activeDrawerPanel.getByText('Tạo node mới')).toBeVisible()
   await expect(activeDrawerPanel.getByRole('button', { name: 'Lưu mới node' })).toBeVisible()
   await expect(activeDrawerPanel.getByText('Global node')).toBeVisible()
   await expect(activeDrawerPanel.getByText('Runtime/config binding')).toBeVisible()
+  await expect(activeDrawerPanel.locator('.manager-scope-badge-env').filter({ hasText: 'Dev' })).toBeVisible()
   await activeDrawerPanel.getByRole('button', { name: /B2P Web\/API/ }).click()
   await activeFormContent.evaluate((element) => {
     element.scrollTop = 0
@@ -127,6 +135,7 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
   })
   await expect(activeDrawerPanel.getByText('Edge config binding')).toBeVisible()
   await expect(activeDrawerPanel.getByText('Environment config')).toBeVisible()
+  await expect(activeDrawerPanel.locator('.manager-scope-badge-env').filter({ hasText: 'Dev' })).toBeVisible()
   await activeDrawerPanel.getByRole('button', { name: /DB_HOST/ }).first().click()
   await activeFormContent.evaluate((element) => {
     element.scrollTop = 0
