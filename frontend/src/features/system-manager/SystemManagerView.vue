@@ -22,6 +22,7 @@ import {
   NodeCollapseOutlined,
   NodeExpandOutlined,
   PlusOutlined,
+  SettingOutlined,
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import { computed, h, nextTick, onMounted, ref, watch, type CSSProperties } from 'vue'
@@ -35,11 +36,13 @@ import StatusTag from '../../core/components/StatusTag.vue'
 import SystemManagerDetailPanel from './components/SystemManagerDetailPanel.vue'
 import SystemManagerManageDrawer from './components/SystemManagerManageDrawer.vue'
 import SystemManagerQuickConfigPopover from './components/SystemManagerQuickConfigPopover.vue'
+import SystemManagerSettingsDrawer from './components/SystemManagerSettingsDrawer.vue'
 import {
   loadSystemManagerLocalState,
   saveSystemManagerLocalState,
   type LocalNodePosition,
   type SystemManagerLocalState,
+  type SystemManagerSettings,
 } from './ts/localState'
 import { normalizeEnvironmentColor } from './ts/environmentColor'
 import {
@@ -81,8 +84,9 @@ type SearchResult = {
 }
 
 const persistedState = ref(loadSystemManagerLocalState())
+const settings = ref<SystemManagerSettings>({ ...persistedState.value.settings })
 const selectedEnvironment = ref<SystemEnvironment>(persistedState.value.selectedEnvironment ?? 'local')
-const appExpanded = ref(persistedState.value.appExpanded)
+const appExpanded = ref(initialAppExpanded())
 const selectedNodeId = ref(persistedState.value.selectedNodeId || 'b2p-app')
 const selectedEdgeId = ref(persistedState.value.selectedEdgeId)
 const quickConfigEdgeId = ref('')
@@ -95,7 +99,8 @@ const flowStartId = ref(persistedState.value.selectedNodeId || 'b2p-app')
 const loadingTopology = ref(false)
 const topologyError = ref('')
 const manageOpen = ref(false)
-const detailPanelCollapsed = ref(persistedState.value.detailPanelCollapsed)
+const settingsOpen = ref(false)
+const detailPanelCollapsed = ref(initialDetailPanelCollapsed())
 const suppressEnvironmentWatch = ref(false)
 const environments = ref<SystemManagerEnvironment[]>([])
 const topologies = ref<Partial<Record<SystemEnvironment, TopologyEnvironmentData>>>({})
@@ -110,6 +115,34 @@ const emptyTopology: TopologyEnvironmentData = {
   collapsedEdges: [],
   expandedNodes: [],
   expandedEdges: [],
+}
+
+function initialAppExpanded() {
+  if (settings.value.defaultGraphView === 'expanded') {
+    return true
+  }
+
+  if (settings.value.defaultGraphView === 'collapsed') {
+    return false
+  }
+
+  return persistedState.value.appExpanded
+}
+
+function initialDetailPanelCollapsed() {
+  if (settings.value.detailPanelDefault === 'open') {
+    return false
+  }
+
+  if (settings.value.detailPanelDefault === 'collapsed') {
+    return true
+  }
+
+  return persistedState.value.detailPanelCollapsed
+}
+
+function defaultAppExpanded() {
+  return settings.value.defaultGraphView === 'expanded'
 }
 
 function environmentOptionLabel(environment: SystemManagerEnvironment) {
@@ -485,6 +518,7 @@ function persistCurrentLocalState() {
     selectedEdgeId: selectedEdgeId.value,
     activeTab: activeTab.value,
     detailPanelCollapsed: detailPanelCollapsed.value,
+    settings: settings.value,
   })
 }
 
@@ -629,7 +663,7 @@ function toggleAppExpanded() {
 
 function resetGraphState() {
   quickConfigEdgeId.value = ''
-  appExpanded.value = false
+  appExpanded.value = defaultAppExpanded()
   const nodeId = defaultNodeId()
 
   selectedNodeId.value = nodeId
@@ -647,9 +681,13 @@ function handleEnvironmentChange() {
   quickConfigEdgeId.value = ''
   selectedNodeId.value = defaultNodeId()
   selectedEdgeId.value = ''
-  appExpanded.value = false
+  appExpanded.value = defaultAppExpanded()
   flowActive.value = false
-  searchQuery.value = ''
+
+  if (settings.value.resetSearchOnEnvironmentChange) {
+    searchQuery.value = ''
+  }
+
   nextTick(() => {
     if (topologies.value[selectedEnvironment.value]) {
       centerGraph(defaultNodeId())
@@ -814,9 +852,12 @@ async function refreshAfterManagement(environmentKey?: SystemEnvironment) {
 
     environments.value = nextEnvironments
     selectedEnvironment.value = nextEnvironment
-    appExpanded.value = false
+    appExpanded.value = defaultAppExpanded()
     flowActive.value = false
-    searchQuery.value = ''
+
+    if (settings.value.resetSearchOnEnvironmentChange) {
+      searchQuery.value = ''
+    }
 
     await loadTopology(nextEnvironment)
   } catch (error) {
@@ -826,6 +867,25 @@ async function refreshAfterManagement(environmentKey?: SystemEnvironment) {
     suppressEnvironmentWatch.value = false
     loadingTopology.value = false
   }
+}
+
+async function refreshAfterImport() {
+  settingsOpen.value = false
+  await refreshAfterManagement(selectedEnvironment.value)
+}
+
+function updateSettings(nextSettings: SystemManagerSettings) {
+  settings.value = { ...nextSettings }
+
+  if (nextSettings.defaultGraphView !== 'remember') {
+    appExpanded.value = nextSettings.defaultGraphView === 'expanded'
+  }
+
+  if (nextSettings.detailPanelDefault !== 'remember') {
+    detailPanelCollapsed.value = nextSettings.detailPanelDefault === 'collapsed'
+  }
+
+  persistCurrentLocalState()
 }
 
 watch(selectedEnvironment, async (environment, previousEnvironment) => {
@@ -852,7 +912,7 @@ onMounted(() => {
     <div class="system-manager-header">
       <div>
         <h1>System Manager</h1>
-        <p>Topology mock cho B2P, tập trung vào dependency, config key và flow debug.</p>
+        <p>Topology graph cho dependency, config key và flow debug theo environment.</p>
       </div>
 
       <a-space>
@@ -864,6 +924,13 @@ onMounted(() => {
           :style="environmentThemeStyle"
           @change="handleEnvironmentChange"
         />
+        <a-tooltip title="Settings / Import / Export">
+          <a-button aria-label="Settings / Import / Export" @click="settingsOpen = true">
+            <template #icon>
+              <SettingOutlined />
+            </template>
+          </a-button>
+        </a-tooltip>
         <a-button @click="manageOpen = true">DataSet</a-button>
       </a-space>
     </div>
@@ -1078,6 +1145,13 @@ onMounted(() => {
       :environments="environments"
       :topology="topology"
       @saved="refreshAfterManagement"
+    />
+
+    <SystemManagerSettingsDrawer
+      v-model:open="settingsOpen"
+      :settings="settings"
+      @update:settings="updateSettings"
+      @imported="refreshAfterImport"
     />
   </section>
 </template>

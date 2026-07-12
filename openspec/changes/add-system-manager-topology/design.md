@@ -247,9 +247,20 @@ Phase 4 corrects the persistence model:
 
 Phase 4 rollback strategy: keep the phase 3 environment-scoped tables until the new blueprint/binding read path is verified. Migrate seed data first, then switch UI/API.
 
+Phase 5 adds settings and safe import/export:
+
+1. Add local persistent settings for graph/debug behavior only.
+2. Export System Manager data as a topology document that keeps nodes/dependencies global and stores runtime/config as environment bindings.
+3. Import JSON/YAML only through preview-before-apply.
+4. Apply import as non-destructive upsert; missing records are not deleted in phase 5.
+5. Keep scanner, health checks, incidents, SSH, logs, and Docker actions deferred.
+
+Phase 5 rollback strategy: hide the settings/import/export UI and disable the new import/export routes. Existing manual management and topology data remain usable.
+
 ## Open Questions
 
 - None for phase 1 UI mock.
 - None for phase 2 read-only persistence foundation.
 - None for phase 3 manual management.
 - Phase 4 needs confirmation of exact naming in UI, but the model direction is clear: global node/dependency blueprint plus environment-specific runtime/config bindings.
+- None for phase 5 settings/import/export foundation; scanner and operational integrations remain future work.

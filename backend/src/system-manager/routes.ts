@@ -3,6 +3,12 @@ import type { FastifyInstance, FastifyReply } from 'fastify'
 import { createAuthGuard } from '../auth/guard.js'
 import type { AppPrismaClient } from '../db.js'
 import type { AppEnv } from '../env.js'
+import {
+  SystemManagerImportError,
+  applySystemManagerImport,
+  buildSystemManagerExport,
+  previewSystemManagerImport,
+} from './import-export.js'
 
 type SystemManagerRoutesContext = {
   env: AppEnv
@@ -1012,6 +1018,29 @@ export function registerSystemManagerRoutes(app: FastifyInstance, context: Syste
     await context.prisma.systemTopologyBlueprintDependency.delete({ where: { id: dependency.id } })
 
     return reply.code(204).send()
+  })
+
+  app.get('/api/system-manager/export', { preHandler: requireAuth }, async () =>
+    buildSystemManagerExport(context.prisma),
+  )
+
+  app.post('/api/system-manager/import/preview', { preHandler: requireAuth }, async (request) =>
+    previewSystemManagerImport(context.prisma, request.body),
+  )
+
+  app.post('/api/system-manager/import/apply', { preHandler: requireAuth }, async (request, reply) => {
+    try {
+      return await applySystemManagerImport(context.prisma, request.body)
+    } catch (error) {
+      if (error instanceof SystemManagerImportError) {
+        return reply.code(400).send({
+          message: 'Du lieu import System Manager khong hop le.',
+          issues: error.issues,
+        })
+      }
+
+      throw error
+    }
   })
 
   app.get('/api/system-manager/topology', { preHandler: requireAuth }, async (request, reply) => {

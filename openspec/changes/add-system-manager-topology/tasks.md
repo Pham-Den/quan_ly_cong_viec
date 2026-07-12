@@ -181,3 +181,37 @@
 - [x] 22.3 Run System Manager Playwright smoke test.
 - [x] 22.4 Add a phase 4 test guide for global topology plus environment binding behavior.
 - [x] 22.5 Stop for user review before import/export or scanner.
+
+## 23. Phase 5 Scope Gate: Settings And Safe Import/Export
+
+- [ ] 23.1 Keep the direction dev-focused: graph, side panel, search, and flow remain the main working surface.
+- [ ] 23.2 Keep node/dependency topology global and import runtime/config as environment bindings.
+- [ ] 23.3 Add settings only for UI behavior that helps daily graph/debug use.
+- [ ] 23.4 Add JSON/YAML import with preview before apply.
+- [ ] 23.5 Add export of the current System Manager topology format.
+- [ ] 23.6 Keep scanner, health checks, incidents, SSH, logs, Docker actions, and destructive import delete/sync out of phase 5.
+
+## 24. Phase 5 Backend Import/Export API
+
+- [ ] 24.1 Add authenticated topology export endpoint returning environments, hosts, global nodes, environment node bindings, global dependencies, and environment dependency bindings.
+- [ ] 24.2 Add authenticated import preview endpoint that validates the payload and reports create/update counts without writing data.
+- [ ] 24.3 Add authenticated import apply endpoint that upserts environments, hosts, global nodes, node bindings, global dependencies, and dependency bindings.
+- [ ] 24.4 Keep import apply non-destructive: no delete/sync behavior in phase 5.
+- [ ] 24.5 Add backend tests for export, preview, apply, and global topology/environment binding behavior after import.
+
+## 25. Phase 5 Frontend Settings And Import/Export UI
+
+- [ ] 25.1 Add persistent System Manager settings to local state.
+- [ ] 25.2 Add a settings/import/export surface in the System Manager feature.
+- [ ] 25.3 Let the user configure default graph view and panel behavior for local daily use.
+- [ ] 25.4 Let the user export the topology as JSON.
+- [ ] 25.5 Let the user select JSON/YAML, preview import impact, and apply only after preview.
+- [ ] 25.6 Refresh environments/topology after import apply so graph/search/side panel/flow use the imported data.
+
+## 26. Phase 5 Verification And Review
+
+- [ ] 26.1 Run backend Prisma validation/build/test.
+- [ ] 26.2 Run frontend typecheck/build.
+- [ ] 26.3 Run System Manager Playwright smoke test.
+- [ ] 26.4 Add a phase 5 test guide covering settings, export, import preview, import apply, and graph refresh.
+- [ ] 26.5 Stop for user review before scanner, health checks, incidents, SSH, logs, or Docker actions.

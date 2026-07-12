@@ -72,6 +72,74 @@ type TopologyDto = {
   }>
 }
 
+type ImportPreviewDto = {
+  valid: boolean
+  summary: {
+    environments: {
+      create: number
+      update: number
+      total: number
+    }
+    hosts: {
+      create: number
+      update: number
+      total: number
+    }
+    nodes: {
+      create: number
+      update: number
+      total: number
+    }
+    nodeBindings: {
+      create: number
+      update: number
+      total: number
+    }
+    dependencies: {
+      create: number
+      update: number
+      total: number
+    }
+    dependencyBindings: {
+      create: number
+      update: number
+      total: number
+    }
+  }
+}
+
+type ExportDto = {
+  version: number
+  environments: Array<{
+    key: string
+  }>
+  hosts: Array<{
+    environmentKey: string
+    name: string
+  }>
+  nodes: Array<{
+    code: string
+    bindings: Array<{
+      environmentKey: string
+      configs: Array<{
+        name: string
+      }>
+    }>
+  }>
+  dependencies: Array<{
+    code: string
+    sourceCode: string
+    targetCode: string
+    bindings: Array<{
+      environmentKey: string
+      configItems: Array<{
+        key: string
+        value: string
+      }>
+    }>
+  }>
+}
+
 async function request<T>(
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
   url: string,
@@ -347,5 +415,188 @@ describe('system manager topology API', () => {
     assert.equal(uatRedisEdge?.source, 'manual-web')
     assert.equal(uatRedisEdge?.target, 'manual-redis')
     assert.equal(uatRedisEdge?.configItems[0]?.value, 'redis-uat.company.local')
+  })
+
+  test('previews, applies, and exports topology import documents', async () => {
+    const token = await setupSession()
+    const importDocument = {
+      version: 1,
+      environments: [
+        {
+          key: 'sandbox',
+          name: 'Sandbox',
+          color: '#059669',
+          sortOrder: 40,
+        },
+        {
+          key: 'prod-ref',
+          name: 'Production Reference',
+          color: '#dc2626',
+          sortOrder: 50,
+        },
+      ],
+      hosts: [
+        {
+          environmentKey: 'sandbox',
+          name: 'sandbox-app-01',
+          ip: '10.50.0.11',
+        },
+        {
+          environmentKey: 'prod-ref',
+          name: 'prod-ref-app-01',
+          ip: '10.90.0.11',
+        },
+      ],
+      nodes: [
+        {
+          code: 'import-web',
+          name: 'Import Web',
+          kind: 'app',
+          type: 'Web/API',
+          positionX: 100,
+          positionY: 180,
+          bindings: [
+            {
+              environmentKey: 'sandbox',
+              hostName: 'sandbox-app-01',
+              status: 'healthy',
+              ports: ['8080'],
+              configs: [
+                {
+                  name: 'App',
+                  items: [{ key: 'APP_ENV', value: 'sandbox' }],
+                },
+              ],
+            },
+            {
+              environmentKey: 'prod-ref',
+              hostName: 'prod-ref-app-01',
+              status: 'unknown',
+              ports: ['80'],
+              configs: [
+                {
+                  name: 'App',
+                  items: [{ key: 'APP_ENV', value: 'production' }],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: 'import-redis',
+          name: 'Import Redis',
+          kind: 'service',
+          type: 'Cache',
+          positionX: 440,
+          positionY: 180,
+          bindings: [
+            {
+              environmentKey: 'sandbox',
+              hostName: 'sandbox-app-01',
+              status: 'healthy',
+              ports: ['6379'],
+            },
+            {
+              environmentKey: 'prod-ref',
+              hostName: 'prod-ref-app-01',
+              status: 'unknown',
+              ports: ['6379'],
+            },
+          ],
+        },
+      ],
+      dependencies: [
+        {
+          code: 'import-web-redis',
+          sourceCode: 'import-web',
+          targetCode: 'import-redis',
+          label: 'REDIS_HOST',
+          connectionType: 'redis',
+          direction: 'read',
+          port: '6379',
+          bindings: [
+            {
+              environmentKey: 'sandbox',
+              configItems: [{ key: 'REDIS_HOST', value: 'redis-sandbox.company.local' }],
+            },
+            {
+              environmentKey: 'prod-ref',
+              configItems: [{ key: 'REDIS_HOST', value: 'redis-prod.company.local' }],
+            },
+          ],
+        },
+      ],
+    }
+
+    const preview = await request<ImportPreviewDto>(
+      'POST',
+      '/api/system-manager/import/preview',
+      token,
+      importDocument,
+    )
+    assert.equal(preview.response.statusCode, 200)
+    assert.equal(preview.body.valid, true)
+    assert.equal(preview.body.summary.environments.create, 2)
+    assert.equal(preview.body.summary.nodes.create, 2)
+    assert.equal(preview.body.summary.dependencies.create, 1)
+
+    const beforeApplyTopology = await request('GET', '/api/system-manager/topology?environment=sandbox', token)
+    assert.equal(beforeApplyTopology.response.statusCode, 404)
+
+    const apply = await request<ImportPreviewDto>(
+      'POST',
+      '/api/system-manager/import/apply',
+      token,
+      importDocument,
+    )
+    assert.equal(apply.response.statusCode, 200)
+    assert.equal(apply.body.valid, true)
+
+    const updatePreview = await request<ImportPreviewDto>(
+      'POST',
+      '/api/system-manager/import/preview',
+      token,
+      importDocument,
+    )
+    assert.equal(updatePreview.response.statusCode, 200)
+    assert.equal(updatePreview.body.summary.environments.update, 2)
+    assert.equal(updatePreview.body.summary.nodeBindings.update, 4)
+    assert.equal(updatePreview.body.summary.dependencyBindings.update, 2)
+
+    const sandboxTopology = await request<TopologyDto>(
+      'GET',
+      '/api/system-manager/topology?environment=sandbox',
+      token,
+    )
+    assert.equal(sandboxTopology.response.statusCode, 200)
+    assert.equal(sandboxTopology.body.nodes.find((node) => node.id === 'import-web')?.runtime.ip, '10.50.0.11')
+
+    const sandboxEdge = sandboxTopology.body.edges.find((edge) => edge.id === 'import-web-redis')
+    assert.equal(sandboxEdge?.source, 'import-web')
+    assert.equal(sandboxEdge?.target, 'import-redis')
+    assert.equal(sandboxEdge?.configItems[0]?.value, 'redis-sandbox.company.local')
+
+    const prodRefTopology = await request<TopologyDto>(
+      'GET',
+      '/api/system-manager/topology?environment=prod-ref',
+      token,
+    )
+    assert.equal(prodRefTopology.response.statusCode, 200)
+    assert.equal(prodRefTopology.body.nodes.find((node) => node.id === 'import-web')?.runtime.ip, '10.90.0.11')
+
+    const exportResult = await request<ExportDto>('GET', '/api/system-manager/export', token)
+    assert.equal(exportResult.response.statusCode, 200)
+    assert.equal(exportResult.body.version, 1)
+    assert.ok(exportResult.body.environments.find((environment) => environment.key === 'sandbox'))
+    assert.ok(exportResult.body.hosts.find((host) => host.environmentKey === 'sandbox' && host.name === 'sandbox-app-01'))
+
+    const exportedWebNode = exportResult.body.nodes.find((node) => node.code === 'import-web')
+    assert.equal(exportedWebNode?.bindings.length, 2)
+    assert.ok(exportedWebNode?.bindings.find((binding) => binding.environmentKey === 'sandbox'))
+
+    const exportedDependency = exportResult.body.dependencies.find((dependency) => dependency.code === 'import-web-redis')
+    assert.equal(exportedDependency?.sourceCode, 'import-web')
+    assert.equal(exportedDependency?.targetCode, 'import-redis')
+    assert.equal(exportedDependency?.bindings.length, 2)
   })
 })

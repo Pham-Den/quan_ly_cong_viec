@@ -5,6 +5,12 @@ export type LocalNodePosition = {
   y: number
 }
 
+export type SystemManagerSettings = {
+  defaultGraphView: 'remember' | 'collapsed' | 'expanded'
+  detailPanelDefault: 'remember' | 'open' | 'collapsed'
+  resetSearchOnEnvironmentChange: boolean
+}
+
 export type SystemManagerLocalState = {
   selectedEnvironment?: SystemEnvironment
   appExpanded: boolean
@@ -13,6 +19,7 @@ export type SystemManagerLocalState = {
   activeTab: string
   detailPanelCollapsed: boolean
   nodePositions: Record<string, LocalNodePosition>
+  settings: SystemManagerSettings
 }
 
 const storageKey = 'qlcv.systemManager.localState.v1'
@@ -24,6 +31,11 @@ const defaultState: SystemManagerLocalState = {
   activeTab: 'overview',
   detailPanelCollapsed: false,
   nodePositions: {},
+  settings: {
+    defaultGraphView: 'remember',
+    detailPanelDefault: 'remember',
+    resetSearchOnEnvironmentChange: true,
+  },
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -53,6 +65,30 @@ function normalizeNodePositions(value: unknown) {
   return positions
 }
 
+function normalizeSettings(value: unknown): SystemManagerSettings {
+  if (!isRecord(value)) {
+    return { ...defaultState.settings }
+  }
+
+  const defaultGraphView =
+    value.defaultGraphView === 'collapsed' || value.defaultGraphView === 'expanded'
+      ? value.defaultGraphView
+      : defaultState.settings.defaultGraphView
+  const detailPanelDefault =
+    value.detailPanelDefault === 'open' || value.detailPanelDefault === 'collapsed'
+      ? value.detailPanelDefault
+      : defaultState.settings.detailPanelDefault
+
+  return {
+    defaultGraphView,
+    detailPanelDefault,
+    resetSearchOnEnvironmentChange:
+      typeof value.resetSearchOnEnvironmentChange === 'boolean'
+        ? value.resetSearchOnEnvironmentChange
+        : defaultState.settings.resetSearchOnEnvironmentChange,
+  }
+}
+
 function normalizeState(value: unknown): SystemManagerLocalState {
   if (!isRecord(value)) {
     return { ...defaultState }
@@ -69,6 +105,7 @@ function normalizeState(value: unknown): SystemManagerLocalState {
         ? value.detailPanelCollapsed
         : defaultState.detailPanelCollapsed,
     nodePositions: normalizeNodePositions(value.nodePositions),
+    settings: normalizeSettings(value.settings),
   }
 }
 

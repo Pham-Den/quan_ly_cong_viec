@@ -214,3 +214,40 @@ The system SHALL use phase 1 visual defaults without building a settings UI.
 #### Scenario: Show Vue Flow controls
 - **WHEN** the graph loads
 - **THEN** Vue Flow controls such as zoom/pan support, minimap, controls, and background are available
+
+### Requirement: User can configure local graph behavior
+The system SHALL provide local, persistent System Manager UI settings for graph/debug behavior without changing topology data.
+
+#### Scenario: Persist local graph settings
+- **WHEN** the user changes System Manager settings such as default graph view or detail panel behavior
+- **THEN** those preferences are saved locally and restored on the next visit
+
+#### Scenario: Keep settings scoped to UI behavior
+- **WHEN** the user changes local settings
+- **THEN** global nodes, dependencies, environment bindings, and config values are not modified
+
+### Requirement: User can export System Manager topology
+The system SHALL provide an authenticated export of System Manager topology using the global topology plus environment binding model.
+
+#### Scenario: Export topology document
+- **WHEN** an authenticated user exports System Manager data
+- **THEN** the response includes environments, hosts, global nodes, per-environment node bindings, global dependencies, and per-environment dependency config bindings
+
+#### Scenario: Preserve global topology in export
+- **WHEN** a node or dependency exists in multiple environments
+- **THEN** it appears once in the exported global topology with environment-specific binding entries
+
+### Requirement: User can import topology safely
+The system SHALL allow JSON/YAML topology import only through preview-before-apply behavior.
+
+#### Scenario: Preview import
+- **WHEN** the user selects a JSON or YAML topology file
+- **THEN** the UI shows a preview of create/update counts before any data is written
+
+#### Scenario: Apply import
+- **WHEN** the user confirms an import preview
+- **THEN** the system upserts environments, hosts, global nodes, node bindings, global dependencies, and dependency bindings from the import document
+
+#### Scenario: Keep import non-destructive in phase 5
+- **WHEN** imported data omits an existing environment, node, host, dependency, or binding
+- **THEN** phase 5 does not delete the omitted existing data

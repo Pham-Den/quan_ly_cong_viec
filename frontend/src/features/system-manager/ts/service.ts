@@ -84,6 +84,37 @@ export type SaveSystemDependencyInput = {
   sortOrder?: number
 }
 
+export type SystemManagerImportSummaryItem = {
+  create: number
+  update: number
+  total: number
+}
+
+export type SystemManagerImportPreview = {
+  valid: boolean
+  summary: {
+    environments: SystemManagerImportSummaryItem
+    hosts: SystemManagerImportSummaryItem
+    nodes: SystemManagerImportSummaryItem
+    nodeBindings: SystemManagerImportSummaryItem
+    dependencies: SystemManagerImportSummaryItem
+    dependencyBindings: SystemManagerImportSummaryItem
+  }
+  issues: Array<{
+    level: 'error' | 'warning'
+    message: string
+  }>
+}
+
+export type SystemManagerExportDocument = {
+  version: number
+  exportedAt: string
+  environments: unknown[]
+  hosts: unknown[]
+  nodes: unknown[]
+  dependencies: unknown[]
+}
+
 function uniqueConfigItems(items: ConfigItem[]) {
   const seen = new Set<string>()
 
@@ -305,4 +336,22 @@ export async function deleteSystemManagerDependency(
   await api.delete(
     `/api/system-manager/dependencies/${encodeURIComponent(dependencyCode)}?environment=${encodeURIComponent(environment)}`,
   )
+}
+
+export async function exportSystemManagerTopology() {
+  const { data } = await api.get<SystemManagerExportDocument>('/api/system-manager/export')
+
+  return data
+}
+
+export async function previewSystemManagerImport(document: unknown) {
+  const { data } = await api.post<SystemManagerImportPreview>('/api/system-manager/import/preview', document)
+
+  return data
+}
+
+export async function applySystemManagerImport(document: unknown) {
+  const { data } = await api.post<SystemManagerImportPreview>('/api/system-manager/import/apply', document)
+
+  return data
 }
