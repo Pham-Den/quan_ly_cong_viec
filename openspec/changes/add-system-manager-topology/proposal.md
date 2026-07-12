@@ -18,6 +18,9 @@ System Manager giúp dev nhìn tổng thể topology và trace dependency flow m
 - Provide search grouped by Apps, Services, Hosts, Configs, and IPs.
 - Support `Start flow` from the side panel to highlight downstream dependencies and list flow steps grouped by component.
 - Keep backend API, database schema, scanner, JSON/YAML import, health checks, incidents, SSH, logs, and Docker actions out of phase 1.
+- Add a later manual management phase where the user can create/update/delete environments, hosts, topology nodes, node config groups, and dependency edges from the System Manager UI.
+- Keep JSON/YAML import, scanner, health checks, incidents, SSH, logs, and Docker actions out of the manual management phase.
+- Correct the persistence model so topology nodes and dependency flow are global, while runtime/config/status/host/IP values are bound per environment.
 
 ## Capabilities
 
@@ -34,5 +37,8 @@ System Manager giúp dev nhìn tổng thể topology và trace dependency flow m
 - Frontend: add Vue Flow dependency, `/system-manager` route, System Manager view, mock topology data, graph nodes/edges, side panel, search, and flow highlight interactions.
 - Backend: no backend API changes in phase 1.
 - Database: no Prisma schema changes in phase 1.
+- Phase 2: add read-only backend persistence and seed APIs.
+- Phase 3: add authenticated manual CRUD APIs and a management drawer inside System Manager.
+- Phase 4: replace environment-duplicated topology behavior with global topology blueprint plus per-environment bindings.
 - Security: phase 1 uses mock data. Later phases may allow secrets; phase 1 should show masked values with an eye reveal behavior in UI.
 - Testing: add frontend typecheck/build coverage and, if feasible, Playwright smoke coverage for opening System Manager, switching environments, searching config keys, clicking node/edge, and starting a flow.

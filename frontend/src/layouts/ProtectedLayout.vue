@@ -24,6 +24,7 @@ const menuItems = [
   { key: 'tasks', label: 'Tất cả task' },
   { key: 'branches', label: 'Nhánh' },
   { key: 'timeline', label: 'Dòng thời gian' },
+  { key: 'system-manager', label: 'System Manager' },
   { key: 'settings', label: 'Cài đặt' },
 ]
 
@@ -86,6 +87,10 @@ async function handleMenuClick({ key }: { key: string | number }) {
 
   if (key === 'timeline') {
     await router.push({ name: 'timeline' })
+  }
+
+  if (key === 'system-manager') {
+    await router.push({ name: 'system-manager' })
   }
 }
 

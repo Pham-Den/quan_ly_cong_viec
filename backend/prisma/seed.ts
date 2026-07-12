@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 
+import { ensureSystemManagerSeed } from '../src/system-manager/seed.js'
 import { ensureWorkflowStatuses } from '../src/workflow/defaults.js'
 
 const prisma = new PrismaClient()
@@ -112,6 +113,7 @@ async function main() {
   })
 
   await ensureWorkflowStatuses(prisma, project.id)
+  await ensureSystemManagerSeed(prisma)
 }
 
 main()

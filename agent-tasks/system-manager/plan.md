@@ -318,6 +318,70 @@ Có mode
 By Host
 Host A
 
+## Phase 3 đã chốt để triển khai tiếp
+
+Phase 3 sẽ tập trung vào nhập tay và chỉnh sửa topology ngay trong UI, dùng dữ liệu thật từ database/API đã có ở Phase 2.
+
+Phạm vi Phase 3:
+
+- Thêm/sửa/xóa environment để sau này có thể có Local, Dev, Staging, Production hoặc custom environment.
+- Thêm/sửa/xóa host theo environment.
+- Thêm/sửa/xóa node topology theo environment, gồm app/component/service, runtime, tags, ports, notes và config groups.
+- Thêm/sửa/xóa dependency edge giữa các node, trong đó config key/value là metadata của edge.
+- Sau khi lưu, graph/search/side panel/flow dùng lại dữ liệu mới từ backend.
+- Giữ service registry tập trung: Redis/MariaDB/Kafka là node dùng chung, dependency chỉ link tới service node đã khai báo.
+
+Không làm trong Phase 3:
+
+- JSON/YAML import.
+- Scanner từ `.env`, docker-compose hoặc source code.
+- Health check thật.
+- Incidents.
+- SSH, logs, Docker inspect/exec.
+- Phân quyền production nâng cao.
+
+UI Phase 3 sẽ là drawer quản lý dữ liệu ngay trong màn System Manager, desktop-first, để dev vừa xem graph vừa khai báo/chỉnh topology.
+
+## Correction quan trọng sau Phase 3
+
+Mô hình đúng không phải là mỗi environment tạo một bộ node riêng.
+
+Mô hình đúng:
+
+- Node/app/component/service là khai báo toàn cục.
+- Flow/dependency giữa các node là toàn cục.
+- Khi tạo `B2P Web/API -> Redis`, flow này tồn tại cho mọi environment.
+- Environment chỉ quyết định runtime/config/binding cụ thể:
+  - Local dùng node global `Redis`, host/IP/port local, config value local.
+  - Dev dùng node global `Redis`, host/IP/port dev, config value dev.
+  - Staging dùng node global `Redis`, host/IP/port staging, config value staging.
+  - Production dùng node global `Redis`, host/IP/port production, config value production.
+
+Ví dụ đúng:
+
+```text
+Global flow:
+B2P Web/API ── REDIS_HOST ──▶ Redis
+
+Local binding:
+B2P Web/API(Local) ── REDIS_HOST=redis-local.company.local ──▶ Redis(Local)
+
+Dev binding:
+B2P Web/API(Dev) ── REDIS_HOST=redis-dev.company.local ──▶ Redis(Dev)
+```
+
+Vì vậy Phase 4 phải là phase chỉnh model:
+
+- Tách topology blueprint khỏi environment.
+- Tách node global khỏi node runtime theo environment.
+- Tách dependency global khỏi dependency config value theo environment.
+- UI tạo node/dependency một lần, sau đó cấu hình runtime/config cho từng environment.
+- Tên node trên graph luôn là tên global, ví dụ `Redis`, không phải `Redis Local` hay `Redis Dev`.
+- Edge config dùng cú pháp `.env` style, ví dụ `REDIS_HOST=redis-dev.company.local`; secret dùng prefix `secret:`.
+- Graph vẫn filter theo environment, nhưng cấu trúc flow giữ nguyên; chỉ runtime/config/status/binding đổi theo environment.
+
+Điều này đúng hơn với mục tiêu dev: nhìn một flow hệ thống thống nhất, rồi đổi environment để xem cấu hình tương ứng.
+
 Laravel
 
 Redis

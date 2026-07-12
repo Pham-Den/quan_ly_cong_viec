@@ -490,6 +490,296 @@ model ApiSavedResponse {
   requestRun ApiRequestRun @relation(fields: [requestRunId], references: [id], onDelete: Cascade)
 }
 
+model SystemEnvironment {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  hosts        SystemHost[]
+  nodes        SystemTopologyNode[]
+  dependencies SystemDependency[]
+  nodeBindings SystemNodeEnvironmentBinding[]
+  dependencyBindings SystemDependencyEnvironmentBinding[]
+
+  @@index([sortOrder])
+}
+
+model SystemHost {
+  id            String   @id @default(cuid())
+  environmentId String
+  name          String
+  ip            String
+  description   String?
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  environment SystemEnvironment    @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  nodes       SystemTopologyNode[]
+  nodeBindings SystemNodeEnvironmentBinding[]
+
+  @@unique([environmentId, name])
+  @@index([environmentId, sortOrder])
+  @@index([ip])
+}
+
+model SystemTopologyBlueprintNode {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  kind        String
+  type        String
+  description String?
+  notes       String?
+  positionX   Int      @default(0)
+  positionY   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  bindings      SystemNodeEnvironmentBinding[]
+  outgoingEdges SystemTopologyBlueprintDependency[] @relation("SystemBlueprintDependencySource")
+  incomingEdges SystemTopologyBlueprintDependency[] @relation("SystemBlueprintDependencyTarget")
+
+  @@index([kind])
+  @@index([type])
+}
+
+model SystemNodeEnvironmentBinding {
+  id            String   @id @default(cuid())
+  environmentId String
+  nodeId        String
+  hostId        String?
+  displayName   String?
+  status        String   @default("unknown")
+  tagsJson      String   @default("[]")
+  containerName String?
+  image         String?
+  portsJson     String   @default("[]")
+  network       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  environment SystemEnvironment             @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  node        SystemTopologyBlueprintNode   @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  host        SystemHost?                   @relation(fields: [hostId], references: [id], onDelete: SetNull)
+  configGroups SystemNodeBindingConfigGroup[]
+
+  @@unique([environmentId, nodeId])
+  @@index([environmentId])
+  @@index([nodeId])
+  @@index([hostId])
+  @@index([status])
+}
+
+model SystemNodeBindingConfigGroup {
+  id        String   @id @default(cuid())
+  bindingId String
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  binding SystemNodeEnvironmentBinding @relation(fields: [bindingId], references: [id], onDelete: Cascade)
+  items   SystemNodeBindingConfigItem[]
+
+  @@unique([bindingId, name])
+  @@index([bindingId, sortOrder])
+}
+
+model SystemNodeBindingConfigItem {
+  id        String   @id @default(cuid())
+  groupId   String
+  key       String
+  value     String
+  secret    Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  group SystemNodeBindingConfigGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, key])
+  @@index([groupId, sortOrder])
+  @@index([key])
+}
+
+model SystemTopologyBlueprintDependency {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  sourceNodeId   String
+  targetNodeId   String
+  label          String
+  connectionType String
+  direction      String
+  port           String?
+  description    String?
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  sourceNode SystemTopologyBlueprintNode     @relation("SystemBlueprintDependencySource", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  targetNode SystemTopologyBlueprintNode     @relation("SystemBlueprintDependencyTarget", fields: [targetNodeId], references: [id], onDelete: Cascade)
+  bindings   SystemDependencyEnvironmentBinding[]
+
+  @@index([sourceNodeId])
+  @@index([targetNodeId])
+  @@index([direction])
+  @@index([sortOrder])
+}
+
+model SystemDependencyEnvironmentBinding {
+  id             String   @id @default(cuid())
+  environmentId  String
+  dependencyId   String
+  label          String?
+  connectionType String?
+  direction      String?
+  port           String?
+  description    String?
+  sortOrder      Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  environment SystemEnvironment                @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  dependency  SystemTopologyBlueprintDependency @relation(fields: [dependencyId], references: [id], onDelete: Cascade)
+  configItems SystemDependencyBindingConfig[]
+
+  @@unique([environmentId, dependencyId])
+  @@index([environmentId])
+  @@index([dependencyId])
+}
+
+model SystemDependencyBindingConfig {
+  id        String   @id @default(cuid())
+  bindingId String
+  key       String
+  value     String
+  secret    Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  binding SystemDependencyEnvironmentBinding @relation(fields: [bindingId], references: [id], onDelete: Cascade)
+
+  @@unique([bindingId, key])
+  @@index([bindingId, sortOrder])
+  @@index([key])
+}
+
+model SystemTopologyNode {
+  id            String   @id @default(cuid())
+  environmentId String
+  hostId        String?
+  code          String
+  name          String
+  kind          String
+  type          String
+  status        String   @default("unknown")
+  description   String?
+  tagsJson      String   @default("[]")
+  containerName String?
+  image         String?
+  portsJson     String   @default("[]")
+  network       String?
+  notes         String?
+  positionX     Int      @default(0)
+  positionY     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  environment      SystemEnvironment      @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  host             SystemHost?            @relation(fields: [hostId], references: [id], onDelete: SetNull)
+  configGroups     SystemNodeConfigGroup[]
+  outgoingEdges    SystemDependency[]     @relation("SystemDependencySource")
+  incomingEdges    SystemDependency[]     @relation("SystemDependencyTarget")
+
+  @@unique([environmentId, code])
+  @@index([environmentId, kind])
+  @@index([environmentId, type])
+  @@index([environmentId, status])
+  @@index([hostId])
+}
+
+model SystemNodeConfigGroup {
+  id        String   @id @default(cuid())
+  nodeId    String
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  node  SystemTopologyNode  @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  items SystemNodeConfigItem[]
+
+  @@unique([nodeId, name])
+  @@index([nodeId, sortOrder])
+}
+
+model SystemNodeConfigItem {
+  id        String   @id @default(cuid())
+  groupId   String
+  key       String
+  value     String
+  secret    Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  group SystemNodeConfigGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, key])
+  @@index([groupId, sortOrder])
+  @@index([key])
+}
+
+model SystemDependency {
+  id             String   @id @default(cuid())
+  environmentId  String
+  code           String
+  sourceNodeId   String
+  targetNodeId   String
+  label          String
+  connectionType String
+  direction      String
+  port           String?
+  description    String?
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  environment SystemEnvironment        @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  sourceNode  SystemTopologyNode       @relation("SystemDependencySource", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  targetNode  SystemTopologyNode       @relation("SystemDependencyTarget", fields: [targetNodeId], references: [id], onDelete: Cascade)
+  configItems SystemDependencyConfig[]
+
+  @@unique([environmentId, code])
+  @@index([environmentId, sortOrder])
+  @@index([sourceNodeId])
+  @@index([targetNodeId])
+  @@index([direction])
+}
+
+model SystemDependencyConfig {
+  id           String   @id @default(cuid())
+  dependencyId String
+  key          String
+  value        String
+  secret       Boolean  @default(false)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  dependency SystemDependency @relation(fields: [dependencyId], references: [id], onDelete: Cascade)
+
+  @@unique([dependencyId, key])
+  @@index([dependencyId, sortOrder])
+  @@index([key])
+}
+
 model TimelineEvent {
   id           String   @id @default(cuid())
   projectId    String

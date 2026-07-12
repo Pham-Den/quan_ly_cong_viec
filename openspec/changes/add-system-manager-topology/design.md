@@ -78,13 +78,20 @@ Double clicking the app node toggles expand/collapse.
 
 ### Decision 5: Keep service registry centralized in the visual model
 
-Each shared service instance appears as one node per environment. App/components link to that node. This prevents "App A Redis" and "App B Redis" duplicates when both depend on the same Redis Dev service.
+The service registry should be centralized at the topology blueprint level. `Redis` is declared once as a service node. Environment-specific runtime/config bindings describe which host/IP/config value that same `Redis` node uses in Local, Dev, Staging, or Production.
+
+This prevents "App A Redis" and "App B Redis" duplicates, and also prevents duplicating the entire topology per environment.
 
 ### Decision 6: Make environment filtering authoritative
 
-The graph is scoped by the selected environment. In phase 1, the segmented control offers `Local | Dev`. Later phases may add Staging, Production, and custom environments.
+The graph is filtered by the selected environment, but the topology structure is global.
 
-When the environment changes, graph nodes, edges, side panel data, search results, and flow list reflect that environment.
+When the environment changes:
+
+- The same global app/component/service nodes and dependency flow remain conceptually the same.
+- Graph node names remain global, such as `Redis`, not `Redis Local` or `Redis Dev`.
+- Runtime details, host/IP/port, container/image, status, config values, and service instance binding switch to the selected environment.
+- Search results and side panel data reflect the selected environment values.
 
 ### Decision 7: Side panel is the detail surface
 
@@ -208,6 +215,41 @@ Phase 1 is additive frontend work:
 
 Rollback strategy: remove the sidebar route and Vue Flow view. No backend/database migration exists in phase 1.
 
+Phase 2 adds a read-only persistence foundation:
+
+1. Add Prisma models for environments, hosts, topology nodes, configs, and dependencies.
+2. Seed the same B2P Local/Dev topology into SQLite through the existing seed workflow.
+3. Add authenticated backend read APIs for environments and topology.
+4. Switch the System Manager frontend from hard-coded mock data to backend topology data.
+5. Keep CRUD, JSON/YAML import, scanner, health checks, and incidents out of phase 2.
+
+Phase 2 rollback strategy: disable backend route registration and point the frontend back to local mock data. Prisma model additions are additive.
+
+Phase 3 adds manual management:
+
+1. Add authenticated write APIs for System Manager environments, hosts, topology nodes, node config groups, dependencies, and dependency config metadata.
+2. Add a System Manager management drawer so the dev can manually declare topology without leaving the graph screen.
+3. Keep the graph as the source of review: after saving, reload environment/topology data from the backend and reuse existing graph, search, side panel, and flow behavior.
+4. Keep shared services centralized by linking dependencies to existing service nodes instead of embedding service declarations inside app config.
+5. Keep JSON/YAML import, source scanner, health checks, incidents, SSH, logs, Docker inspect/exec, and production permission workflows out of phase 3.
+
+Phase 3 rollback strategy: remove the write routes and management drawer. Existing read API and seeded topology remain usable.
+
+Phase 4 corrects the persistence model:
+
+1. Split global topology blueprint from environment-specific bindings.
+2. Store app/component/service nodes once globally.
+3. Store dependency edges once globally.
+4. Store node runtime/config/status per environment.
+5. Store dependency config values and target service binding per environment.
+6. Update management UI so creating a node/dependency happens once, and per-environment settings are edited separately.
+7. Keep the graph environment selector, but make it switch bindings/config values rather than switch to a separate duplicated topology.
+
+Phase 4 rollback strategy: keep the phase 3 environment-scoped tables until the new blueprint/binding read path is verified. Migrate seed data first, then switch UI/API.
+
 ## Open Questions
 
 - None for phase 1 UI mock.
+- None for phase 2 read-only persistence foundation.
+- None for phase 3 manual management.
+- Phase 4 needs confirmation of exact naming in UI, but the model direction is clear: global node/dependency blueprint plus environment-specific runtime/config bindings.

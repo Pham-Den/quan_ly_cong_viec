@@ -73,6 +73,10 @@ function toErrorMessage(error: unknown, fallback: string) {
   return fallback
 }
 
+function isExpectedRestoreAuthFailure(error: unknown) {
+  return axios.isAxiosError(error) && [400, 401].includes(error.response?.status ?? 0)
+}
+
 function chooseProjectId(projects: ShellProject[], currentProjectId: string | null) {
   if (currentProjectId && projects.some((project) => project.id === currentProjectId)) {
     return currentProjectId
@@ -167,6 +171,7 @@ export const useSessionStore = defineStore('session', {
     },
     async restoreSessionOnce() {
       this.loading = true
+      this.lastError = null
 
       try {
         const setupRequired = await this.checkBootstrap()
@@ -180,14 +185,38 @@ export const useSessionStore = defineStore('session', {
           try {
             await this.fetchMe()
             return
-          } catch {
-            await this.refreshSession()
+          } catch (error) {
+            if (!this.refreshToken || isExpectedRestoreAuthFailure(error)) {
+              this.clearSession()
+              return
+            }
+
+            try {
+              await this.refreshSession()
+            } catch (refreshError) {
+              if (isExpectedRestoreAuthFailure(refreshError)) {
+                this.clearSession()
+                return
+              }
+
+              throw refreshError
+            }
+
             return
           }
         }
 
         if (this.refreshToken) {
-          await this.refreshSession()
+          try {
+            await this.refreshSession()
+          } catch (error) {
+            if (isExpectedRestoreAuthFailure(error)) {
+              this.clearSession()
+              return
+            }
+
+            throw error
+          }
         }
       } catch (error) {
         this.lastError = toErrorMessage(error, 'Khong the khoi phuc phien dang nhap.')
