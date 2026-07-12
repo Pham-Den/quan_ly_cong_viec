@@ -34,9 +34,9 @@ import {
 } from './ts/service'
 import StatusTag from '../../core/components/StatusTag.vue'
 import SystemManagerDetailPanel from './components/SystemManagerDetailPanel.vue'
-import SystemManagerManageDrawer from './components/SystemManagerManageDrawer.vue'
 import SystemManagerQuickConfigPopover from './components/SystemManagerQuickConfigPopover.vue'
 import SystemManagerSettingsDrawer from './components/SystemManagerSettingsDrawer.vue'
+import SystemManagerDataSetDrawer from './components/dataset/SystemManagerDataSetDrawer.vue'
 import {
   loadSystemManagerLocalState,
   saveSystemManagerLocalState,
@@ -1139,7 +1139,7 @@ onMounted(() => {
       @copy-all="copyQuickConfigLines"
     />
 
-    <SystemManagerManageDrawer
+    <SystemManagerDataSetDrawer
       v-model:open="manageOpen"
       :selected-environment="selectedEnvironment"
       :environments="environments"

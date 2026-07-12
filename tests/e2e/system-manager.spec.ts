@@ -24,6 +24,15 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
   await page.getByRole('menuitem', { name: 'System Manager' }).click()
   await expect(page).toHaveURL(/\/system-manager$/)
   await expect(page.getByRole('heading', { name: 'System Manager' })).toBeVisible()
+  await page.getByRole('button', { name: 'DataSet' }).click()
+  const dataSetDrawer = page.locator('.ant-drawer-content:visible').filter({
+    hasText: 'Quản lý dữ liệu System Manager',
+  })
+  await expect(dataSetDrawer).toBeVisible()
+  await expect(dataSetDrawer.getByRole('tab', { name: 'Nodes' })).toBeVisible()
+  await expect(dataSetDrawer.getByRole('tab', { name: 'Dependencies' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(dataSetDrawer).not.toBeVisible()
   await expect(page.locator('.vue-flow__node')).not.toHaveCount(0)
   await expect(page.locator('.vue-flow__node').filter({ hasText: 'B2P' }).first()).toBeVisible()
   await expect(page.locator('.vue-flow__node').filter({ hasText: 'MariaDB' })).toBeVisible()
