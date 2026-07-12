@@ -1,6 +1,7 @@
 import cors from '@fastify/cors'
 import Fastify from 'fastify'
 
+import { registerApiLabRoutes } from './api-lab/routes.js'
 import { registerAuthRoutes } from './auth/routes.js'
 import { registerBranchRoutes } from './branches/routes.js'
 import { createPrismaClient } from './db.js'
@@ -44,6 +45,7 @@ export function buildServer(env: AppEnv) {
   registerTimelineRoutes(app, { env, prisma })
   registerVisibilityRoutes(app, { env, prisma })
   registerWorkflowRoutes(app, { env, prisma })
+  registerApiLabRoutes(app, { env, prisma })
 
   return app
 }

@@ -1,18 +1,18 @@
 ## 1. Review Gate
 
-- [ ] 1.1 Wait for user review and explicit approval before implementing API Lab code.
-- [ ] 1.2 Confirm MVP scope: project-scoped API Lab, Postman-like collections, optional task links, backend runner, single request runner, multi-step flow runner, capture variables, assertions, minimal history, optional saved responses, cURL import, and task timeline attachment.
-- [ ] 1.3 Confirm response body save behavior in attach-to-task dialog: summary-only by default or include-body option.
+- [x] 1.1 Wait for user review and explicit approval before implementing API Lab code.
+- [x] 1.2 Confirm MVP scope: project-scoped API Lab, Postman-like collections, optional task links, backend runner, single request runner, multi-step flow runner, capture variables, assertions, minimal history, optional saved responses, cURL import, and task timeline attachment.
+- [x] 1.3 Confirm response body save behavior in attach-to-task dialog: summary-only by default or include-body option.
 
 ## 2. Data Model And Backend Foundation
 
-- [ ] 2.1 Add Prisma models for API environments, variable variants, saved requests, flows, flow steps, request runs, flow runs, step runs, and optional saved response bodies.
-- [ ] 2.2 Add project and optional task relations, with guards that reject cross-project task links.
-- [ ] 2.3 Add migration and Prisma client generation.
-- [ ] 2.4 Add backend route module registration under authenticated `/api/api-lab`.
-- [ ] 2.5 Add CRUD APIs for environments, saved requests, flows, and flow steps.
-- [ ] 2.6 Add response DTOs that mask secret variables by default.
-- [ ] 2.7 Stop for user review before adding request execution.
+- [x] 2.1 Add Prisma models for API environments, variable variants, saved requests, flows, flow steps, request runs, flow runs, step runs, and optional saved response bodies.
+- [x] 2.2 Add project and optional task relations, with guards that reject cross-project task links.
+- [x] 2.3 Apply Prisma schema with existing `db:push` workflow and generate Prisma client.
+- [x] 2.4 Add backend route module registration under authenticated `/api/api-lab`.
+- [x] 2.5 Add CRUD APIs for environments, saved requests, flows, and flow steps.
+- [x] 2.6 Add response DTOs that mask secret variables by default.
+- [x] 2.7 Stop for user review before adding request execution.
 
 ## 3. Request Runner
 

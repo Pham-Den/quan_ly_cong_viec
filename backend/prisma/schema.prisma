@@ -53,6 +53,11 @@ model Project {
   tasks             Task[]
   workflowStatuses  WorkflowStatus[]
   timelineEvents    TimelineEvent[]
+  apiEnvironments   ApiEnvironment[]
+  apiRequests       ApiRequest[]
+  apiFlows          ApiFlow[]
+  apiRequestRuns    ApiRequestRun[]
+  apiFlowRuns       ApiFlowRun[]
 
   @@index([ownerId])
   @@index([defaultRepoId])
@@ -77,30 +82,30 @@ model TaskGroup {
 }
 
 model Repository {
-  id                   String   @id @default(cuid())
-  projectId            String
-  name                 String
-  provider             String   @default("GITLAB_SELF_HOSTED")
-  gitlabUrl            String?
-  gitlabProjectId      String?
-  gitlabProjectPath    String?
-  gitlabAccessToken    String?
-  defaultBranch        String   @default("main")
-  productionBranch     String   @default("main")
-  releaseBranchPattern String   @default("release/DDMMYYYY")
-  trustSourceBranch    String   @default("main")
-  developBranch        String   @default("develop")
-  featureNamePattern   String   @default("feature/{jiraCode}")
-  hotfixNamePattern    String   @default("hotfix/{jiraCode}-{date}")
-  featurePlannedTargets String  @default("{develop},{activeRelease},{production}")
-  hotfixPlannedTargets  String  @default("{activeRelease},{production}")
-  allowCheckoutSourceOverride Boolean @default(false)
-  allowDirectTaskBranchMainMerge Boolean @default(false)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id                             String   @id @default(cuid())
+  projectId                      String
+  name                           String
+  provider                       String   @default("GITLAB_SELF_HOSTED")
+  gitlabUrl                      String?
+  gitlabProjectId                String?
+  gitlabProjectPath              String?
+  gitlabAccessToken              String?
+  defaultBranch                  String   @default("main")
+  productionBranch               String   @default("main")
+  releaseBranchPattern           String   @default("release/DDMMYYYY")
+  trustSourceBranch              String   @default("main")
+  developBranch                  String   @default("develop")
+  featureNamePattern             String   @default("feature/{jiraCode}")
+  hotfixNamePattern              String   @default("hotfix/{jiraCode}-{date}")
+  featurePlannedTargets          String   @default("{develop},{activeRelease},{production}")
+  hotfixPlannedTargets           String   @default("{activeRelease},{production}")
+  allowCheckoutSourceOverride    Boolean  @default(false)
+  allowDirectTaskBranchMainMerge Boolean  @default(false)
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
 
-  project            Project   @relation("ProjectRepositories", fields: [projectId], references: [id], onDelete: Cascade)
-  defaultForProjects Project[] @relation("ProjectDefaultRepository")
+  project            Project        @relation("ProjectRepositories", fields: [projectId], references: [id], onDelete: Cascade)
+  defaultForProjects Project[]      @relation("ProjectDefaultRepository")
   branches           Branch[]
   releaseCycles      ReleaseCycle[]
 
@@ -127,19 +132,19 @@ model ReleaseCycle {
 }
 
 model WorkflowStatus {
-  id        String   @id @default(cuid())
-  projectId String?
-  scope     String
-  key       String
-  label     String
-  color     String
-  sortOrder Int
-  enabled   Boolean  @default(true)
-  allowKanbanDrop     Boolean?
-  dropBlockReason     String?
+  id                   String   @id @default(cuid())
+  projectId            String?
+  scope                String
+  key                  String
+  label                String
+  color                String
+  sortOrder            Int
+  enabled              Boolean  @default(true)
+  allowKanbanDrop      Boolean?
+  dropBlockReason      String?
   requiresConfirmation Boolean?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
@@ -187,6 +192,10 @@ model Task {
   sourceNote     Note?           @relation(fields: [sourceNoteId], references: [id], onDelete: SetNull)
   branchLinks    TaskBranch[]
   timelineEvents TimelineEvent[]
+  apiRequests    ApiRequest[]
+  apiFlows       ApiFlow[]
+  apiRequestRuns ApiRequestRun[]
+  apiFlowRuns    ApiFlowRun[]
 
   @@index([projectId, status])
   @@index([projectId, workStatus])
@@ -270,6 +279,215 @@ model TaskBranch {
   @@index([branchId])
   @@index([lineageId])
   @@index([active, completionRequired])
+}
+
+model ApiEnvironment {
+  id              String   @id @default(cuid())
+  projectId       String
+  name            String
+  environmentType String   @default("CUSTOM")
+  baseUrl         String?
+  description     String?
+  enabled         Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project     Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  variables   ApiEnvironmentVariable[]
+  requestRuns ApiRequestRun[]
+  flowRuns    ApiFlowRun[]
+
+  @@unique([projectId, name])
+  @@index([projectId, environmentType])
+  @@index([projectId, sortOrder])
+}
+
+model ApiEnvironmentVariable {
+  id            String   @id @default(cuid())
+  environmentId String
+  key           String
+  secret        Boolean  @default(false)
+  description   String?
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  environment ApiEnvironment                  @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  variants    ApiEnvironmentVariableVariant[]
+
+  @@unique([environmentId, key])
+  @@index([environmentId, sortOrder])
+}
+
+model ApiEnvironmentVariableVariant {
+  id         String   @id @default(cuid())
+  variableId String
+  name       String
+  value      String
+  enabled    Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  variable ApiEnvironmentVariable @relation(fields: [variableId], references: [id], onDelete: Cascade)
+
+  @@unique([variableId, name])
+  @@index([variableId, sortOrder])
+}
+
+model ApiRequest {
+  id                String   @id @default(cuid())
+  projectId         String
+  taskId            String?
+  collectionName    String   @default("Mac dinh")
+  name              String
+  description       String?
+  method            String   @default("GET")
+  url               String
+  queryJson         String   @default("[]")
+  headersJson       String   @default("[]")
+  bodyType          String   @default("NONE")
+  bodyText          String?
+  authJson          String   @default("{}")
+  timeoutMs         Int      @default(30000)
+  storeResponseBody Boolean  @default(false)
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task        Task?           @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  flowSteps   ApiFlowStep[]
+  requestRuns ApiRequestRun[]
+
+  @@index([projectId, collectionName])
+  @@index([projectId, taskId])
+  @@index([method])
+  @@index([sortOrder])
+}
+
+model ApiFlow {
+  id                String   @id @default(cuid())
+  projectId         String
+  taskId            String?
+  collectionName    String   @default("Mac dinh")
+  name              String
+  description       String?
+  enabled           Boolean  @default(true)
+  storeResponseBody Boolean  @default(false)
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  project  Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task     Task?         @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  steps    ApiFlowStep[]
+  flowRuns ApiFlowRun[]
+
+  @@index([projectId, collectionName])
+  @@index([projectId, taskId])
+  @@index([enabled])
+  @@index([sortOrder])
+}
+
+model ApiFlowStep {
+  id                 String   @id @default(cuid())
+  flowId             String
+  requestId          String?
+  name               String
+  sortOrder          Int      @default(0)
+  overrideJson       String   @default("{}")
+  captureRulesJson   String   @default("[]")
+  assertionRulesJson String   @default("[]")
+  continueOnFailure  Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  flow        ApiFlow         @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  request     ApiRequest?     @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  requestRuns ApiRequestRun[]
+
+  @@index([flowId, sortOrder])
+  @@index([requestId])
+}
+
+model ApiFlowRun {
+  id                    String    @id @default(cuid())
+  projectId             String
+  taskId                String?
+  environmentId         String?
+  flowId                String?
+  status                String    @default("PENDING")
+  durationMs            Int?
+  assertionSummaryJson  String    @default("{}")
+  capturedVariablesJson String    @default("{}")
+  errorMessage          String?
+  startedAt             DateTime  @default(now())
+  finishedAt            DateTime?
+  createdAt             DateTime  @default(now())
+
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task        Task?           @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  environment ApiEnvironment? @relation(fields: [environmentId], references: [id], onDelete: SetNull)
+  flow        ApiFlow?        @relation(fields: [flowId], references: [id], onDelete: SetNull)
+  stepRuns    ApiRequestRun[]
+
+  @@index([projectId, createdAt])
+  @@index([taskId])
+  @@index([environmentId])
+  @@index([flowId])
+  @@index([status])
+}
+
+model ApiRequestRun {
+  id                    String    @id @default(cuid())
+  projectId             String
+  taskId                String?
+  environmentId         String?
+  requestId             String?
+  flowRunId             String?
+  flowStepId            String?
+  status                String    @default("PENDING")
+  httpStatus            Int?
+  durationMs            Int?
+  assertionSummaryJson  String    @default("{}")
+  capturedVariablesJson String    @default("{}")
+  errorMessage          String?
+  responseBodySaved     Boolean   @default(false)
+  startedAt             DateTime  @default(now())
+  finishedAt            DateTime?
+  createdAt             DateTime  @default(now())
+
+  project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task          Task?             @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  environment   ApiEnvironment?   @relation(fields: [environmentId], references: [id], onDelete: SetNull)
+  request       ApiRequest?       @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  flowRun       ApiFlowRun?       @relation(fields: [flowRunId], references: [id], onDelete: Cascade)
+  flowStep      ApiFlowStep?      @relation(fields: [flowStepId], references: [id], onDelete: SetNull)
+  savedResponse ApiSavedResponse?
+
+  @@index([projectId, createdAt])
+  @@index([taskId])
+  @@index([environmentId])
+  @@index([requestId])
+  @@index([flowRunId])
+  @@index([flowStepId])
+  @@index([status])
+}
+
+model ApiSavedResponse {
+  id           String   @id @default(cuid())
+  requestRunId String   @unique
+  statusCode   Int?
+  headersJson  String   @default("{}")
+  bodyText     String?
+  contentType  String?
+  originalSize Int?
+  truncated    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  requestRun ApiRequestRun @relation(fields: [requestRunId], references: [id], onDelete: Cascade)
 }
 
 model TimelineEvent {

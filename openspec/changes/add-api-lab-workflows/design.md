@@ -66,7 +66,7 @@ Alternative considered: arbitrary JavaScript assertions. This would be flexible 
 
 Each run stores minimal metadata by default: request id/name, flow id/name when applicable, environment, started/finished time, status code, duration, assertion results, captured variables needed for the flow, and error state. Response body is not stored by default.
 
-Response body can be saved only when the user explicitly uses `Luu ket qua`, attaches the run to a task as evidence, or enables response storage for that request/flow. Secret variables are masked in logs and saved response records.
+Response body can be saved only when the user explicitly uses `Luu ket qua`, attaches the run to a task with an include-body option, or enables response storage for that request/flow. Attach-to-task defaults to summary-only evidence. Secret variables are masked in logs and saved response records.
 
 Rationale: most runs only need proof that an API was called and whether assertions passed. Avoiding default response-body storage keeps SQLite light and reduces the chance of storing sensitive internal data.
 
@@ -118,4 +118,4 @@ Rollback strategy: API Lab is additive. If needed, remove the sidebar route and 
 
 ## Open Questions
 
-- Should saved response bodies attached to a task include full body by default, or should the attach dialog offer summary-only and include-body choices?
+- None for Phase 2.
