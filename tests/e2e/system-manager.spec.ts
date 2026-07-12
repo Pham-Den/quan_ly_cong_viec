@@ -34,6 +34,8 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
   await page.keyboard.press('Escape')
   await expect(dataSetDrawer).not.toBeVisible()
   await expect(page.locator('.vue-flow__node')).not.toHaveCount(0)
+  await expect(page.locator('.vue-flow__node-hostGroup')).not.toHaveCount(0)
+  await expect(page.locator('.vue-flow__node-hostGroup').filter({ hasText: /node/ }).first()).toBeVisible()
   await expect(page.locator('.vue-flow__node').filter({ hasText: 'B2P' }).first()).toBeVisible()
   await expect(page.locator('.vue-flow__node').filter({ hasText: 'MariaDB' })).toBeVisible()
 

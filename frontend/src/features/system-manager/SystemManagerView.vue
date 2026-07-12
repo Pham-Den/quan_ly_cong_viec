@@ -57,12 +57,26 @@ import {
   type TopologyNodeRecord,
   type TopologyEnvironmentData,
 } from './ts/mockTopology'
+import {
+  buildHostGraphLayout,
+  hostGroupStyle,
+  type GraphPoint,
+  type HostGraphGroup,
+} from './ts/hostGroups'
 
-type FlowNodeData = {
+type TopologyFlowNodeData = {
+  kind: 'topology'
   record: TopologyNodeRecord
   active: boolean
   dimmed: boolean
 }
+
+type HostGroupFlowNodeData = {
+  kind: 'hostGroup'
+  group: HostGraphGroup
+}
+
+type FlowNodeData = TopologyFlowNodeData | HostGroupFlowNodeData
 
 type FlowEdgeData = {
   record: TopologyEdgeRecord
@@ -227,9 +241,25 @@ const downstreamNodeIds = computed(() => {
 const hasHighlight = computed(
   () => flowActive.value || Boolean(selectedNodeId.value) || Boolean(selectedEdgeId.value),
 )
+const hostGraphLayout = computed(() => buildHostGraphLayout(visibleNodes.value, nodePosition))
 
-const flowNodes = computed<FlowNode[]>(() =>
-  visibleNodes.value.map((node) => {
+const flowNodes = computed<FlowNode[]>(() => {
+  const hostGroupNodes: FlowNode[] = hostGraphLayout.value.groups.map((group) => ({
+    id: group.id,
+    type: 'hostGroup',
+    position: group.position,
+    data: {
+      kind: 'hostGroup',
+      group,
+    },
+    draggable: false,
+    selectable: false,
+    connectable: false,
+    focusable: false,
+    zIndex: 0,
+    style: hostGroupStyle(group),
+  }))
+  const topologyNodes: FlowNode[] = visibleNodes.value.map((node) => {
     const active =
       selectedNodeId.value === node.id ||
       downstreamNodeIds.value.has(node.id) ||
@@ -239,16 +269,23 @@ const flowNodes = computed<FlowNode[]>(() =>
     return {
       id: node.id,
       type: 'topology',
-      position: nodePosition(node),
+      parentNode: hostGraphLayout.value.nodeGroupIds[node.id],
+      position: hostGraphLayout.value.nodeRelativePositions[node.id] ?? nodePosition(node),
+      extent: 'parent',
+      expandParent: true,
       data: {
+        kind: 'topology',
         record: node,
         active,
         dimmed,
       },
       draggable: true,
+      zIndex: 2,
     }
-  }),
-)
+  })
+
+  return [...hostGroupNodes, ...topologyNodes]
+})
 
 const flowEdges = computed<FlowEdge[]>(() =>
   visibleEdges.value.map((edge) => {
@@ -500,6 +537,37 @@ function nodePosition(node: TopologyNodeRecord) {
   return localNodePositions.value[node.id] ?? node.position
 }
 
+function isTopologyFlowNodeData(data: unknown): data is TopologyFlowNodeData {
+  return Boolean(data && typeof data === 'object' && (data as TopologyFlowNodeData).kind === 'topology')
+}
+
+function isFinitePoint(value: unknown): value is GraphPoint {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const point = value as GraphPoint
+
+  return Number.isFinite(point.x) && Number.isFinite(point.y)
+}
+
+function hostGroupPosition(groupId?: string) {
+  return hostGraphLayout.value.groups.find((group) => group.id === groupId)?.position ?? { x: 0, y: 0 }
+}
+
+function draggedNodeAbsolutePosition(node: NodeDragEvent['node']) {
+  if (isFinitePoint(node.computedPosition)) {
+    return node.computedPosition
+  }
+
+  const parentPosition = hostGroupPosition(node.parentNode)
+
+  return {
+    x: parentPosition.x + node.position.x,
+    y: parentPosition.y + node.position.y,
+  }
+}
+
 function persistLocalState(patch: Partial<SystemManagerLocalState>) {
   const nextState = {
     ...persistedState.value,
@@ -579,7 +647,11 @@ function selectEdge(edgeId: string) {
   centerGraph(edge.source, edge.target)
 }
 
-function handleNodeClick(payload: { node: FlowNode }) {
+function handleNodeClick(payload: { node: NodeDragEvent['node'] }) {
+  if (!isTopologyFlowNodeData(payload.node.data)) {
+    return
+  }
+
   selectNode(payload.node.id)
 }
 
@@ -587,8 +659,12 @@ function handleEdgeClick(payload: { edge: FlowEdge }) {
   selectEdge(payload.edge.id)
 }
 
-function handleNodeDoubleClick(payload: { node: FlowNode }) {
-  if (payload.node.data?.record.kind === 'app' || payload.node.data?.record.kind === 'component') {
+function handleNodeDoubleClick(payload: { node: NodeDragEvent['node'] }) {
+  if (!isTopologyFlowNodeData(payload.node.data)) {
+    return
+  }
+
+  if (payload.node.data.record.kind === 'app' || payload.node.data.record.kind === 'component') {
     appExpanded.value = !appExpanded.value
     selectedNodeId.value = appExpanded.value ? payload.node.id : defaultNodeId()
     selectedEdgeId.value = ''
@@ -600,12 +676,24 @@ function handleNodeDoubleClick(payload: { node: FlowNode }) {
 function handleNodeDragStop(payload: NodeDragEvent) {
   const draggedNodes = payload.nodes.length ? payload.nodes : [payload.node]
   const nextPositions = { ...localNodePositions.value }
+  let changed = false
 
   for (const node of draggedNodes) {
-    nextPositions[node.id] = {
-      x: Math.round(node.position.x),
-      y: Math.round(node.position.y),
+    if (!isTopologyFlowNodeData(node.data)) {
+      continue
     }
+
+    const position = draggedNodeAbsolutePosition(node)
+
+    nextPositions[node.id] = {
+      x: Math.round(position.x),
+      y: Math.round(position.y),
+    }
+    changed = true
+  }
+
+  if (!changed) {
+    return
   }
 
   localNodePositions.value = nextPositions
@@ -1041,6 +1129,16 @@ onMounted(() => {
           <Controls />
           <MiniMap pannable zoomable />
 
+          <template #node-hostGroup="{ data }">
+            <div class="host-frame-node">
+              <div class="host-frame-header">
+                <strong>{{ data.group.host }}</strong>
+                <span>{{ data.group.ip }}</span>
+              </div>
+              <small>{{ data.group.nodeIds.length }} node</small>
+            </div>
+          </template>
+
           <template #node-topology="{ data }">
             <div
               class="topology-node"
@@ -1412,6 +1510,63 @@ onMounted(() => {
 .edge-config-label-text:hover,
 .edge-config-plus:hover {
   background: #f2f7fb;
+}
+
+:deep(.vue-flow__node-hostGroup) {
+  pointer-events: none;
+}
+
+.host-frame-node {
+  width: 100%;
+  height: 100%;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--host-frame-color) 8%, rgba(255, 255, 255, 0.86));
+  border: 1px dashed color-mix(in srgb, var(--host-frame-color) 56%, #cbd5e1);
+  border-radius: 12px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.72),
+    0 14px 34px rgba(23, 32, 51, 0.06);
+}
+
+.host-frame-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.host-frame-header strong {
+  min-width: 0;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--host-frame-color) 70%, #172033);
+  font-size: 12px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.host-frame-header span {
+  max-width: 150px;
+  padding: 2px 7px;
+  overflow: hidden;
+  color: #475467;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid color-mix(in srgb, var(--host-frame-color) 22%, #d9e2ec);
+  border-radius: 999px;
+}
+
+.host-frame-node small {
+  display: block;
+  margin-top: 5px;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 650;
 }
 
 .topology-node {
