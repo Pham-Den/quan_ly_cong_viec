@@ -21,7 +21,7 @@ BACKEND_PORT="${BACKEND_PORT:-4000}"
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 FRONTEND_ORIGIN="${FRONTEND_ORIGIN:-http://localhost:$FRONTEND_PORT}"
 VITE_API_BASE_URL="${VITE_API_BASE_URL:-http://localhost:$BACKEND_PORT}"
-DATABASE_URL="${DATABASE_URL:-file:./dev.db}"
+DATABASE_URL="${DATABASE_URL:-}"
 RUST_LOG="${PRISMA_RUST_LOG:-info}"
 export RUST_LOG
 
@@ -111,13 +111,24 @@ ensure_port_free "Frontend" "$FRONTEND_PORT" "$FRONTEND_PID_FILE"
 
 if [ "${SKIP_DB_SETUP:-0}" != "1" ]; then
   echo "Preparing local database..."
+  npm --workspace backend run db:ensure
   (
     cd "$ROOT_DIR/backend"
-    DATABASE_URL="$DATABASE_URL" npx prisma generate --schema prisma/schema.prisma
-    RUST_LOG="$RUST_LOG" DATABASE_URL="$DATABASE_URL" npx prisma db push --schema prisma/schema.prisma
-    DATABASE_URL="$DATABASE_URL" npx tsx prisma/seed.ts
+    RESOLVED_DATABASE_URL="$(DATABASE_URL="$DATABASE_URL" npx tsx src/db/print-database-url.ts)"
+    DATABASE_URL="$RESOLVED_DATABASE_URL" npx prisma generate --schema prisma/schema.prisma
+    RUST_LOG="$RUST_LOG" DATABASE_URL="$RESOLVED_DATABASE_URL" npx prisma db push --schema prisma/schema.prisma
+    DATABASE_URL="$RESOLVED_DATABASE_URL" npx tsx prisma/seed.ts
+    printf '%s' "$RESOLVED_DATABASE_URL" > "$STATE_DIR/backend.database-url"
+  )
+else
+  (
+    cd "$ROOT_DIR/backend"
+    RESOLVED_DATABASE_URL="$(DATABASE_URL="$DATABASE_URL" npx tsx src/db/print-database-url.ts)"
+    printf '%s' "$RESOLVED_DATABASE_URL" > "$STATE_DIR/backend.database-url"
   )
 fi
+
+DATABASE_URL="$(cat "$STATE_DIR/backend.database-url")"
 
 start_service \
   "Backend" \

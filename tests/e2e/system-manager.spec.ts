@@ -1,10 +1,16 @@
 import { expect, test } from '@playwright/test'
 
+import { resetE2eDatabase } from './reset-e2e-db'
+
 const email = 'system.manager.e2e@example.com'
 const password = 'password123'
 const localStateKey = 'qlcv.systemManager.localState.v1'
 
 test.setTimeout(60000)
+
+test.beforeEach(() => {
+  resetE2eDatabase()
+})
 
 test('system manager seeded topology graph, search, edge detail, and flow', async ({ page }) => {
   await page.goto('/')

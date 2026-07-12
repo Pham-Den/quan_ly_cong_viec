@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+import { resetE2eDatabase } from './reset-e2e-db'
+
 const email = 'khanh.e2e@example.com'
 const password = 'password123'
 const apiBaseUrl = 'http://127.0.0.1:4100'
@@ -9,6 +11,10 @@ function releaseName(date = new Date()) {
 }
 
 test.setTimeout(90_000)
+
+test.beforeEach(() => {
+  resetE2eDatabase()
+})
 
 test('first-run setup, logout, login, and session restore', async ({ page }) => {
   await page.goto('/')

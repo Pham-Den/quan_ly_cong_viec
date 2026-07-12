@@ -2,19 +2,17 @@ services:
   backend:
     image: node:20-alpine
     working_dir: /workspace
-    command: sh -c "npm install && npm --workspace backend run dev"
+    command: sh -c "npm install && npm --workspace backend run db:ensure && npm --workspace backend run db:push && npm --workspace backend run db:seed && npm --workspace backend run dev"
     env_file:
       - .env
     environment:
       BACKEND_HOST: 0.0.0.0
       BACKEND_PORT: 4000
-      DATABASE_URL: file:/workspace/backend/data/dev.db
       FRONTEND_ORIGIN: http://localhost:5173
     ports:
       - "4000:4000"
     volumes:
       - .:/workspace
-      - backend-data:/workspace/backend/data
 
   frontend:
     image: node:20-alpine
@@ -30,6 +28,3 @@ services:
       - .:/workspace
     depends_on:
       - backend
-
-volumes:
-  backend-data:

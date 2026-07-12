@@ -2,11 +2,12 @@ import { PrismaClient } from '@prisma/client'
 import assert from 'node:assert/strict'
 import { after, before, beforeEach, describe, test } from 'node:test'
 
+import { resolveTestDatabaseUrl } from './db/test-url.js'
 import { ensureSystemManagerSeed } from './system-manager/seed.js'
 import type { AppEnv } from './env.js'
 import { buildServer } from './server.js'
 
-const databaseUrl = process.env.DATABASE_URL ?? 'file:./test.db'
+const databaseUrl = resolveTestDatabaseUrl()
 const env: AppEnv = {
   host: '127.0.0.1',
   port: 0,

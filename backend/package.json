@@ -8,11 +8,16 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "NODE_ENV=test DATABASE_URL=${DATABASE_URL:-file:./test.db} prisma db push --skip-generate && NODE_ENV=test DATABASE_URL=${DATABASE_URL:-file:./test.db} node --import tsx --test --test-concurrency=1 src/*.test.ts",
-    "db:push": "RUST_LOG=${RUST_LOG:-info} DATABASE_URL=${DATABASE_URL:-file:./dev.db} prisma db push",
-    "db:seed": "DATABASE_URL=${DATABASE_URL:-file:./dev.db} tsx prisma/seed.ts",
-    "prisma:generate": "DATABASE_URL=${DATABASE_URL:-file:./dev.db} prisma generate",
-    "prisma:validate": "DATABASE_URL=${DATABASE_URL:-file:./dev.db} prisma validate"
+    "test": "npm run db:ensure && NODE_ENV=test DATABASE_URL=\"$(tsx src/db/print-database-url.ts --kind test)\" prisma db push --force-reset --skip-generate && NODE_ENV=test DATABASE_URL=\"$(tsx src/db/print-database-url.ts --kind test)\" node --import tsx --test --test-concurrency=1 src/*.test.ts",
+    "db:url": "tsx src/db/print-database-url.ts",
+    "db:ensure": "tsx src/db/ensure-mysql-databases.ts",
+    "db:push": "npm run db:ensure && RUST_LOG=${RUST_LOG:-info} DATABASE_URL=\"$(tsx src/db/print-database-url.ts)\" prisma db push",
+    "db:seed": "DATABASE_URL=\"$(tsx src/db/print-database-url.ts)\" tsx prisma/seed.ts",
+    "db:export-sqlite": "tsx src/db/migration/export-sqlite-data.ts",
+    "db:import-mysql": "DATABASE_URL=\"$(tsx src/db/print-database-url.ts)\" tsx src/db/migration/import-mysql-data.ts",
+    "db:verify-migration": "DATABASE_URL=\"$(tsx src/db/print-database-url.ts)\" tsx src/db/migration/verify-migrated-data.ts",
+    "prisma:generate": "DATABASE_URL=\"$(tsx src/db/print-database-url.ts)\" prisma generate",
+    "prisma:validate": "DATABASE_URL=\"$(tsx src/db/print-database-url.ts)\" prisma validate"
   },
   "dependencies": {
     "@fastify/cors": "^11.1.0",
@@ -21,6 +26,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
+    "mysql2": "^3.22.6",
     "prisma": "^6.19.3",
     "tsx": "^4.20.6",
     "typescript": "~6.0.2"

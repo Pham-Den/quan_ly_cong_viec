@@ -22,10 +22,14 @@ sh stop.sh
 ## Database bootstrap
 
 ```bash
+npm --workspace backend run db:ensure
 npm --workspace backend run prisma:validate
 npm --workspace backend run db:push
 npm --workspace backend run db:seed
 ```
+
+The backend uses MySQL by default. `.env.example` contains the local database
+settings for `my-job`, `my-job_test`, and `my-job_e2e`.
 
 ## First run login
 
@@ -39,8 +43,8 @@ that, use `/login` with the same email and password.
 npm run test:ui
 ```
 
-The Playwright test uses a separate SQLite database at `backend/prisma/e2e.db`
-and test-only ports `4100` and `5174`.
+The Playwright test uses the separate MySQL database `my-job_e2e` and test-only
+ports `4100` and `5174`.
 
 ## Docker Compose
 
