@@ -90,6 +90,14 @@ export type SystemManagerImportSummaryItem = {
   total: number
 }
 
+export type SystemManagerImportPreviewDetail = {
+  id: string
+  label: string
+  action: 'create' | 'update'
+  scope?: string
+  description?: string
+}
+
 export type SystemManagerImportPreview = {
   valid: boolean
   summary: {
@@ -99,6 +107,14 @@ export type SystemManagerImportPreview = {
     nodeBindings: SystemManagerImportSummaryItem
     dependencies: SystemManagerImportSummaryItem
     dependencyBindings: SystemManagerImportSummaryItem
+  }
+  details: {
+    environments: SystemManagerImportPreviewDetail[]
+    hosts: SystemManagerImportPreviewDetail[]
+    nodes: SystemManagerImportPreviewDetail[]
+    nodeBindings: SystemManagerImportPreviewDetail[]
+    dependencies: SystemManagerImportPreviewDetail[]
+    dependencyBindings: SystemManagerImportPreviewDetail[]
   }
   issues: Array<{
     level: 'error' | 'warning'

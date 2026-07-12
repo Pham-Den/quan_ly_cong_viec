@@ -106,6 +106,54 @@ type ImportPreviewDto = {
       total: number
     }
   }
+  details: {
+    environments: Array<{
+      id: string
+      label: string
+      action: 'create' | 'update'
+      scope?: string
+      description?: string
+    }>
+    hosts: Array<{
+      id: string
+      label: string
+      action: 'create' | 'update'
+      scope?: string
+      description?: string
+    }>
+    nodes: Array<{
+      id: string
+      label: string
+      action: 'create' | 'update'
+      scope?: string
+      description?: string
+    }>
+    nodeBindings: Array<{
+      id: string
+      label: string
+      action: 'create' | 'update'
+      scope?: string
+      description?: string
+    }>
+    dependencies: Array<{
+      id: string
+      label: string
+      action: 'create' | 'update'
+      scope?: string
+      description?: string
+    }>
+    dependencyBindings: Array<{
+      id: string
+      label: string
+      action: 'create' | 'update'
+      scope?: string
+      description?: string
+    }>
+  }
+  issues: Array<{
+    level: 'error' | 'warning'
+    message: string
+  }>
 }
 
 type ExportDto = {
@@ -539,6 +587,17 @@ describe('system manager topology API', () => {
     assert.equal(preview.body.summary.environments.create, 2)
     assert.equal(preview.body.summary.nodes.create, 2)
     assert.equal(preview.body.summary.dependencies.create, 1)
+    assert.equal(preview.body.details.environments.find((item) => item.id === 'sandbox')?.action, 'create')
+    assert.equal(preview.body.details.hosts.find((item) => item.id === 'sandbox:sandbox-app-01')?.scope, 'sandbox')
+    assert.equal(preview.body.details.nodes.find((item) => item.id === 'import-web')?.description, 'app / Web/API')
+    assert.equal(
+      preview.body.details.nodeBindings.find((item) => item.id === 'sandbox:import-web')?.description,
+      'healthy, 1 config',
+    )
+    assert.equal(
+      preview.body.details.dependencies.find((item) => item.id === 'import-web-redis')?.description,
+      'import-web -> import-redis',
+    )
 
     const beforeApplyTopology = await request('GET', '/api/system-manager/topology?environment=sandbox', token)
     assert.equal(beforeApplyTopology.response.statusCode, 404)
@@ -562,6 +621,11 @@ describe('system manager topology API', () => {
     assert.equal(updatePreview.body.summary.environments.update, 2)
     assert.equal(updatePreview.body.summary.nodeBindings.update, 4)
     assert.equal(updatePreview.body.summary.dependencyBindings.update, 2)
+    assert.equal(updatePreview.body.details.nodes.find((item) => item.id === 'import-web')?.action, 'update')
+    assert.equal(
+      updatePreview.body.details.dependencyBindings.find((item) => item.id === 'sandbox:import-web-redis')?.action,
+      'update',
+    )
 
     const sandboxTopology = await request<TopologyDto>(
       'GET',
@@ -598,5 +662,24 @@ describe('system manager topology API', () => {
     assert.equal(exportedDependency?.sourceCode, 'import-web')
     assert.equal(exportedDependency?.targetCode, 'import-redis')
     assert.equal(exportedDependency?.bindings.length, 2)
+
+    const invalidPreview = await request<ImportPreviewDto>(
+      'POST',
+      '/api/system-manager/import/preview',
+      token,
+      {
+        dependencies: [
+          {
+            code: 'missing-target',
+            sourceCode: 'import-web',
+            targetCode: 'missing-node',
+            label: 'MISSING_NODE',
+          },
+        ],
+      },
+    )
+    assert.equal(invalidPreview.response.statusCode, 200)
+    assert.equal(invalidPreview.body.valid, false)
+    assert.ok(invalidPreview.body.issues.some((issue) => issue.message.includes('missing-node')))
   })
 })

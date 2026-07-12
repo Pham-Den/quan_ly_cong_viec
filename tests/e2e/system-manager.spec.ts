@@ -193,90 +193,19 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
     .toBe('collapsed')
 
   await settingsDrawer.getByRole('tab', { name: 'Import / Export' }).click()
-  await settingsDrawer.locator('textarea').fill(
-    JSON.stringify(
-      {
-        version: 1,
-        environments: [
-          {
-            key: 'e2e-review',
-            name: 'E2E Review',
-            color: '#0891b2',
-            sortOrder: 99,
-          },
-        ],
-        hosts: [
-          {
-            environmentKey: 'e2e-review',
-            name: 'e2e-host',
-            ip: '10.77.0.10',
-          },
-        ],
-        nodes: [
-          {
-            code: 'e2e-web',
-            name: 'E2E Web',
-            kind: 'app',
-            type: 'Web/API',
-            positionX: 80,
-            positionY: 180,
-            bindings: [
-              {
-                environmentKey: 'e2e-review',
-                hostName: 'e2e-host',
-                status: 'healthy',
-                configs: [
-                  {
-                    name: 'App',
-                    items: [{ key: 'APP_ENV', value: 'e2e-review' }],
-                  },
-                ],
-              },
-            ],
-          },
-          {
-            code: 'e2e-api',
-            name: 'E2E API',
-            kind: 'service',
-            type: 'Service',
-            positionX: 430,
-            positionY: 180,
-            bindings: [
-              {
-                environmentKey: 'e2e-review',
-                hostName: 'e2e-host',
-                status: 'healthy',
-              },
-            ],
-          },
-        ],
-        dependencies: [
-          {
-            code: 'e2e-web-api',
-            sourceCode: 'e2e-web',
-            targetCode: 'e2e-api',
-            label: 'E2E_API_URL',
-            connectionType: 'request',
-            direction: 'request',
-            bindings: [
-              {
-                environmentKey: 'e2e-review',
-                configItems: [{ key: 'E2E_API_URL', value: 'https://e2e.local' }],
-              },
-            ],
-          },
-        ],
-      },
-      null,
-      2,
-    ),
-  )
+  await settingsDrawer.getByRole('button', { name: 'Template' }).click()
+  await page.getByRole('menuitem', { name: 'Dùng template JSON' }).click()
+  await expect(settingsDrawer.locator('textarea')).toHaveValue(/sandbox-web/)
   await settingsDrawer.getByRole('button', { name: 'Preview import' }).click()
   await expect(settingsDrawer.getByText('Valid')).toBeVisible()
-  await expect(settingsDrawer.getByText('Global nodes')).toBeVisible()
+  await expect(settingsDrawer.locator('.preview-card').filter({ hasText: 'Global nodes' })).toBeVisible()
+  await expect(settingsDrawer.locator('.preview-detail-row').filter({ hasText: 'Sandbox Web/API' }).first()).toBeVisible()
+  await expect(
+    settingsDrawer.locator('.preview-detail-row').filter({ hasText: 'sandbox:sandbox-web' }).filter({ hasText: 'healthy, 1 config' }),
+  ).toBeVisible()
   await settingsDrawer.getByRole('button', { name: 'Apply import' }).click()
   await expect(settingsDrawer).not.toHaveClass(/ant-drawer-open/)
-  await page.locator('.ant-segmented-item').filter({ hasText: 'E2E Review' }).click()
-  await expect(page.locator('.vue-flow__node').filter({ hasText: 'E2E Web' })).toBeVisible()
-  await expect(page.locator('.vue-flow__node').filter({ hasText: 'E2E API' })).toBeVisible()
+  await page.locator('.ant-segmented-item').filter({ hasText: 'Sandbox' }).click()
+  await expect(page.locator('.vue-flow__node').filter({ hasText: 'Sandbox Web/API' })).toBeVisible()
+  await expect(page.locator('.vue-flow__node').filter({ hasText: 'Sandbox Redis' })).toBeVisible()
 })

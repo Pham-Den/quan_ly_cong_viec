@@ -41,5 +41,6 @@ System Manager giúp dev nhìn tổng thể topology và trace dependency flow m
 - Phase 3: add authenticated manual CRUD APIs and a management drawer inside System Manager.
 - Phase 4: replace environment-duplicated topology behavior with global topology blueprint plus per-environment bindings.
 - Phase 5: add local UI settings plus safe JSON/YAML import/export with preview before apply.
+- Phase 6: make import preview item-level and add JSON/YAML topology templates before scanner work.
 - Security: phase 1 uses mock data. Later phases may allow secrets; phase 1 should show masked values with an eye reveal behavior in UI.
 - Testing: add frontend typecheck/build coverage and, if feasible, Playwright smoke coverage for opening System Manager, switching environments, searching config keys, clicking node/edge, and starting a flow.

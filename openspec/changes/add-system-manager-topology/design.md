@@ -257,6 +257,17 @@ Phase 5 adds settings and safe import/export:
 
 Phase 5 rollback strategy: hide the settings/import/export UI and disable the new import/export routes. Existing manual management and topology data remain usable.
 
+Phase 6 improves import review:
+
+1. Keep the same import document shape from phase 5.
+2. Extend preview with item-level create/update rows grouped by entity type.
+3. Show environment scope for hosts and bindings so the user can verify the selected environment impact.
+4. Provide downloadable JSON/YAML templates that are valid import documents.
+5. Keep apply disabled when preview has blocking errors.
+6. Keep scanner deferred until detailed preview is comfortable to review.
+
+Phase 6 rollback strategy: hide detailed preview rows and template buttons while keeping phase 5 summary preview/apply intact.
+
 ## Open Questions
 
 - None for phase 1 UI mock.
@@ -264,3 +275,4 @@ Phase 5 rollback strategy: hide the settings/import/export UI and disable the ne
 - None for phase 3 manual management.
 - Phase 4 needs confirmation of exact naming in UI, but the model direction is clear: global node/dependency blueprint plus environment-specific runtime/config bindings.
 - None for phase 5 settings/import/export foundation; scanner and operational integrations remain future work.
+- None for phase 6 detailed preview/templates.

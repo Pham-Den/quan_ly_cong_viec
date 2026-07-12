@@ -215,3 +215,33 @@
 - [x] 26.3 Run System Manager Playwright smoke test.
 - [x] 26.4 Add a phase 5 test guide covering settings, export, import preview, import apply, and graph refresh.
 - [x] 26.5 Stop for user review before scanner, health checks, incidents, SSH, logs, or Docker actions.
+
+## 27. Phase 6 Scope Gate: Detailed Preview And Templates
+
+- [x] 27.1 Keep Phase 6 focused on making manual/import workflows safer before scanner work.
+- [x] 27.2 Keep import non-destructive and preview-before-apply.
+- [x] 27.3 Keep node/dependency global and runtime/config binding scoped by environment.
+- [x] 27.4 Add detailed item-level preview without adding scanner, health checks, logs, SSH, Docker actions, or destructive sync.
+
+## 28. Phase 6 Backend Detailed Preview
+
+- [x] 28.1 Extend import preview response with item-level create/update details per group.
+- [x] 28.2 Include environment scope and short descriptions for hosts, node bindings, and dependency bindings.
+- [x] 28.3 Preserve existing summary counts and issues for backward compatibility.
+- [x] 28.4 Add backend tests for detailed preview create/update rows and invalid-reference errors.
+
+## 29. Phase 6 Frontend Template And Preview UI
+
+- [x] 29.1 Add JSON/YAML template actions in the import/export drawer.
+- [x] 29.2 Render detailed preview rows grouped by environments, hosts, global nodes, node bindings, global dependencies, and dependency bindings.
+- [x] 29.3 Show create/update badges for each preview row.
+- [x] 29.4 Keep apply disabled unless the latest preview is valid.
+- [x] 29.5 Update Playwright coverage for template usage and detailed preview rows.
+
+## 30. Phase 6 Verification And Review
+
+- [x] 30.1 Run backend Prisma validation/build/test.
+- [x] 30.2 Run frontend typecheck/build.
+- [x] 30.3 Run System Manager Playwright smoke test.
+- [x] 30.4 Add a phase 6 test guide covering templates, detailed preview, invalid preview, and apply.
+- [x] 30.5 Stop for user review before scanner foundation.

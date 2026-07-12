@@ -13,6 +13,14 @@ type ImportSummaryItem = {
   total: number
 }
 
+type ImportPreviewDetail = {
+  id: string
+  label: string
+  action: 'create' | 'update'
+  scope?: string
+  description?: string
+}
+
 export type SystemManagerImportPreview = {
   valid: boolean
   summary: {
@@ -22,6 +30,14 @@ export type SystemManagerImportPreview = {
     nodeBindings: ImportSummaryItem
     dependencies: ImportSummaryItem
     dependencyBindings: ImportSummaryItem
+  }
+  details: {
+    environments: ImportPreviewDetail[]
+    hosts: ImportPreviewDetail[]
+    nodes: ImportPreviewDetail[]
+    nodeBindings: ImportPreviewDetail[]
+    dependencies: ImportPreviewDetail[]
+    dependencyBindings: ImportPreviewDetail[]
   }
   issues: ImportIssue[]
 }
@@ -471,6 +487,29 @@ function incrementSummary(summary: ImportSummaryItem, exists: boolean) {
   }
 }
 
+function previewAction(exists: boolean): ImportPreviewDetail['action'] {
+  return exists ? 'update' : 'create'
+}
+
+function configGroupItemCount(groups: NormalizedConfigGroup[]) {
+  return groups.reduce((total, group) => total + group.items.length, 0)
+}
+
+function configItemDescription(count: number) {
+  return count === 1 ? '1 config' : `${count} configs`
+}
+
+function emptyDetails(): SystemManagerImportPreview['details'] {
+  return {
+    environments: [],
+    hosts: [],
+    nodes: [],
+    nodeBindings: [],
+    dependencies: [],
+    dependencyBindings: [],
+  }
+}
+
 async function existingTopologyIndexes(prisma: AppPrismaClient) {
   const [environments, hosts, nodes, dependencies, nodeBindings, dependencyBindings] = await Promise.all([
     prisma.systemEnvironment.findMany({ select: { id: true, key: true } }),
@@ -533,12 +572,24 @@ export async function previewSystemManagerImport(
     dependencies: emptySummaryItem(),
     dependencyBindings: emptySummaryItem(),
   }
+  const details = emptyDetails()
 
   for (const environment of document.environments) {
-    incrementSummary(summary.environments, existing.environmentKeys.has(environment.key))
+    const exists = existing.environmentKeys.has(environment.key)
+
+    incrementSummary(summary.environments, exists)
+    details.environments.push({
+      id: environment.key,
+      label: environment.name,
+      action: previewAction(exists),
+      scope: environment.key,
+      description: `color ${environment.color}`,
+    })
   }
 
   for (const host of document.hosts) {
+    const exists = existing.hostKeys.has(`${host.environmentKey}:${host.name}`)
+
     if (!availableEnvironmentKeys.has(host.environmentKey)) {
       issues.push({
         level: 'error',
@@ -546,13 +597,30 @@ export async function previewSystemManagerImport(
       })
     }
 
-    incrementSummary(summary.hosts, existing.hostKeys.has(`${host.environmentKey}:${host.name}`))
+    incrementSummary(summary.hosts, exists)
+    details.hosts.push({
+      id: `${host.environmentKey}:${host.name}`,
+      label: host.name,
+      action: previewAction(exists),
+      scope: host.environmentKey,
+      description: host.ip,
+    })
   }
 
   for (const node of document.nodes) {
-    incrementSummary(summary.nodes, existing.nodeCodes.has(node.code))
+    const exists = existing.nodeCodes.has(node.code)
+
+    incrementSummary(summary.nodes, exists)
+    details.nodes.push({
+      id: node.code,
+      label: node.name,
+      action: previewAction(exists),
+      description: `${node.kind} / ${node.type}`,
+    })
 
     for (const binding of node.bindings) {
+      const bindingExists = existing.nodeBindingKeys.has(`${binding.environmentKey}:${node.code}`)
+
       if (!availableEnvironmentKeys.has(binding.environmentKey)) {
         issues.push({
           level: 'error',
@@ -567,11 +635,20 @@ export async function previewSystemManagerImport(
         })
       }
 
-      incrementSummary(summary.nodeBindings, existing.nodeBindingKeys.has(`${binding.environmentKey}:${node.code}`))
+      incrementSummary(summary.nodeBindings, bindingExists)
+      details.nodeBindings.push({
+        id: `${binding.environmentKey}:${node.code}`,
+        label: node.name,
+        action: previewAction(bindingExists),
+        scope: binding.environmentKey,
+        description: `${binding.status}, ${configItemDescription(configGroupItemCount(binding.configs))}`,
+      })
     }
   }
 
   for (const dependency of document.dependencies) {
+    const exists = existing.dependencyCodes.has(dependency.code)
+
     if (!availableNodeCodes.has(dependency.sourceCode)) {
       issues.push({
         level: 'error',
@@ -586,9 +663,17 @@ export async function previewSystemManagerImport(
       })
     }
 
-    incrementSummary(summary.dependencies, existing.dependencyCodes.has(dependency.code))
+    incrementSummary(summary.dependencies, exists)
+    details.dependencies.push({
+      id: dependency.code,
+      label: dependency.label,
+      action: previewAction(exists),
+      description: `${dependency.sourceCode} -> ${dependency.targetCode}`,
+    })
 
     for (const binding of dependency.bindings) {
+      const bindingExists = existing.dependencyBindingKeys.has(`${binding.environmentKey}:${dependency.code}`)
+
       if (!availableEnvironmentKeys.has(binding.environmentKey)) {
         issues.push({
           level: 'error',
@@ -598,8 +683,15 @@ export async function previewSystemManagerImport(
 
       incrementSummary(
         summary.dependencyBindings,
-        existing.dependencyBindingKeys.has(`${binding.environmentKey}:${dependency.code}`),
+        bindingExists,
       )
+      details.dependencyBindings.push({
+        id: `${binding.environmentKey}:${dependency.code}`,
+        label: dependency.label,
+        action: previewAction(bindingExists),
+        scope: binding.environmentKey,
+        description: configItemDescription(binding.configItems.length),
+      })
     }
   }
 
@@ -613,6 +705,7 @@ export async function previewSystemManagerImport(
   return {
     valid: issues.every((issue) => issue.level !== 'error'),
     summary,
+    details,
     issues,
   }
 }

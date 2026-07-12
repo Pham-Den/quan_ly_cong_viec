@@ -251,3 +251,29 @@ The system SHALL allow JSON/YAML topology import only through preview-before-app
 #### Scenario: Keep import non-destructive in phase 5
 - **WHEN** imported data omits an existing environment, node, host, dependency, or binding
 - **THEN** phase 5 does not delete the omitted existing data
+
+### Requirement: User can inspect detailed import preview
+The system SHALL show item-level import preview details before applying an import document.
+
+#### Scenario: Show create/update rows
+- **WHEN** the user previews an import document
+- **THEN** the UI lists the individual environments, hosts, global nodes, node bindings, global dependencies, and dependency bindings that will be created or updated
+
+#### Scenario: Show environment scope for bindings
+- **WHEN** a preview row describes a host, node binding, or dependency binding
+- **THEN** the row shows which environment scope the change applies to
+
+#### Scenario: Keep apply gated by valid preview
+- **WHEN** the latest preview has blocking errors
+- **THEN** the apply action remains disabled
+
+### Requirement: User can start from topology templates
+The system SHALL provide JSON/YAML topology templates that match the global topology plus environment binding import shape.
+
+#### Scenario: Download template
+- **WHEN** the user requests a JSON or YAML template
+- **THEN** the system provides a file containing sample environments, hosts, global nodes, node bindings, global dependencies, and dependency bindings
+
+#### Scenario: Use template for preview
+- **WHEN** the user loads a template into the import editor
+- **THEN** the template can be previewed by the same import preview flow

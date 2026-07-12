@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { DownloadOutlined, FolderOpenOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
-import { parse as parseYaml } from 'yaml'
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import { computed, reactive, ref, watch } from 'vue'
 
 import {
@@ -11,6 +11,7 @@ import {
   type SystemManagerImportPreview,
 } from '../ts/service'
 import type { SystemManagerSettings } from '../ts/localState'
+import { systemManagerImportTemplate } from '../ts/importTemplate'
 
 const props = defineProps<{
   open: boolean
@@ -63,6 +64,22 @@ const summaryRows = computed(() => {
     { label: 'Dependency bindings', value: summary.dependencyBindings },
   ]
 })
+const detailGroups = computed(() => {
+  const details = importPreview.value?.details
+
+  if (!details) {
+    return []
+  }
+
+  return [
+    { key: 'environments', label: 'Environments', items: details.environments },
+    { key: 'hosts', label: 'Hosts', items: details.hosts },
+    { key: 'nodes', label: 'Global nodes', items: details.nodes },
+    { key: 'nodeBindings', label: 'Node bindings', items: details.nodeBindings },
+    { key: 'dependencies', label: 'Global dependencies', items: details.dependencies },
+    { key: 'dependencyBindings', label: 'Dependency bindings', items: details.dependencyBindings },
+  ].filter((group) => group.items.length)
+})
 
 function assignSettings(settings: SystemManagerSettings) {
   settingsForm.defaultGraphView = settings.defaultGraphView
@@ -78,6 +95,41 @@ function saveSettings() {
 function clearImportPreview() {
   importPreview.value = null
   importDocument.value = null
+}
+
+function templateText(format: 'json' | 'yaml') {
+  if (format === 'yaml') {
+    return stringifyYaml(systemManagerImportTemplate)
+  }
+
+  return JSON.stringify(systemManagerImportTemplate, null, 2)
+}
+
+function downloadText(content: string, fileName: string, type: string) {
+  const blob = new Blob([content], { type })
+  const url = URL.createObjectURL(blob)
+  const link = window.document.createElement('a')
+
+  link.href = url
+  link.download = fileName
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+function loadTemplate(format: 'json' | 'yaml') {
+  importFileName.value = `system-manager-template.${format === 'yaml' ? 'yaml' : 'json'}`
+  importText.value = templateText(format)
+  clearImportPreview()
+  message.success(`Đã nạp template ${format.toUpperCase()}`)
+}
+
+function downloadTemplate(format: 'json' | 'yaml') {
+  downloadText(
+    templateText(format),
+    `system-manager-template.${format === 'yaml' ? 'yaml' : 'json'}`,
+    format === 'yaml' ? 'text/yaml;charset=utf-8' : 'application/json;charset=utf-8',
+  )
+  message.success(`Đã tải template ${format.toUpperCase()}`)
 }
 
 function parseImportDocument() {
@@ -167,16 +219,11 @@ async function exportTopology() {
 
   try {
     const document = await exportSystemManagerTopology()
-    const blob = new Blob([JSON.stringify(document, null, 2)], {
-      type: 'application/json;charset=utf-8',
-    })
-    const url = URL.createObjectURL(blob)
-    const link = window.document.createElement('a')
-
-    link.href = url
-    link.download = `system-manager-topology-${new Date().toISOString().slice(0, 10)}.json`
-    link.click()
-    URL.revokeObjectURL(url)
+    downloadText(
+      JSON.stringify(document, null, 2),
+      `system-manager-topology-${new Date().toISOString().slice(0, 10)}.json`,
+      'application/json;charset=utf-8',
+    )
     message.success('Đã export topology')
   } catch (error) {
     console.error(error)
@@ -234,6 +281,31 @@ watch(
             </template>
             Export JSON
           </a-button>
+          <a-dropdown>
+            <a-button>
+              <template #icon>
+                <DownloadOutlined />
+              </template>
+              Template
+            </a-button>
+            <template #overlay>
+              <a-menu>
+                <a-menu-item key="download-json" @click="downloadTemplate('json')">
+                  Download template JSON
+                </a-menu-item>
+                <a-menu-item key="download-yaml" @click="downloadTemplate('yaml')">
+                  Download template YAML
+                </a-menu-item>
+                <a-menu-divider />
+                <a-menu-item key="load-json" @click="loadTemplate('json')">
+                  Dùng template JSON
+                </a-menu-item>
+                <a-menu-item key="load-yaml" @click="loadTemplate('yaml')">
+                  Dùng template YAML
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
           <a-button @click="importFileInput?.click()">
             <template #icon>
               <FolderOpenOutlined />
@@ -296,6 +368,37 @@ watch(
               :message="issue.message"
               show-icon
             />
+          </div>
+
+          <div v-if="detailGroups.length" class="preview-details">
+            <section
+              v-for="group in detailGroups"
+              :key="group.key"
+              class="preview-detail-group"
+            >
+              <header>
+                <strong>{{ group.label }}</strong>
+                <a-tag>{{ group.items.length }}</a-tag>
+              </header>
+              <div class="preview-detail-list">
+                <article
+                  v-for="item in group.items"
+                  :key="item.id"
+                  class="preview-detail-row"
+                >
+                  <a-tag :color="item.action === 'create' ? 'green' : 'blue'">
+                    {{ item.action }}
+                  </a-tag>
+                  <div>
+                    <strong>{{ item.label }}</strong>
+                    <small>
+                      <span v-if="item.scope">{{ item.scope }} · </span>{{ item.id }}
+                    </small>
+                  </div>
+                  <span>{{ item.description }}</span>
+                </article>
+              </div>
+            </section>
           </div>
         </section>
       </a-tab-pane>
@@ -361,5 +464,61 @@ watch(
   display: grid;
   gap: 8px;
   margin-top: 14px;
+}
+
+.preview-details {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.preview-detail-group {
+  padding: 10px;
+  background: #ffffff;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+}
+
+.preview-detail-group header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.preview-detail-list {
+  display: grid;
+  gap: 6px;
+}
+
+.preview-detail-row {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) minmax(120px, 0.7fr);
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  background: #f8fafc;
+  border: 1px solid #edf2f7;
+  border-radius: 6px;
+}
+
+.preview-detail-row strong,
+.preview-detail-row small {
+  display: block;
+}
+
+.preview-detail-row strong {
+  overflow: hidden;
+  color: #101828;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-detail-row small,
+.preview-detail-row > span {
+  overflow: hidden;
+  color: #667085;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
