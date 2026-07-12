@@ -1,11 +1,11 @@
-import { api } from './api'
+import { api } from '../../../services/api'
 import type {
   ConfigItem,
   SystemEnvironment,
   TopologyEdgeRecord,
   TopologyEnvironmentData,
   TopologyNodeRecord,
-} from '../system-manager/mockTopology'
+} from './mockTopology'
 
 export type SystemManagerEnvironment = {
   id: string

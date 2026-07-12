@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { CloseOutlined, CopyOutlined } from '@ant-design/icons-vue'
 
-import type { ConfigItem } from '../../system-manager/mockTopology'
+import type { ConfigItem } from '../ts/mockTopology'
 
 type QuickConfigItem = ConfigItem & {
   displayValue: string

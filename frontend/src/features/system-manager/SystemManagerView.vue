@@ -17,8 +17,6 @@ import {
 import { MiniMap } from '@vue-flow/minimap'
 import {
   AimOutlined,
-  CloseOutlined,
-  CopyOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   NodeCollapseOutlined,
@@ -32,25 +30,30 @@ import {
   loadSystemManagerEnvironments,
   loadSystemManagerTopology,
   type SystemManagerEnvironment,
-} from '../services/system-manager'
-import StatusTag from '../core/components/StatusTag.vue'
-import { statusTagMeta } from '../core/components/statusTag'
-import SystemManagerManageDrawer from '../components/system-manager/SystemManagerManageDrawer.vue'
-import SystemManagerQuickConfigPopover from '../components/system-manager/SystemManagerQuickConfigPopover.vue'
+} from './ts/service'
+import StatusTag from '../../core/components/StatusTag.vue'
+import SystemManagerDetailPanel from './components/SystemManagerDetailPanel.vue'
+import SystemManagerManageDrawer from './components/SystemManagerManageDrawer.vue'
+import SystemManagerQuickConfigPopover from './components/SystemManagerQuickConfigPopover.vue'
 import {
   loadSystemManagerLocalState,
   saveSystemManagerLocalState,
   type LocalNodePosition,
   type SystemManagerLocalState,
-} from '../system-manager/localState'
-import { normalizeEnvironmentColor } from '../system-manager/environmentColor'
+} from './ts/localState'
+import { normalizeEnvironmentColor } from './ts/environmentColor'
+import {
+  edgeDisplayLabel,
+  topologyNodeName,
+  topologyStatusLabel,
+} from './ts/topologyDisplay'
 import {
   type ConfigItem,
   type SystemEnvironment,
   type TopologyEdgeRecord,
   type TopologyNodeRecord,
   type TopologyEnvironmentData,
-} from '../system-manager/mockTopology'
+} from './ts/mockTopology'
 
 type FlowNodeData = {
   record: TopologyNodeRecord
@@ -317,7 +320,6 @@ const searchHasResults = computed(() =>
 )
 const upstreamEdges = computed(() => (selectedNode.value ? incomingByTarget.value.get(selectedNode.value.id) ?? [] : []))
 const downstreamEdges = computed(() => (selectedNode.value ? outgoingBySource.value.get(selectedNode.value.id) ?? [] : []))
-const activeConfigItems = computed(() => selectedEdge.value?.configItems ?? [])
 const flowGroups = computed(() => {
   const sourceIds = flowActive.value ? downstreamNodeIds.value : new Set([selectedNode.value?.id ?? ''])
   const componentIds = visibleNodes.value
@@ -400,17 +402,7 @@ function isEdgeNeighbor(edge: TopologyEdgeRecord) {
 }
 
 function nodeName(nodeId: string) {
-  return visibleNodes.value.find((node) => node.id === nodeId)?.name ?? nodeId
-}
-
-function dependencyName(edge: TopologyEdgeRecord) {
-  return edge.label.trim().replace(/\s+(?:\+\d+|\((?:\d+|chưa thêm config)\))$/i, '') || edge.id
-}
-
-function edgeDisplayLabel(edge: TopologyEdgeRecord) {
-  const configCount = edge.configItems.length
-
-  return `${dependencyName(edge)} (${configCount || 'chưa thêm config'})`
+  return topologyNodeName(visibleNodes.value, nodeId)
 }
 
 function nodesForMode(data: TopologyEnvironmentData = topology.value) {
@@ -425,10 +417,6 @@ function defaultNodeId(data: TopologyEnvironmentData = topology.value) {
   const nodes = nodesForMode(data)
 
   return nodes.find((node) => node.kind === 'app')?.id ?? nodes[0]?.id ?? ''
-}
-
-function topologyStatusLabel(status: string) {
-  return statusTagMeta(status).label
 }
 
 function configEdgePath(edge: ConfigEdgeProps) {
@@ -1052,207 +1040,26 @@ onMounted(() => {
         </a-spin>
       </div>
 
-      <aside
-        class="detail-panel"
-        :aria-hidden="detailPanelCollapsed"
-        :class="{ 'detail-panel-collapsed': detailPanelCollapsed }"
-      >
-        <template v-if="selectedEdge">
-          <div class="detail-header">
-            <div class="detail-title">
-              <span>Config detail</span>
-              <h2>{{ edgeDisplayLabel(selectedEdge) }}</h2>
-            </div>
-            <div class="detail-actions">
-              <a-tag color="purple">{{ selectedEdge.direction }}</a-tag>
-              <a-tooltip title="Bỏ chọn">
-                <a-button
-                  aria-label="Bỏ chọn dependency"
-                  class="icon-action"
-                  size="small"
-                  @click="resetGraphState"
-                >
-                  <template #icon>
-                    <CloseOutlined />
-                  </template>
-                </a-button>
-              </a-tooltip>
-            </div>
-          </div>
-
-          <a-descriptions size="small" :column="1" bordered>
-            <a-descriptions-item label="From">{{ nodeName(selectedEdge.source) }}</a-descriptions-item>
-            <a-descriptions-item label="To">{{ nodeName(selectedEdge.target) }}</a-descriptions-item>
-            <a-descriptions-item label="Connection">{{ selectedEdge.connectionType }}</a-descriptions-item>
-            <a-descriptions-item label="Port">{{ selectedEdge.port }}</a-descriptions-item>
-            <a-descriptions-item label="Description">{{ selectedEdge.description }}</a-descriptions-item>
-          </a-descriptions>
-
-          <a-divider>Config lines</a-divider>
-          <div class="config-list">
-            <div
-              v-for="item in activeConfigItems"
-              :key="item.key"
-              class="config-row"
-            >
-              <code>{{ item.key }}={{ configDisplayValue(item, selectedEdge.id) }}</code>
-              <a-space>
-                <a-button
-                  v-if="item.secret"
-                  size="small"
-                  @click="toggleConfigVisibility(item, selectedEdge.id)"
-                >
-                  {{ isConfigRevealed(item, selectedEdge.id) ? 'Ẩn' : 'Hiện' }}
-                </a-button>
-                <a-tooltip title="Copy">
-                  <a-button
-                    aria-label="Copy config line"
-                    class="icon-action"
-                    size="small"
-                    @click="copyConfigLine(item)"
-                  >
-                    <template #icon>
-                      <CopyOutlined />
-                    </template>
-                  </a-button>
-                </a-tooltip>
-              </a-space>
-            </div>
-          </div>
-        </template>
-
-        <template v-else-if="selectedNode">
-          <div class="detail-header">
-            <div>
-              <span>{{ selectedNode.type }}</span>
-              <h2>{{ selectedNode.name }}</h2>
-            </div>
-            <StatusTag :value="selectedNode.status" />
-          </div>
-
-          <a-tabs v-model:active-key="activeTab" size="small">
-            <a-tab-pane key="overview" tab="Overview">
-              <a-descriptions size="small" :column="1" bordered>
-                <a-descriptions-item label="Environment">{{ topology.label }}</a-descriptions-item>
-                <a-descriptions-item label="Type">{{ selectedNode.type }}</a-descriptions-item>
-                <a-descriptions-item label="Status">{{ topologyStatusLabel(selectedNode.status) }}</a-descriptions-item>
-                <a-descriptions-item label="Tags">
-                  <a-space wrap>
-                    <a-tag v-for="tag in selectedNode.tags" :key="tag">{{ tag }}</a-tag>
-                  </a-space>
-                </a-descriptions-item>
-                <a-descriptions-item label="Description">{{ selectedNode.description }}</a-descriptions-item>
-              </a-descriptions>
-              <a-button class="flow-button" type="primary" @click="startFlow">Start flow</a-button>
-            </a-tab-pane>
-
-            <a-tab-pane key="runtime" tab="Runtime">
-              <a-descriptions size="small" :column="1" bordered>
-                <a-descriptions-item label="Host">{{ selectedNode.runtime.host }}</a-descriptions-item>
-                <a-descriptions-item label="IP">{{ selectedNode.runtime.ip }}</a-descriptions-item>
-                <a-descriptions-item label="Container">{{ selectedNode.runtime.containerName }}</a-descriptions-item>
-                <a-descriptions-item label="Image">{{ selectedNode.runtime.image }}</a-descriptions-item>
-                <a-descriptions-item label="Ports">{{ selectedNode.runtime.ports.join(', ') }}</a-descriptions-item>
-                <a-descriptions-item label="Network">{{ selectedNode.runtime.network }}</a-descriptions-item>
-              </a-descriptions>
-            </a-tab-pane>
-
-            <a-tab-pane key="configs" tab="Configs">
-              <div
-                v-for="group in selectedNode.configs"
-                :key="group.name"
-                class="config-group"
-              >
-                <h3>{{ group.name }}</h3>
-                <div
-                  v-for="item in group.items"
-                  :key="item.key"
-                  class="config-row"
-                >
-                  <code>{{ item.key }}={{ configDisplayValue(item, `${selectedNode.id}:${group.name}`) }}</code>
-                  <a-space>
-                    <a-button
-                      v-if="item.secret"
-                      size="small"
-                      @click="toggleConfigVisibility(item, `${selectedNode.id}:${group.name}`)"
-                    >
-                      {{ isConfigRevealed(item, `${selectedNode.id}:${group.name}`) ? 'Ẩn' : 'Hiện' }}
-                    </a-button>
-                    <a-tooltip title="Copy">
-                      <a-button
-                        aria-label="Copy config line"
-                        class="icon-action"
-                        size="small"
-                        @click="copyConfigLine(item)"
-                      >
-                        <template #icon>
-                          <CopyOutlined />
-                        </template>
-                      </a-button>
-                    </a-tooltip>
-                  </a-space>
-                </div>
-              </div>
-            </a-tab-pane>
-
-            <a-tab-pane key="dependencies" tab="Dependencies">
-              <div class="dependency-section">
-                <h3>Downstream</h3>
-                <a-empty v-if="!downstreamEdges.length" :image="null" description="Không có downstream" />
-                <button
-                  v-for="edge in downstreamEdges"
-                  :key="edge.id"
-                  class="dependency-row"
-                  type="button"
-                  @click="selectEdge(edge.id)"
-                >
-                  <span>{{ nodeName(edge.target) }}</span>
-                  <small>{{ edgeDisplayLabel(edge) }} - {{ edge.direction }}</small>
-                </button>
-              </div>
-              <div class="dependency-section">
-                <h3>Upstream</h3>
-                <a-empty v-if="!upstreamEdges.length" :image="null" description="Không có upstream" />
-                <button
-                  v-for="edge in upstreamEdges"
-                  :key="edge.id"
-                  class="dependency-row"
-                  type="button"
-                  @click="selectEdge(edge.id)"
-                >
-                  <span>{{ nodeName(edge.source) }}</span>
-                  <small>{{ edgeDisplayLabel(edge) }} - {{ edge.direction }}</small>
-                </button>
-              </div>
-            </a-tab-pane>
-
-            <a-tab-pane key="flow" tab="Flow">
-              <div class="flow-actions">
-                <a-button type="primary" @click="startFlow">Start flow</a-button>
-                <a-button :disabled="!flowActive" @click="clearFlow">Clear</a-button>
-              </div>
-              <a-empty v-if="!flowGroups.length" :image="null" description="Chưa có flow downstream" />
-              <div v-for="group in flowGroups" :key="group.node?.id" class="flow-group">
-                <h3>{{ group.node?.name }}</h3>
-                <button
-                  v-for="edge in group.edges"
-                  :key="edge.id"
-                  class="flow-step"
-                  type="button"
-                  @click="selectEdge(edge.id)"
-                >
-                  <span>{{ nodeName(edge.target) }}</span>
-                  <small>{{ edgeDisplayLabel(edge) }} / {{ edge.direction }}</small>
-                </button>
-              </div>
-            </a-tab-pane>
-
-            <a-tab-pane key="notes" tab="Notes">
-              <p class="notes-text">{{ selectedNode.notes }}</p>
-            </a-tab-pane>
-          </a-tabs>
-        </template>
-      </aside>
+      <SystemManagerDetailPanel
+        v-model:active-tab="activeTab"
+        :collapsed="detailPanelCollapsed"
+        :selected-environment="selectedEnvironment"
+        :topology-label="topology.label"
+        :nodes="visibleNodes"
+        :selected-node="selectedNode"
+        :selected-edge="selectedEdge"
+        :downstream-edges="downstreamEdges"
+        :upstream-edges="upstreamEdges"
+        :flow-groups="flowGroups"
+        :flow-active="flowActive"
+        :revealed-config-keys="revealedConfigKeys"
+        @reset-selection="resetGraphState"
+        @select-edge="selectEdge"
+        @start-flow="startFlow"
+        @clear-flow="clearFlow"
+        @copy-config-line="copyConfigLine"
+        @toggle-config-visibility="toggleConfigVisibility"
+      />
     </div>
 
     <SystemManagerQuickConfigPopover
@@ -1399,9 +1206,7 @@ onMounted(() => {
   text-transform: uppercase;
 }
 
-.search-result-item,
-.dependency-row,
-.flow-step {
+.search-result-item {
   display: flex;
   width: 100%;
   padding: 8px 10px;
@@ -1414,22 +1219,16 @@ onMounted(() => {
   flex-direction: column;
 }
 
-.search-result-item:hover,
-.dependency-row:hover,
-.flow-step:hover {
+.search-result-item:hover {
   background: #f2f7fb;
   border-color: #d9e2ec;
 }
 
-.search-result-item span,
-.dependency-row span,
-.flow-step span {
+.search-result-item span {
   font-weight: 650;
 }
 
-.search-result-item small,
-.dependency-row small,
-.flow-step small {
+.search-result-item small {
   color: #667085;
 }
 
@@ -1449,8 +1248,7 @@ onMounted(() => {
   gap: 0;
 }
 
-.graph-panel,
-.detail-panel {
+.graph-panel {
   min-height: 0;
   background: #ffffff;
   border: 1px solid #d9e2ec;
@@ -1482,37 +1280,6 @@ onMounted(() => {
 :deep(.system-manager-spin),
 :deep(.system-manager-spin .ant-spin-container) {
   height: 100%;
-}
-
-.detail-panel {
-  padding: 16px;
-  min-width: 0;
-  overflow: hidden;
-  opacity: 1;
-  visibility: visible;
-  transition:
-    padding 0.22s ease,
-    border-color 0.22s ease,
-    opacity 0.18s ease,
-    visibility 0s linear;
-}
-
-.detail-panel-collapsed {
-  padding: 0;
-  pointer-events: none;
-  border-color: transparent;
-  opacity: 0;
-  visibility: hidden;
-}
-
-.detail-panel :deep(.ant-descriptions-view),
-.detail-panel :deep(.ant-tabs-content-holder) {
-  overflow: hidden;
-}
-
-.detail-panel :deep(.ant-descriptions-item-content) {
-  min-width: 0;
-  overflow-wrap: anywhere;
 }
 
 .edge-config-anchor {
@@ -1571,41 +1338,6 @@ onMounted(() => {
 .edge-config-label-text:hover,
 .edge-config-plus:hover {
   background: #f2f7fb;
-}
-
-.detail-header {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-.detail-title {
-  min-width: 0;
-}
-
-.detail-header span {
-  color: #667085;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.detail-header h2 {
-  margin: 3px 0 0;
-  overflow-wrap: anywhere;
-  font-size: 18px;
-  line-height: 1.25;
-}
-
-.detail-actions {
-  display: flex;
-  flex: 0 0 auto;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: nowrap;
-  justify-content: flex-end;
 }
 
 .topology-node {
@@ -1685,73 +1417,6 @@ onMounted(() => {
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
-}
-
-.flow-button {
-  width: 100%;
-  margin-top: 14px;
-}
-
-.config-group + .config-group,
-.dependency-section + .dependency-section,
-.flow-group + .flow-group {
-  margin-top: 16px;
-}
-
-.config-group h3,
-.dependency-section h3,
-.flow-group h3 {
-  margin: 0 0 8px;
-  color: #344054;
-  font-size: 13px;
-}
-
-.config-list,
-.config-group {
-  display: grid;
-  gap: 8px;
-}
-
-.config-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  background: #f8fafc;
-  border: 1px solid #e5e9f0;
-  border-radius: 6px;
-}
-
-.config-row code {
-  min-width: 0;
-  flex: 1;
-  color: #172033;
-  font-size: 12px;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-  white-space: normal;
-}
-
-.icon-action {
-  width: 28px;
-  padding: 0;
-}
-
-.config-row :deep(.ant-space) {
-  flex: 0 0 auto;
-}
-
-.flow-actions {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.notes-text {
-  margin: 0;
-  color: #475467;
-  line-height: 1.6;
 }
 
 :deep(.vue-flow__edge.system-manager-edge path) {

@@ -2,8 +2,8 @@
 import { message } from 'ant-design-vue'
 import { computed, reactive, ref, watch } from 'vue'
 
-import StatusTag from '../../core/components/StatusTag.vue'
-import { statusTagMeta } from '../../core/components/statusTag'
+import StatusTag from '../../../core/components/StatusTag.vue'
+import { statusTagMeta } from '../../../core/components/statusTag'
 import {
   createSystemManagerDependency,
   createSystemManagerEnvironment,
@@ -25,7 +25,7 @@ import {
   type SaveSystemNodeInput,
   type SystemManagerEnvironment,
   type SystemManagerHost,
-} from '../../services/system-manager'
+} from '../ts/service'
 import type {
   ConfigGroup,
   ConfigItem,
@@ -33,8 +33,8 @@ import type {
   TopologyEdgeRecord,
   TopologyEnvironmentData,
   TopologyNodeRecord,
-} from '../../system-manager/mockTopology'
-import { normalizeEnvironmentColor } from '../../system-manager/environmentColor'
+} from '../ts/mockTopology'
+import { normalizeEnvironmentColor } from '../ts/environmentColor'
 
 type EnvironmentForm = Omit<SaveSystemEnvironmentInput, 'color'> & {
   id: string

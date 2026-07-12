@@ -1,15 +1,49 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
+import { enabledFeatureRoutes } from '../features'
 import ProtectedLayout from '../layouts/ProtectedLayout.vue'
 import { useSessionStore } from '../stores/session'
 import LoginView from '../views/auth/LoginView.vue'
 import SetupView from '../views/auth/SetupView.vue'
 import BranchLifecycleView from '../views/BranchLifecycleView.vue'
 import DashboardView from '../views/DashboardView.vue'
-import SystemManagerView from '../views/SystemManagerView.vue'
 import TaskPlanningView from '../views/TaskPlanningView.vue'
 import TimelineView from '../views/TimelineView.vue'
 import WorkspaceSettingsView from '../views/WorkspaceSettingsView.vue'
+
+const protectedChildRoutes: RouteRecordRaw[] = [
+  {
+    path: '',
+    name: 'dashboard',
+    component: DashboardView,
+  },
+  {
+    path: 'settings',
+    name: 'settings',
+    component: WorkspaceSettingsView,
+  },
+  {
+    path: 'inbox',
+    name: 'inbox',
+    component: TaskPlanningView,
+  },
+  {
+    path: 'tasks',
+    name: 'tasks',
+    component: TaskPlanningView,
+  },
+  {
+    path: 'branches',
+    name: 'branches',
+    component: BranchLifecycleView,
+  },
+  {
+    path: 'timeline',
+    name: 'timeline',
+    component: TimelineView,
+  },
+  ...enabledFeatureRoutes,
+]
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -20,43 +54,7 @@ export const router = createRouter({
       meta: {
         requiresAuth: true,
       },
-      children: [
-        {
-          path: '',
-          name: 'dashboard',
-          component: DashboardView,
-        },
-        {
-          path: 'settings',
-          name: 'settings',
-          component: WorkspaceSettingsView,
-        },
-        {
-          path: 'inbox',
-          name: 'inbox',
-          component: TaskPlanningView,
-        },
-        {
-          path: 'tasks',
-          name: 'tasks',
-          component: TaskPlanningView,
-        },
-        {
-          path: 'branches',
-          name: 'branches',
-          component: BranchLifecycleView,
-        },
-        {
-          path: 'timeline',
-          name: 'timeline',
-          component: TimelineView,
-        },
-        {
-          path: 'system-manager',
-          name: 'system-manager',
-          component: SystemManagerView,
-        },
-      ],
+      children: protectedChildRoutes,
     },
     {
       path: '/login',

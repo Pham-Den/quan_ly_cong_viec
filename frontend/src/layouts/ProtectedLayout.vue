@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
+import { enabledFeatureMenuItems, type FeatureMenuItem } from '../features'
 import { api } from '../services/api'
 import { useSessionStore } from '../stores/session'
 
@@ -12,23 +13,28 @@ type SearchResult = {
   description: string
 }
 
+type NavigationMenuItem = FeatureMenuItem
+
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
 const globalSearch = ref('')
 const globalSearchResults = ref<SearchResult[]>([])
 
-const menuItems = [
-  { key: 'dashboard', label: 'Tổng quan' },
-  { key: 'inbox', label: 'Inbox' },
-  { key: 'tasks', label: 'Tất cả task' },
-  { key: 'branches', label: 'Nhánh' },
-  { key: 'timeline', label: 'Dòng thời gian' },
-  { key: 'system-manager', label: 'System Manager' },
-  { key: 'settings', label: 'Cài đặt' },
+const navigationItems: NavigationMenuItem[] = [
+  { key: 'dashboard', label: 'Tổng quan', routeName: 'dashboard' },
+  { key: 'inbox', label: 'Inbox', routeName: 'inbox' },
+  { key: 'tasks', label: 'Tất cả task', routeName: 'tasks' },
+  { key: 'branches', label: 'Nhánh', routeName: 'branches' },
+  { key: 'timeline', label: 'Dòng thời gian', routeName: 'timeline' },
+  ...enabledFeatureMenuItems,
+  { key: 'settings', label: 'Cài đặt', routeName: 'settings' },
 ]
+const menuItems = navigationItems.map(({ key, label }) => ({ key, label }))
 
-const selectedMenuKeys = computed(() => [String(route.name ?? 'dashboard')])
+const selectedMenuKeys = computed(() => [
+  navigationItems.find((item) => item.routeName === route.name)?.key ?? 'dashboard',
+])
 const projectOptions = computed(() =>
   session.projects.map((project) => ({
     label: `${project.code} - ${project.name}`,
@@ -65,32 +71,10 @@ async function handleUserMenuClick({ key }: { key: string }) {
 }
 
 async function handleMenuClick({ key }: { key: string | number }) {
-  if (key === 'dashboard') {
-    await router.push({ name: 'dashboard' })
-  }
+  const item = navigationItems.find((navigationItem) => navigationItem.key === key)
 
-  if (key === 'settings') {
-    await router.push({ name: 'settings' })
-  }
-
-  if (key === 'inbox') {
-    await router.push({ name: 'inbox' })
-  }
-
-  if (key === 'tasks') {
-    await router.push({ name: 'tasks' })
-  }
-
-  if (key === 'branches') {
-    await router.push({ name: 'branches' })
-  }
-
-  if (key === 'timeline') {
-    await router.push({ name: 'timeline' })
-  }
-
-  if (key === 'system-manager') {
-    await router.push({ name: 'system-manager' })
+  if (item) {
+    await router.push({ name: item.routeName })
   }
 }
 
