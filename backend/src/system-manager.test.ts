@@ -28,6 +28,7 @@ type EnvironmentDto = {
   id: string
   key: string
   label: string
+  color: string
 }
 
 type HostDto = {
@@ -40,6 +41,7 @@ type TopologyDto = {
   environment: {
     key: string
     label: string
+    color: string
   }
   nodes: Array<{
     id: string
@@ -147,10 +149,12 @@ describe('system manager topology API', () => {
     const environments = await request<EnvironmentDto[]>('GET', '/api/system-manager/environments', token)
     assert.equal(environments.response.statusCode, 200)
     assert.deepEqual(environments.body.map((environment) => environment.key), ['local', 'dev'])
+    assert.equal(environments.body.find((environment) => environment.key === 'dev')?.color, '#2563eb')
 
     const topology = await request<TopologyDto>('GET', '/api/system-manager/topology?environment=dev', token)
     assert.equal(topology.response.statusCode, 200)
     assert.equal(topology.body.environment.key, 'dev')
+    assert.equal(topology.body.environment.color, '#2563eb')
     assert.ok(topology.body.nodes.find((node) => node.id === 'b2p-web'))
     assert.ok(topology.body.nodes.find((node) => node.id === 'svc-redis'))
 
@@ -178,15 +182,18 @@ describe('system manager topology API', () => {
     const qaEnvironment = await request<EnvironmentDto>('POST', '/api/system-manager/environments', token, {
       key: 'qa',
       name: 'QA',
+      color: '#7c3aed',
       description: 'Manual QA topology',
       sortOrder: 20,
     })
     assert.equal(qaEnvironment.response.statusCode, 200)
     assert.equal(qaEnvironment.body.key, 'qa')
+    assert.equal(qaEnvironment.body.color, '#7c3aed')
 
     const uatEnvironment = await request<EnvironmentDto>('POST', '/api/system-manager/environments', token, {
       key: 'uat',
       name: 'UAT',
+      color: '#0891b2',
       description: 'Manual UAT bindings',
       sortOrder: 30,
     })

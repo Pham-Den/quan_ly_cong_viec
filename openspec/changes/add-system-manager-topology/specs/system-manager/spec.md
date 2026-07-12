@@ -76,8 +76,12 @@ The system SHALL model app/component/service nodes and dependency flow once glob
 The system SHALL provide authenticated manual management for System Manager environments, hosts, topology nodes, node config groups, dependency edges, and dependency config metadata.
 
 #### Scenario: Create custom environment
-- **WHEN** the user creates an environment with key, name, description, and sort order
+- **WHEN** the user creates an environment with key, name, description, color, and sort order
 - **THEN** the environment appears in the System Manager environment selector and can load its own topology
+
+#### Scenario: Use configured environment color
+- **WHEN** the user configures a color for an environment
+- **THEN** the environment selector uses that configured color and the graph background is tinted with the selected environment color
 
 #### Scenario: Manage hosts in selected environment
 - **WHEN** the user creates, edits, or deletes a host in an environment

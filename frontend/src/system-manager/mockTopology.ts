@@ -76,6 +76,7 @@ export type TopologyEdgeRecord = {
 export type TopologyEnvironmentData = {
   key: SystemEnvironment
   label: string
+  color: string
   collapsedNodes: TopologyNodeRecord[]
   collapsedEdges: TopologyEdgeRecord[]
   expandedNodes: TopologyNodeRecord[]
@@ -396,6 +397,7 @@ function makeEnvironment(environment: SystemEnvironment): TopologyEnvironmentDat
   return {
     key: environment,
     label: environmentLabels[environment],
+    color: environment === 'local' ? '#475467' : '#2563eb',
     collapsedNodes: [
       {
         ...appNode,

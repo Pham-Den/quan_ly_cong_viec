@@ -20,6 +20,7 @@ type EnvironmentBody = {
   key?: unknown
   name?: unknown
   description?: unknown
+  color?: unknown
   sortOrder?: unknown
 }
 
@@ -81,6 +82,16 @@ type ConfigGroupInput = {
 const nodeKinds = new Set(['app', 'component', 'service'])
 const topologyStatuses = new Set(['healthy', 'warning', 'down', 'unknown', 'maintenance', 'disabled'])
 const dependencyDirections = new Set(['request', 'read', 'write', 'publish', 'consume', 'proxy'])
+const environmentColorOverrides: Record<string, string> = {
+  local: '#475467',
+  dev: '#2563eb',
+  development: '#2563eb',
+  staging: '#d97706',
+  stage: '#d97706',
+  production: '#dc2626',
+  prod: '#dc2626',
+}
+const environmentColorPalette = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#c026d3', '#0891b2']
 
 function bodyAs<T>(body: unknown) {
   return body && typeof body === 'object' ? (body as T) : ({} as T)
@@ -108,6 +119,26 @@ function numberValue(value: unknown, fallback: number) {
   const parsed = Number(text(value))
 
   return Number.isFinite(parsed) ? Math.trunc(parsed) : fallback
+}
+
+function hashText(value: string) {
+  return value.split('').reduce((hash, char) => hash + char.charCodeAt(0), 0)
+}
+
+function defaultEnvironmentColor(key: string) {
+  const normalizedKey = key.trim().toLowerCase()
+
+  return (
+    environmentColorOverrides[normalizedKey] ??
+    environmentColorPalette[hashText(normalizedKey) % environmentColorPalette.length] ??
+    '#667085'
+  )
+}
+
+function colorValue(value: unknown, fallback: string) {
+  const rawValue = text(value)
+
+  return /^#[0-9a-f]{6}$/i.test(rawValue) ? rawValue.toLowerCase() : fallback
 }
 
 function booleanValue(value: unknown, fallback = false) {
@@ -433,6 +464,7 @@ export function registerSystemManagerRoutes(app: FastifyInstance, context: Syste
         key: true,
         name: true,
         description: true,
+        color: true,
         sortOrder: true,
       },
     })
@@ -442,6 +474,7 @@ export function registerSystemManagerRoutes(app: FastifyInstance, context: Syste
       key: environment.key,
       label: environment.name,
       description: environment.description,
+      color: colorValue(environment.color, defaultEnvironmentColor(environment.key)),
       sortOrder: environment.sortOrder,
     }))
   })
@@ -466,6 +499,7 @@ export function registerSystemManagerRoutes(app: FastifyInstance, context: Syste
         key,
         name,
         description: nullableText(body.description),
+        color: colorValue(body.color, defaultEnvironmentColor(key)),
         sortOrder: numberValue(body.sortOrder, 0),
       },
     })
@@ -475,6 +509,7 @@ export function registerSystemManagerRoutes(app: FastifyInstance, context: Syste
       key: environment.key,
       label: environment.name,
       description: environment.description,
+      color: environment.color,
       sortOrder: environment.sortOrder,
     }
   })
@@ -513,6 +548,7 @@ export function registerSystemManagerRoutes(app: FastifyInstance, context: Syste
         key,
         name,
         description: body.description === undefined ? current.description : nullableText(body.description),
+        color: body.color === undefined ? current.color : colorValue(body.color, current.color),
         sortOrder: numberValue(body.sortOrder, current.sortOrder),
       },
     })
@@ -522,6 +558,7 @@ export function registerSystemManagerRoutes(app: FastifyInstance, context: Syste
       key: environment.key,
       label: environment.name,
       description: environment.description,
+      color: environment.color,
       sortOrder: environment.sortOrder,
     }
   })
@@ -986,6 +1023,7 @@ export function registerSystemManagerRoutes(app: FastifyInstance, context: Syste
         key: true,
         name: true,
         description: true,
+        color: true,
       },
     })
 
@@ -1049,6 +1087,7 @@ export function registerSystemManagerRoutes(app: FastifyInstance, context: Syste
         key: environment.key,
         label: environment.name,
         description: environment.description,
+        color: colorValue(environment.color, defaultEnvironmentColor(environment.key)),
       },
       nodes: nodes.map((node) => {
         const binding = node.bindings[0]

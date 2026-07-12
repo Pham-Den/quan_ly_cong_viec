@@ -104,6 +104,7 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
 
   await page.locator('.ant-segmented-item').filter({ hasText: 'Dev' }).click()
   await expect(page.locator('.vue-flow__node').filter({ hasText: 'B2P' }).first()).toBeVisible()
+  await expect(page.locator('.graph-panel')).toHaveAttribute('style', /--environment-active-color:\s*#2563eb/)
 
   await page.getByRole('button', { name: /^(Quản lý dữ liệu|Data\s*Set)$/ }).click()
   const drawer = page.locator('.ant-drawer').filter({ hasText: 'Quản lý dữ liệu System Manager' })
@@ -149,4 +150,7 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
   })
   await expect(activeDrawerPanel.getByText('Đang sửa dependency')).toBeVisible()
   await expect(activeDrawerPanel.getByRole('button', { name: 'Cập nhật dependency' })).toBeVisible()
+  await drawer.getByRole('tab', { name: 'Environments' }).click()
+  await activeDrawerPanel.locator('.manager-row').filter({ hasText: 'Dev' }).click()
+  await expect(activeDrawerPanel.getByLabel('Chọn màu environment')).toHaveValue('#2563eb')
 })

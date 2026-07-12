@@ -3,6 +3,7 @@ import type { PrismaClient } from '@prisma/client'
 type SeedEnvironment = {
   key: string
   name: string
+  color: string
   appHost: {
     name: string
     ip: string
@@ -79,6 +80,7 @@ const environments: SeedEnvironment[] = [
   {
     key: 'local',
     name: 'Local',
+    color: '#475467',
     appHost: { name: 'khanh-dev-laptop', ip: '127.0.0.1' },
     serviceHost: { name: 'khanh-dev-laptop', ip: '127.0.0.1' },
     externalHost: { name: 'local-external-mock', ip: '127.0.0.1' },
@@ -93,6 +95,7 @@ const environments: SeedEnvironment[] = [
   {
     key: 'dev',
     name: 'Dev',
+    color: '#2563eb',
     appHost: { name: 'dev-app-01', ip: '10.20.1.21' },
     serviceHost: { name: 'dev-service-01', ip: '10.20.1.31' },
     externalHost: { name: 'sap-gateway', ip: '10.20.5.10' },
@@ -737,11 +740,13 @@ export async function ensureSystemManagerSeed(prisma: PrismaClient) {
       create: {
         key: environmentSeed.key,
         name: environmentSeed.name,
+        color: environmentSeed.color,
         description: `System Manager ${environmentSeed.name} bindings`,
         sortOrder: environmentIndex,
       },
       update: {
         name: environmentSeed.name,
+        color: environmentSeed.color,
         description: `System Manager ${environmentSeed.name} bindings`,
         sortOrder: environmentIndex,
       },

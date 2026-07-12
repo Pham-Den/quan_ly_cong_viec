@@ -34,9 +34,11 @@ import type {
   TopologyEnvironmentData,
   TopologyNodeRecord,
 } from '../../system-manager/mockTopology'
+import { normalizeEnvironmentColor } from '../../system-manager/environmentColor'
 
-type EnvironmentForm = SaveSystemEnvironmentInput & {
+type EnvironmentForm = Omit<SaveSystemEnvironmentInput, 'color'> & {
   id: string
+  color: string
 }
 
 type HostForm = SaveSystemHostInput & {
@@ -136,9 +138,9 @@ const directionOptions = ['request', 'read', 'write', 'publish', 'consume', 'pro
   label: direction,
   value: direction,
 }))
+const environmentColorPresets = ['#475467', '#2563eb', '#059669', '#d97706', '#7c3aed', '#dc2626']
 
 const managerColorConfig = {
-  environments: ['#2563eb', '#059669', '#d97706', '#7c3aed', '#c026d3', '#0891b2'],
   hosts: ['#0e7490', '#0f766e', '#4f46e5', '#a16207', '#be123c', '#4d7c0f'],
   nodes: {
     app: '#175cd3',
@@ -161,6 +163,7 @@ function emptyEnvironmentForm(): EnvironmentForm {
     key: '',
     name: '',
     description: '',
+    color: '#2563eb',
     sortOrder: 0,
   }
 }
@@ -183,8 +186,8 @@ function rowColorStyle(color: string) {
   }
 }
 
-function environmentColor(environment: SystemManagerEnvironment | Pick<SystemManagerEnvironment, 'key'>) {
-  return paletteColor(environment.key, managerColorConfig.environments)
+function environmentColor(environment: SystemManagerEnvironment) {
+  return normalizeEnvironmentColor(environment.color, environment.key)
 }
 
 function hostColor(host: SystemManagerHost) {
@@ -370,6 +373,7 @@ function editEnvironment(environment: SystemManagerEnvironment) {
     key: environment.key,
     name: environment.label,
     description: environment.description ?? '',
+    color: normalizeEnvironmentColor(environment.color, environment.key),
     sortOrder: environment.sortOrder ?? 0,
   })
   activeTab.value = 'environments'
@@ -529,6 +533,7 @@ async function saveEnvironment() {
       key: environmentForm.key,
       name: environmentForm.name,
       description: environmentForm.description,
+      color: environmentForm.color,
       sortOrder: environmentForm.sortOrder,
     }
     const saved = environmentForm.id
@@ -572,6 +577,7 @@ function removeCurrentEnvironment() {
     key: environmentForm.key,
     label: environmentForm.name,
     description: environmentForm.description ?? null,
+    color: environmentForm.color,
     sortOrder: environmentForm.sortOrder,
   })
 }
@@ -851,6 +857,29 @@ watch(
                 </a-form-item>
                 <a-form-item label="Description">
                   <a-textarea v-model:value="environmentForm.description" :rows="2" />
+                </a-form-item>
+                <a-form-item label="Color">
+                  <div class="manager-color-field">
+                    <a-input
+                      v-model:value="environmentForm.color"
+                      aria-label="Chọn màu environment"
+                      class="manager-color-native"
+                      type="color"
+                    />
+                    <a-input v-model:value="environmentForm.color" placeholder="#2563eb" />
+                  </div>
+                  <div class="manager-color-swatches">
+                    <button
+                      v-for="color in environmentColorPresets"
+                      :key="color"
+                      :aria-label="`Chọn màu ${color}`"
+                      class="manager-color-swatch"
+                      :class="{ 'manager-color-swatch-active': environmentForm.color === color }"
+                      :style="{ '--manager-swatch-color': color }"
+                      type="button"
+                      @click="environmentForm.color = color"
+                    />
+                  </div>
                 </a-form-item>
                 <a-form-item label="Sort order">
                   <a-input-number v-model:value="environmentForm.sortOrder" :min="0" />
@@ -1412,6 +1441,49 @@ watch(
 .manager-section-header strong {
   color: #344054;
   font-size: 13px;
+}
+
+.manager-color-field {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.manager-color-native {
+  padding: 4px;
+}
+
+.manager-color-native :deep(input) {
+  min-height: 24px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.manager-color-swatches {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.manager-color-swatch {
+  --manager-swatch-color: #667085;
+
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  cursor: pointer;
+  background: var(--manager-swatch-color);
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  box-shadow:
+    0 0 0 1px #d0d5dd,
+    0 2px 5px rgba(23, 32, 51, 0.12);
+}
+
+.manager-color-swatch-active {
+  box-shadow:
+    0 0 0 2px var(--manager-swatch-color),
+    0 2px 5px rgba(23, 32, 51, 0.12);
 }
 
 .manager-scope-badge {

@@ -43,6 +43,7 @@ import {
   type LocalNodePosition,
   type SystemManagerLocalState,
 } from '../system-manager/localState'
+import { normalizeEnvironmentColor } from '../system-manager/environmentColor'
 import {
   type ConfigItem,
   type SystemEnvironment,
@@ -101,36 +102,11 @@ const { fitView } = useVueFlow()
 const emptyTopology: TopologyEnvironmentData = {
   key: 'local',
   label: 'Local',
+  color: '#475467',
   collapsedNodes: [],
   collapsedEdges: [],
   expandedNodes: [],
   expandedEdges: [],
-}
-
-const environmentColorOverrides: Record<string, string> = {
-  local: '#475467',
-  dev: '#2563eb',
-  development: '#2563eb',
-  staging: '#d97706',
-  stage: '#d97706',
-  production: '#dc2626',
-  prod: '#dc2626',
-}
-
-const environmentColorPalette = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#c026d3', '#0891b2']
-
-function hashText(value: string) {
-  return value.split('').reduce((hash, char) => hash + char.charCodeAt(0), 0)
-}
-
-function environmentColor(key: string) {
-  const normalizedKey = key.trim().toLowerCase()
-
-  return (
-    environmentColorOverrides[normalizedKey] ??
-    environmentColorPalette[hashText(normalizedKey) % environmentColorPalette.length] ??
-    '#667085'
-  )
 }
 
 function environmentOptionLabel(environment: SystemManagerEnvironment) {
@@ -138,7 +114,7 @@ function environmentOptionLabel(environment: SystemManagerEnvironment) {
     'span',
     {
       class: 'environment-option-label',
-      style: { '--environment-color': environmentColor(environment.key) } as CSSProperties,
+      style: { '--environment-color': normalizeEnvironmentColor(environment.color, environment.key) } as CSSProperties,
     },
     [h('span', { class: 'environment-option-dot' }), h('span', environment.label)],
   )
@@ -152,10 +128,19 @@ const environmentOptions = computed(() =>
     className: 'environment-segmented-option',
   })),
 )
-const environmentSegmentedStyle = computed(() => ({
-  '--environment-active-color': environmentColor(selectedEnvironment.value),
-}))
 const topology = computed(() => topologies.value[selectedEnvironment.value] ?? emptyTopology)
+const selectedEnvironmentRecord = computed(() =>
+  environments.value.find((environment) => environment.key === selectedEnvironment.value),
+)
+const selectedEnvironmentColor = computed(() =>
+  normalizeEnvironmentColor(
+    selectedEnvironmentRecord.value?.color ?? topology.value.color,
+    selectedEnvironment.value,
+  ),
+)
+const environmentThemeStyle = computed(() => ({
+  '--environment-active-color': selectedEnvironmentColor.value,
+}))
 const visibleNodes = computed(() =>
   appExpanded.value ? topology.value.expandedNodes : topology.value.collapsedNodes,
 )
@@ -888,7 +873,7 @@ onMounted(() => {
           class="environment-segmented"
           :options="environmentOptions"
           :disabled="loadingTopology || !environmentOptions.length"
-          :style="environmentSegmentedStyle"
+          :style="environmentThemeStyle"
           @change="handleEnvironmentChange"
         />
         <a-button @click="manageOpen = true">DataSet</a-button>
@@ -976,7 +961,7 @@ onMounted(() => {
       class="system-manager-workspace"
       :class="{ 'system-manager-workspace-collapsed': detailPanelCollapsed }"
     >
-      <div class="graph-panel">
+      <div class="graph-panel" :style="environmentThemeStyle">
         <a-alert
           v-if="topologyError"
           class="system-manager-alert"
@@ -997,7 +982,7 @@ onMounted(() => {
           @node-double-click="handleNodeDoubleClick"
           @node-drag-stop="handleNodeDragStop"
         >
-          <Background pattern-color="#d9e2ec" :gap="20" />
+          <Background :pattern-color="selectedEnvironmentColor" :gap="20" />
           <Controls />
           <MiniMap pannable zoomable />
 
@@ -1480,7 +1465,10 @@ onMounted(() => {
 .system-flow {
   width: 100%;
   height: 100%;
-  background: #f8fafc;
+  background:
+    radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--environment-active-color) 12%, transparent), transparent 28%),
+    linear-gradient(180deg, color-mix(in srgb, var(--environment-active-color) 7%, #ffffff), #f8fafc 72%);
+  transition: background 0.24s ease;
 }
 
 .system-manager-alert {

@@ -12,6 +12,7 @@ export type SystemManagerEnvironment = {
   key: SystemEnvironment
   label: string
   description: string | null
+  color: string
   sortOrder?: number
 }
 
@@ -34,6 +35,7 @@ export type SaveSystemEnvironmentInput = {
   key: string
   name: string
   description?: string
+  color?: string
   sortOrder?: number
 }
 
@@ -194,6 +196,7 @@ function toTopologyData(response: ApiTopologyResponse): TopologyEnvironmentData 
   return {
     key: response.environment.key,
     label: response.environment.label,
+    color: response.environment.color,
     collapsedNodes: appNode ? [appNode, ...collapsedServices] : collapsedServices,
     collapsedEdges,
     expandedNodes: response.nodes,
