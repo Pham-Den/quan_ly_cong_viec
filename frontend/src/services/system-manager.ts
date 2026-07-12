@@ -169,7 +169,7 @@ function buildCollapsedEdges(appNode: TopologyNodeRecord, edges: TopologyEdgeRec
       id: `collapsed-${appNode.id}-${target}`,
       source: appNode.id,
       target,
-      label: collapsedEdgeLabel(configItems, firstEdge?.label ?? 'dependency'),
+      label: firstEdge ? collapsedEdgeLabel([], firstEdge.label) : 'dependency',
       connectionType: firstEdge?.connectionType ?? 'dependency',
       direction: firstEdge?.direction ?? 'request',
       port: firstEdge?.port ?? '',

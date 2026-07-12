@@ -59,8 +59,10 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
   await expect(page.getByText('Config detail')).not.toBeVisible()
   await page.getByRole('button', { name: 'Xem config nhanh' }).first().dispatchEvent('click')
   await expect(page.getByText('Config nhanh')).toBeVisible()
+  await expect(page.locator('.edge-config-popover').getByText('DB_HOST (1)')).toBeVisible()
   await expect(page.locator('.edge-config-popover')).toHaveCSS('z-index', '1200')
   await expect(page.getByRole('button', { name: 'Copy config nhanh' }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Copy all config nhanh' })).toBeVisible()
   await page.getByRole('button', { name: 'Đóng config nhanh' }).click()
   await expect(page.getByText('Config nhanh')).not.toBeVisible()
 

@@ -16,6 +16,7 @@ defineProps<{
 const emit = defineEmits<{
   close: []
   copy: [item: ConfigItem]
+  copyAll: []
 }>()
 </script>
 
@@ -26,16 +27,28 @@ const emit = defineEmits<{
         <span>Config nhanh</span>
         <strong>{{ title }}</strong>
       </div>
-      <a-tooltip title="Đóng">
-        <button
-          aria-label="Đóng config nhanh"
-          class="edge-config-close"
-          type="button"
-          @click.stop="emit('close')"
-        >
-          <CloseOutlined />
-        </button>
-      </a-tooltip>
+      <div class="edge-config-actions">
+        <a-tooltip v-if="items.length" title="Copy all">
+          <button
+            aria-label="Copy all config nhanh"
+            class="edge-config-copy-all"
+            type="button"
+            @click.stop="emit('copyAll')"
+          >
+            <CopyOutlined />
+          </button>
+        </a-tooltip>
+        <a-tooltip title="Đóng">
+          <button
+            aria-label="Đóng config nhanh"
+            class="edge-config-close"
+            type="button"
+            @click.stop="emit('close')"
+          >
+            <CloseOutlined />
+          </button>
+        </a-tooltip>
+      </div>
     </header>
 
     <div v-if="items.length" class="edge-config-popover-list">
@@ -96,6 +109,7 @@ const emit = defineEmits<{
 }
 
 .edge-config-close,
+.edge-config-copy-all,
 .edge-config-copy {
   display: inline-flex;
   align-items: center;
@@ -107,7 +121,14 @@ const emit = defineEmits<{
   border-radius: 5px;
 }
 
-.edge-config-close {
+.edge-config-actions {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.edge-config-close,
+.edge-config-copy-all {
   width: 24px;
   min-width: 24px;
   height: 24px;
@@ -155,6 +176,7 @@ const emit = defineEmits<{
 }
 
 .edge-config-close:hover,
+.edge-config-copy-all:hover,
 .edge-config-copy:hover {
   color: #147c74;
   border-color: #9edbd1;

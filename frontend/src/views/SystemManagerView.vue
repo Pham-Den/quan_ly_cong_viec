@@ -692,9 +692,32 @@ function configDisplayValue(item: ConfigItem, prefix: string) {
   return item.value
 }
 
+function configLine(item: ConfigItem) {
+  return `${item.key}=${item.value}`
+}
+
 async function copyConfigLine(item: ConfigItem) {
-  await navigator.clipboard.writeText(`${item.key}=${item.value}`)
+  await navigator.clipboard.writeText(configLine(item))
   message.success(`Đã copy ${item.key}`)
+}
+
+async function copyConfigLines(items: ConfigItem[]) {
+  if (!items.length) {
+    return
+  }
+
+  await navigator.clipboard.writeText(items.map(configLine).join('\n'))
+  message.success(`Đã copy ${items.length} config`)
+}
+
+async function copyQuickConfigLines() {
+  const edge = quickConfigEdge.value
+
+  if (!edge) {
+    return
+  }
+
+  await copyConfigLines(edge.configItems)
 }
 
 function restoreSelectionFromLocalState(data: TopologyEnvironmentData) {
@@ -1236,6 +1259,7 @@ onMounted(() => {
       :title="edgeDisplayLabel(quickConfigEdge)"
       @close="quickConfigEdgeId = ''"
       @copy="copyConfigLine"
+      @copy-all="copyQuickConfigLines"
     />
 
     <SystemManagerManageDrawer
