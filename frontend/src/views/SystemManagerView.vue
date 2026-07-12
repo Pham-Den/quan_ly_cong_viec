@@ -2,14 +2,29 @@
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import {
+  BaseEdge,
+  EdgeLabelRenderer,
   Handle,
   Position,
   VueFlow,
+  getSmoothStepPath,
   useVueFlow,
   type Edge,
+  type EdgeProps,
+  type NodeDragEvent,
   type Node,
 } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
+import {
+  AimOutlined,
+  CloseOutlined,
+  CopyOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  NodeCollapseOutlined,
+  NodeExpandOutlined,
+  PlusOutlined,
+} from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
@@ -19,6 +34,12 @@ import {
   type SystemManagerEnvironment,
 } from '../services/system-manager'
 import SystemManagerManageDrawer from '../system-manager/SystemManagerManageDrawer.vue'
+import {
+  loadSystemManagerLocalState,
+  saveSystemManagerLocalState,
+  type LocalNodePosition,
+  type SystemManagerLocalState,
+} from '../system-manager/localState'
 import {
   type ConfigItem,
   type SystemEnvironment,
@@ -40,6 +61,7 @@ type FlowEdgeData = {
 
 type FlowNode = Node<FlowNodeData>
 type FlowEdge = Edge<FlowEdgeData>
+type ConfigEdgeProps = EdgeProps<FlowEdgeData>
 
 type SearchGroup = 'Apps' | 'Services' | 'Hosts' | 'Configs' | 'IPs'
 
@@ -52,21 +74,26 @@ type SearchResult = {
   targetId: string
 }
 
-const selectedEnvironment = ref<SystemEnvironment>('local')
-const appExpanded = ref(false)
-const selectedNodeId = ref('b2p-app')
-const selectedEdgeId = ref('')
-const activeTab = ref('overview')
+const persistedState = ref(loadSystemManagerLocalState())
+const selectedEnvironment = ref<SystemEnvironment>(persistedState.value.selectedEnvironment ?? 'local')
+const appExpanded = ref(persistedState.value.appExpanded)
+const selectedNodeId = ref(persistedState.value.selectedNodeId || 'b2p-app')
+const selectedEdgeId = ref(persistedState.value.selectedEdgeId)
+const quickConfigEdgeId = ref('')
+const quickConfigPosition = ref({ x: 0, y: 0 })
+const activeTab = ref(persistedState.value.activeTab || 'overview')
 const searchQuery = ref('')
 const revealedConfigKeys = ref<Set<string>>(new Set())
 const flowActive = ref(false)
-const flowStartId = ref('b2p-app')
+const flowStartId = ref(persistedState.value.selectedNodeId || 'b2p-app')
 const loadingTopology = ref(false)
 const topologyError = ref('')
 const manageOpen = ref(false)
+const detailPanelCollapsed = ref(persistedState.value.detailPanelCollapsed)
 const suppressEnvironmentWatch = ref(false)
 const environments = ref<SystemManagerEnvironment[]>([])
 const topologies = ref<Partial<Record<SystemEnvironment, TopologyEnvironmentData>>>({})
+const localNodePositions = ref<Record<string, LocalNodePosition>>({ ...persistedState.value.nodePositions })
 const { fitView } = useVueFlow()
 
 const emptyTopology: TopologyEnvironmentData = {
@@ -97,6 +124,13 @@ const selectedNode = computed(
 const selectedEdge = computed(
   () => visibleEdges.value.find((edge) => edge.id === selectedEdgeId.value) ?? null,
 )
+const quickConfigEdge = computed(
+  () => visibleEdges.value.find((edge) => edge.id === quickConfigEdgeId.value) ?? null,
+)
+const quickConfigPopoverStyle = computed(() => ({
+  left: `${quickConfigPosition.value.x}px`,
+  top: `${quickConfigPosition.value.y}px`,
+}))
 const outgoingBySource = computed(() => groupEdgesBy('source'))
 const incomingByTarget = computed(() => groupEdgesBy('target'))
 const downstreamEdgeIds = computed(() => {
@@ -128,7 +162,7 @@ const flowNodes = computed<FlowNode[]>(() =>
     return {
       id: node.id,
       type: 'topology',
-      position: node.position,
+      position: nodePosition(node),
       data: {
         record: node,
         active,
@@ -148,8 +182,7 @@ const flowEdges = computed<FlowEdge[]>(() =>
       id: edge.id,
       source: edge.source,
       target: edge.target,
-      label: edge.label,
-      type: 'smoothstep',
+      type: 'config',
       animated: active,
       data: {
         record: edge,
@@ -161,14 +194,6 @@ const flowEdges = computed<FlowEdge[]>(() =>
       ]
         .filter(Boolean)
         .join(' '),
-      labelStyle: {
-        fontSize: 12,
-        fontWeight: 700,
-      },
-      labelBgStyle: {
-        fill: active ? '#e8f7f4' : '#ffffff',
-        fillOpacity: 0.94,
-      },
       style: {
         strokeWidth: active ? 2.6 : 1.6,
       },
@@ -337,8 +362,18 @@ function nodeName(nodeId: string) {
   return visibleNodes.value.find((node) => node.id === nodeId)?.name ?? nodeId
 }
 
+function nodesForMode(data: TopologyEnvironmentData = topology.value) {
+  return appExpanded.value ? data.expandedNodes : data.collapsedNodes
+}
+
+function edgesForMode(data: TopologyEnvironmentData = topology.value) {
+  return appExpanded.value ? data.expandedEdges : data.collapsedEdges
+}
+
 function defaultNodeId(data: TopologyEnvironmentData = topology.value) {
-  return data.collapsedNodes.find((node) => node.kind === 'app')?.id ?? data.collapsedNodes[0]?.id ?? ''
+  const nodes = nodesForMode(data)
+
+  return nodes.find((node) => node.kind === 'app')?.id ?? nodes[0]?.id ?? ''
 }
 
 function statusLabel(status: TopologyStatus) {
@@ -367,7 +402,103 @@ function statusColor(status: TopologyStatus) {
   return colors[status]
 }
 
+function configEdgePath(edge: ConfigEdgeProps) {
+  return getSmoothStepPath({
+    sourceX: edge.sourceX,
+    sourceY: edge.sourceY,
+    sourcePosition: edge.sourcePosition,
+    targetX: edge.targetX,
+    targetY: edge.targetY,
+    targetPosition: edge.targetPosition,
+  })[0]
+}
+
+function configEdgeLabelStyle(edge: ConfigEdgeProps) {
+  const [, labelX, labelY] = getSmoothStepPath({
+    sourceX: edge.sourceX,
+    sourceY: edge.sourceY,
+    sourcePosition: edge.sourcePosition,
+    targetX: edge.targetX,
+    targetY: edge.targetY,
+    targetPosition: edge.targetPosition,
+  })
+
+  return {
+    transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+  }
+}
+
+function quickViewEdge(edgeId: string, event?: MouseEvent) {
+  if (quickConfigEdgeId.value === edgeId) {
+    quickConfigEdgeId.value = ''
+    return
+  }
+
+  if (event?.currentTarget instanceof HTMLElement) {
+    const rect = event.currentTarget.getBoundingClientRect()
+
+    quickConfigPosition.value = {
+      x: Math.max(12, Math.min(rect.left, window.innerWidth - 340)),
+      y: Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - 260)),
+    }
+  }
+
+  quickConfigEdgeId.value = edgeId
+}
+
+function nodePosition(node: TopologyNodeRecord) {
+  return localNodePositions.value[node.id] ?? node.position
+}
+
+function persistLocalState(patch: Partial<SystemManagerLocalState>) {
+  const nextState = {
+    ...persistedState.value,
+    ...patch,
+    nodePositions: patch.nodePositions ?? persistedState.value.nodePositions,
+  }
+
+  persistedState.value = saveSystemManagerLocalState(nextState)
+}
+
+function persistCurrentLocalState() {
+  persistLocalState({
+    selectedEnvironment: selectedEnvironment.value,
+    appExpanded: appExpanded.value,
+    selectedNodeId: selectedNodeId.value,
+    selectedEdgeId: selectedEdgeId.value,
+    activeTab: activeTab.value,
+    detailPanelCollapsed: detailPanelCollapsed.value,
+  })
+}
+
+function centerCurrentGraph() {
+  if (selectedEdge.value) {
+    centerGraph(selectedEdge.value.source, selectedEdge.value.target)
+    return
+  }
+
+  const nodeId = selectedNodeId.value || defaultNodeId()
+
+  if (nodeId) {
+    centerGraph(nodeId)
+  }
+}
+
+function centerVisibleGraph() {
+  const nodeIds = visibleNodes.value.map((node) => node.id)
+
+  if (nodeIds.length) {
+    centerGraph(...nodeIds)
+  }
+}
+
+function toggleDetailPanel() {
+  detailPanelCollapsed.value = !detailPanelCollapsed.value
+  window.setTimeout(centerCurrentGraph, 260)
+}
+
 function selectNode(nodeId: string) {
+  quickConfigEdgeId.value = ''
   selectedNodeId.value = nodeId
   selectedEdgeId.value = ''
   activeTab.value = 'overview'
@@ -382,6 +513,7 @@ function selectEdge(edgeId: string) {
     return
   }
 
+  quickConfigEdgeId.value = ''
   selectedEdgeId.value = edge.id
   selectedNodeId.value = ''
   activeTab.value = 'configs'
@@ -407,6 +539,22 @@ function handleNodeDoubleClick(payload: { node: FlowNode }) {
   }
 }
 
+function handleNodeDragStop(payload: NodeDragEvent) {
+  const draggedNodes = payload.nodes.length ? payload.nodes : [payload.node]
+  const nextPositions = { ...localNodePositions.value }
+
+  for (const node of draggedNodes) {
+    nextPositions[node.id] = {
+      x: Math.round(node.position.x),
+      y: Math.round(node.position.y),
+    }
+  }
+
+  localNodePositions.value = nextPositions
+  persistLocalState({ nodePositions: nextPositions })
+  message.success('Đã lưu vị trí node trên máy này')
+}
+
 function selectSearchResult(result: SearchResult) {
   searchQuery.value = ''
 
@@ -422,7 +570,7 @@ function centerGraph(...nodeIds: string[]) {
   nextTick(() => {
     fitView({
       nodes: nodeIds,
-      duration: 320,
+      duration: 560,
       padding: 0.35,
     })
   })
@@ -431,6 +579,7 @@ function centerGraph(...nodeIds: string[]) {
 function startFlow() {
   const startId = selectedNode.value?.id ?? defaultNodeId()
 
+  quickConfigEdgeId.value = ''
   flowStartId.value = startId
   flowActive.value = true
   selectedEdgeId.value = ''
@@ -442,7 +591,36 @@ function clearFlow() {
   flowActive.value = false
 }
 
+function toggleAppExpanded() {
+  quickConfigEdgeId.value = ''
+  appExpanded.value = !appExpanded.value
+  selectedNodeId.value = defaultNodeId()
+  selectedEdgeId.value = ''
+  activeTab.value = 'overview'
+  flowActive.value = false
+  searchQuery.value = ''
+
+  nextTick(centerVisibleGraph)
+}
+
+function resetGraphState() {
+  quickConfigEdgeId.value = ''
+  appExpanded.value = false
+  const nodeId = defaultNodeId()
+
+  selectedNodeId.value = nodeId
+  selectedEdgeId.value = ''
+  activeTab.value = 'overview'
+  flowActive.value = false
+  searchQuery.value = ''
+
+  if (nodeId) {
+    centerGraph(nodeId)
+  }
+}
+
 function handleEnvironmentChange() {
+  quickConfigEdgeId.value = ''
   selectedNodeId.value = defaultNodeId()
   selectedEdgeId.value = ''
   appExpanded.value = false
@@ -489,23 +667,58 @@ async function copyConfigLine(item: ConfigItem) {
   message.success(`Đã copy ${item.key}`)
 }
 
-async function loadTopology(environment: SystemEnvironment) {
+function restoreSelectionFromLocalState(data: TopologyEnvironmentData) {
+  const savedEdgeId = persistedState.value.selectedEdgeId
+  const savedNodeId = persistedState.value.selectedNodeId
+  const edge = edgesForMode(data).find((item) => item.id === savedEdgeId)
+
+  if (edge) {
+    selectedEdgeId.value = edge.id
+    selectedNodeId.value = ''
+    activeTab.value = 'configs'
+
+    return {
+      nodeIds: [edge.source, edge.target],
+    }
+  }
+
+  const nodeId = nodesForMode(data).some((node) => node.id === savedNodeId) ? savedNodeId : defaultNodeId(data)
+
+  selectedNodeId.value = nodeId
+  selectedEdgeId.value = ''
+  activeTab.value = persistedState.value.activeTab || 'overview'
+
+  return {
+    nodeIds: nodeId ? [nodeId] : [],
+  }
+}
+
+async function loadTopology(environment: SystemEnvironment, restoreLocalState = false) {
   loadingTopology.value = true
   topologyError.value = ''
 
   try {
     const data = await loadSystemManagerTopology(environment)
-    const nextNodeId = defaultNodeId(data)
 
     topologies.value = {
       ...topologies.value,
       [environment]: data,
     }
-    selectedNodeId.value = nextNodeId
-    selectedEdgeId.value = ''
+    const restored = restoreLocalState
+      ? restoreSelectionFromLocalState(data)
+      : {
+          nodeIds: [defaultNodeId(data)].filter(Boolean),
+        }
+
+    if (!restoreLocalState) {
+      selectedNodeId.value = restored.nodeIds[0] ?? ''
+      selectedEdgeId.value = ''
+      activeTab.value = 'overview'
+    }
+
     await nextTick()
-    if (nextNodeId) {
-      centerGraph(nextNodeId)
+    if (restored.nodeIds.length) {
+      centerGraph(...restored.nodeIds)
     }
   } catch (error) {
     topologyError.value = 'Không tải được topology System Manager.'
@@ -522,9 +735,14 @@ async function loadInitialData() {
   try {
     environments.value = await loadSystemManagerEnvironments()
     const firstEnvironment = environments.value[0]?.key ?? 'local'
+    const savedEnvironment = persistedState.value.selectedEnvironment
+    const nextEnvironment =
+      savedEnvironment && environments.value.some((environment) => environment.key === savedEnvironment)
+        ? savedEnvironment
+        : firstEnvironment
 
-    selectedEnvironment.value = firstEnvironment
-    await loadTopology(firstEnvironment)
+    selectedEnvironment.value = nextEnvironment
+    await loadTopology(nextEnvironment, true)
   } catch (error) {
     topologyError.value = 'Không tải được dữ liệu System Manager.'
     console.error(error)
@@ -572,6 +790,11 @@ watch(selectedEnvironment, async (environment, previousEnvironment) => {
   await loadTopology(environment)
 })
 
+watch(
+  [selectedEnvironment, appExpanded, selectedNodeId, selectedEdgeId, activeTab, detailPanelCollapsed],
+  () => persistCurrentLocalState(),
+)
+
 onMounted(() => {
   void loadInitialData()
 })
@@ -599,12 +822,53 @@ onMounted(() => {
 
     <div class="system-manager-toolbar">
       <div class="toolbar-left">
-        <a-input-search
-          v-model:value="searchQuery"
-          class="system-search"
-          allow-clear
-          placeholder="Tìm name, IP, config key..."
-        />
+        <div class="toolbar-search-wrap">
+          <a-input-search
+            v-model:value="searchQuery"
+            class="system-search"
+            allow-clear
+            placeholder="Tìm name, IP, config key..."
+          />
+
+          <a-space>
+            <a-tooltip title="Trở về tổng quan">
+              <a-button
+                aria-label="Trở về tổng quan"
+                class="toolbar-icon-button"
+                @click="resetGraphState"
+              >
+                <template #icon>
+                  <AimOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip :title="detailPanelCollapsed ? 'Hiện sidebar' : 'Ẩn sidebar'">
+              <a-button
+                :aria-label="detailPanelCollapsed ? 'Hiện sidebar' : 'Ẩn sidebar'"
+                class="toolbar-icon-button"
+                @click="toggleDetailPanel"
+              >
+                <template #icon>
+                  <MenuUnfoldOutlined v-if="detailPanelCollapsed" />
+                  <MenuFoldOutlined v-else />
+                </template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip :title="appExpanded ? 'Thu gọn component' : 'Bung component'">
+              <a-button
+                :aria-label="appExpanded ? 'Thu gọn component' : 'Bung component'"
+                class="toolbar-icon-button"
+                :type="appExpanded ? 'primary' : 'default'"
+                @click="toggleAppExpanded"
+              >
+                <template #icon>
+                  <NodeCollapseOutlined v-if="appExpanded" />
+                  <NodeExpandOutlined v-else />
+                </template>
+              </a-button>
+            </a-tooltip>
+          </a-space>
+        </div>
 
         <div v-if="searchQuery" class="search-results">
           <template v-if="searchHasResults">
@@ -631,18 +895,12 @@ onMounted(() => {
           <a-empty v-else :image="null" description="Không có kết quả" />
         </div>
       </div>
-
-      <a-space>
-        <a-tag :color="appExpanded ? 'green' : 'default'">
-          {{ appExpanded ? 'Expanded' : 'Collapsed' }}
-        </a-tag>
-        <a-button @click="appExpanded = !appExpanded">
-          {{ appExpanded ? 'Thu gọn app' : 'Bung component' }}
-        </a-button>
-      </a-space>
     </div>
 
-    <div class="system-manager-workspace">
+    <div
+      class="system-manager-workspace"
+      :class="{ 'system-manager-workspace-collapsed': detailPanelCollapsed }"
+    >
       <div class="graph-panel">
         <a-alert
           v-if="topologyError"
@@ -662,6 +920,7 @@ onMounted(() => {
           @node-click="handleNodeClick"
           @edge-click="handleEdgeClick"
           @node-double-click="handleNodeDoubleClick"
+          @node-drag-stop="handleNodeDragStop"
         >
           <Background pattern-color="#d9e2ec" :gap="20" />
           <Controls />
@@ -689,18 +948,78 @@ onMounted(() => {
               <Handle type="source" :position="Position.Right" />
             </div>
           </template>
+
+          <template #edge-config="edgeProps">
+            <BaseEdge
+              :id="edgeProps.id"
+              :interaction-width="edgeProps.interactionWidth"
+              :marker-end="edgeProps.markerEnd"
+              :marker-start="edgeProps.markerStart"
+              :path="configEdgePath(edgeProps)"
+            />
+            <EdgeLabelRenderer>
+              <div
+                class="edge-config-anchor nodrag nopan"
+                :style="configEdgeLabelStyle(edgeProps)"
+              >
+                <div
+                  class="edge-config-label"
+                  :class="{
+                    'edge-config-label-active':
+                      selectedEdgeId === edgeProps.id || quickConfigEdgeId === edgeProps.id,
+                  }"
+                >
+                  <button
+                    class="edge-config-label-text"
+                    type="button"
+                    @click.stop="selectEdge(edgeProps.id)"
+                  >
+                    {{ edgeProps.data.record.label }}
+                  </button>
+                  <a-tooltip title="Xem config nhanh">
+                    <button
+                      aria-label="Xem config nhanh"
+                      class="edge-config-plus"
+                      type="button"
+                      @click.stop="quickViewEdge(edgeProps.id, $event)"
+                    >
+                      <PlusOutlined />
+                    </button>
+                  </a-tooltip>
+                </div>
+              </div>
+            </EdgeLabelRenderer>
+          </template>
         </VueFlow>
         </a-spin>
       </div>
 
-      <aside class="detail-panel">
+      <aside
+        class="detail-panel"
+        :aria-hidden="detailPanelCollapsed"
+        :class="{ 'detail-panel-collapsed': detailPanelCollapsed }"
+      >
         <template v-if="selectedEdge">
           <div class="detail-header">
-            <div>
+            <div class="detail-title">
               <span>Config detail</span>
               <h2>{{ selectedEdge.label }}</h2>
             </div>
-            <a-tag color="purple">{{ selectedEdge.direction }}</a-tag>
+            <div class="detail-actions">
+              <a-tag color="purple">{{ selectedEdge.direction }}</a-tag>
+              <a-tooltip title="Bỏ chọn">
+                <a-button
+                  aria-label="Bỏ chọn dependency"
+                  class="icon-action"
+                  size="small"
+                  @click="resetGraphState"
+                >
+                  <template #icon>
+                    <CloseOutlined />
+                  </template>
+                </a-button>
+              </a-tooltip>
+            </div>
           </div>
 
           <a-descriptions size="small" :column="1" bordered>
@@ -727,7 +1046,18 @@ onMounted(() => {
                 >
                   {{ isConfigRevealed(item, selectedEdge.id) ? 'Ẩn' : 'Hiện' }}
                 </a-button>
-                <a-button size="small" @click="copyConfigLine(item)">Copy</a-button>
+                <a-tooltip title="Copy">
+                  <a-button
+                    aria-label="Copy config line"
+                    class="icon-action"
+                    size="small"
+                    @click="copyConfigLine(item)"
+                  >
+                    <template #icon>
+                      <CopyOutlined />
+                    </template>
+                  </a-button>
+                </a-tooltip>
               </a-space>
             </div>
           </div>
@@ -792,7 +1122,18 @@ onMounted(() => {
                     >
                       {{ isConfigRevealed(item, `${selectedNode.id}:${group.name}`) ? 'Ẩn' : 'Hiện' }}
                     </a-button>
-                    <a-button size="small" @click="copyConfigLine(item)">Copy</a-button>
+                    <a-tooltip title="Copy">
+                      <a-button
+                        aria-label="Copy config line"
+                        class="icon-action"
+                        size="small"
+                        @click="copyConfigLine(item)"
+                      >
+                        <template #icon>
+                          <CopyOutlined />
+                        </template>
+                      </a-button>
+                    </a-tooltip>
                   </a-space>
                 </div>
               </div>
@@ -858,6 +1199,54 @@ onMounted(() => {
       </aside>
     </div>
 
+    <div
+      v-if="quickConfigEdge"
+      class="edge-config-popover"
+      :style="quickConfigPopoverStyle"
+      @click.stop
+    >
+      <header>
+        <div>
+          <span>Config nhanh</span>
+          <strong>{{ quickConfigEdge.label }}</strong>
+        </div>
+        <a-tooltip title="Đóng">
+          <button
+            aria-label="Đóng config nhanh"
+            class="edge-config-close"
+            type="button"
+            @click.stop="quickConfigEdgeId = ''"
+          >
+            <CloseOutlined />
+          </button>
+        </a-tooltip>
+      </header>
+
+      <div
+        v-if="quickConfigEdge.configItems.length"
+        class="edge-config-popover-list"
+      >
+        <div
+          v-for="item in quickConfigEdge.configItems"
+          :key="item.key"
+          class="edge-config-popover-row"
+        >
+          <code>{{ item.key }}={{ configDisplayValue(item, quickConfigEdge.id) }}</code>
+          <a-tooltip title="Copy">
+            <button
+              aria-label="Copy config nhanh"
+              class="edge-config-copy"
+              type="button"
+              @click.stop="copyConfigLine(item)"
+            >
+              <CopyOutlined />
+            </button>
+          </a-tooltip>
+        </div>
+      </div>
+      <div v-else class="edge-config-popover-empty">Chưa có config cho environment này</div>
+    </div>
+
     <SystemManagerManageDrawer
       v-model:open="manageOpen"
       :selected-environment="selectedEnvironment"
@@ -900,12 +1289,23 @@ onMounted(() => {
   z-index: 4;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   margin-bottom: 12px;
+}
+
+.toolbar-icon-button {
+  width: 34px;
+  padding: 0;
 }
 
 .toolbar-left {
   position: relative;
+}
+
+.toolbar-search-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .system-search {
@@ -978,6 +1378,14 @@ onMounted(() => {
   flex: 1;
   grid-template-columns: minmax(0, 1fr) 380px;
   gap: 14px;
+  transition:
+    grid-template-columns 0.26s ease,
+    gap 0.26s ease;
+}
+
+.system-manager-workspace-collapsed {
+  grid-template-columns: minmax(0, 1fr) 0;
+  gap: 0;
 }
 
 .graph-panel,
@@ -1014,7 +1422,193 @@ onMounted(() => {
 
 .detail-panel {
   padding: 16px;
-  overflow: auto;
+  min-width: 0;
+  overflow: hidden;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    padding 0.22s ease,
+    border-color 0.22s ease,
+    opacity 0.18s ease,
+    visibility 0s linear;
+}
+
+.detail-panel-collapsed {
+  padding: 0;
+  pointer-events: none;
+  border-color: transparent;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.detail-panel :deep(.ant-descriptions-view),
+.detail-panel :deep(.ant-tabs-content-holder) {
+  overflow: hidden;
+}
+
+.detail-panel :deep(.ant-descriptions-item-content) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.edge-config-anchor {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.edge-config-label {
+  position: relative;
+  display: inline-flex;
+  max-width: 260px;
+  overflow: hidden;
+  pointer-events: all;
+  background: #ffffff;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(23, 32, 51, 0.1);
+}
+
+.edge-config-label-active {
+  border-color: #147c74;
+  box-shadow: 0 8px 18px rgba(20, 124, 116, 0.18);
+}
+
+.edge-config-label-text,
+.edge-config-plus {
+  color: #172033;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+
+.edge-config-label-text {
+  min-width: 0;
+  padding: 2px 6px;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edge-config-plus {
+  display: inline-flex;
+  width: 22px;
+  min-width: 22px;
+  align-items: center;
+  justify-content: center;
+  color: #147c74;
+  background: #e8f7f4;
+  border-left: 1px solid #c9ebe5;
+}
+
+.edge-config-label-text:hover,
+.edge-config-plus:hover {
+  background: #f2f7fb;
+}
+
+.edge-config-popover {
+  position: fixed;
+  z-index: 30;
+  width: min(320px, 70vw);
+  padding: 10px;
+  pointer-events: all;
+  background: #ffffff;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  box-shadow: 0 18px 42px rgba(23, 32, 51, 0.18);
+}
+
+.edge-config-popover header {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.edge-config-popover header span {
+  display: block;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.edge-config-popover header strong {
+  display: block;
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+  color: #172033;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.edge-config-close,
+.edge-config-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #344054;
+  cursor: pointer;
+  background: #ffffff;
+  border: 1px solid #d9e2ec;
+  border-radius: 5px;
+}
+
+.edge-config-close {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+}
+
+.edge-config-popover-list {
+  display: grid;
+  gap: 6px;
+}
+
+.edge-config-popover-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 8px;
+  background: #f8fafc;
+  border: 1px solid #e5e9f0;
+  border-radius: 6px;
+}
+
+.edge-config-popover-row code {
+  min-width: 0;
+  flex: 1;
+  color: #172033;
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.edge-config-copy {
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+}
+
+.edge-config-popover-empty {
+  padding: 10px;
+  color: #667085;
+  font-size: 12px;
+  text-align: center;
+  background: #f8fafc;
+  border: 1px dashed #d9e2ec;
+  border-radius: 6px;
+}
+
+.edge-config-close:hover,
+.edge-config-copy:hover {
+  color: #147c74;
+  border-color: #9edbd1;
 }
 
 .detail-header {
@@ -1023,6 +1617,10 @@ onMounted(() => {
   align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 14px;
+}
+
+.detail-title {
+  min-width: 0;
 }
 
 .detail-header span {
@@ -1034,8 +1632,18 @@ onMounted(() => {
 
 .detail-header h2 {
   margin: 3px 0 0;
+  overflow-wrap: anywhere;
   font-size: 18px;
   line-height: 1.25;
+}
+
+.detail-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
 }
 
 .topology-node {
@@ -1155,11 +1763,21 @@ onMounted(() => {
 
 .config-row code {
   min-width: 0;
-  overflow: hidden;
+  flex: 1;
   color: #172033;
   font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.icon-action {
+  width: 28px;
+  padding: 0;
+}
+
+.config-row :deep(.ant-space) {
+  flex: 0 0 auto;
 }
 
 .flow-actions {

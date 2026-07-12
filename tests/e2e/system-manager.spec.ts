@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 
 const email = 'system.manager.e2e@example.com'
 const password = 'password123'
+const localStateKey = 'qlcv.systemManager.localState.v1'
 
 test('system manager seeded topology graph, search, edge detail, and flow', async ({ page }) => {
   await page.goto('/')
@@ -23,6 +24,64 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
   await page.getByRole('button', { name: /DB_HOST/ }).first().click()
   await expect(page.getByText('Config detail')).toBeVisible()
   await expect(page.getByText('DB_HOST=mariadb-local.company.local')).toBeVisible()
+  const detailPanel = page.locator('.detail-panel')
+  await expect(page.getByRole('button', { name: 'Copy config line' }).first()).toBeVisible()
+  await expect(detailPanel).toHaveCSS('overflow', 'hidden')
+  await expect
+    .poll(() => detailPanel.evaluate((element) => element.scrollWidth <= element.clientWidth + 1))
+    .toBe(true)
+  await page.getByRole('button', { name: 'Ẩn sidebar' }).click()
+  await expect(detailPanel).not.toBeVisible()
+  await expect
+    .poll(() =>
+      page.evaluate((key) => {
+        const state = JSON.parse(localStorage.getItem(key) ?? '{}')
+
+        return state.detailPanelCollapsed === true
+      }, localStateKey),
+    )
+    .toBe(true)
+  await page.getByRole('button', { name: 'Hiện sidebar' }).click()
+  await expect(detailPanel).toBeVisible()
+  await expect
+    .poll(() =>
+      page.evaluate((key) => {
+        const state = JSON.parse(localStorage.getItem(key) ?? '{}')
+
+        return state.detailPanelCollapsed === false
+      }, localStateKey),
+    )
+    .toBe(true)
+  await expect(page.getByRole('button', { name: 'Bỏ chọn dependency' })).toBeVisible()
+  await page.getByRole('button', { name: 'Bỏ chọn dependency' }).click()
+  await expect(page.getByText('Config detail')).not.toBeVisible()
+  await page.getByRole('button', { name: 'Xem config nhanh' }).first().dispatchEvent('click')
+  await expect(page.getByText('Config nhanh')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Copy config nhanh' }).first()).toBeVisible()
+  await page.getByRole('button', { name: 'Đóng config nhanh' }).click()
+  await expect(page.getByText('Config nhanh')).not.toBeVisible()
+
+  const b2pNode = page.locator('.vue-flow__node').filter({ hasText: 'B2P' }).first()
+  const b2pBox = await b2pNode.boundingBox()
+
+  if (!b2pBox) {
+    throw new Error('B2P node is not visible enough to drag')
+  }
+
+  await page.mouse.move(b2pBox.x + b2pBox.width / 2, b2pBox.y + b2pBox.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(b2pBox.x + b2pBox.width / 2 + 90, b2pBox.y + b2pBox.height / 2 + 40, { steps: 8 })
+  await page.mouse.up()
+  await expect
+    .poll(() =>
+      page.evaluate((key) => {
+        const state = JSON.parse(localStorage.getItem(key) ?? '{}')
+        const position = state.nodePositions?.['b2p-app']
+
+        return Boolean(position && Number.isFinite(position.x) && Number.isFinite(position.y))
+      }, localStateKey),
+    )
+    .toBe(true)
 
   await page.getByRole('button', { name: 'Bung component' }).click()
   await expect(page.locator('.vue-flow__node').filter({ hasText: 'B2P Web/API' })).toBeVisible()
@@ -36,11 +95,42 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
 
   await page.getByRole('button', { name: 'Quản lý dữ liệu' }).click()
   const drawer = page.locator('.ant-drawer').filter({ hasText: 'Quản lý dữ liệu System Manager' })
+  const activeDrawerPanel = drawer.locator('.ant-tabs-tabpane-active')
+  const activeFormContent = activeDrawerPanel.locator('.manager-form-content')
   await expect(drawer).toBeVisible()
   await expect(drawer.getByRole('tab', { name: 'Nodes' })).toBeVisible()
   await expect(drawer.getByRole('button', { name: /B2P Web\/API/ })).toBeVisible()
+  await expect(activeDrawerPanel.getByText('Tạo node mới')).toBeVisible()
+  await expect(activeDrawerPanel.getByRole('button', { name: 'Lưu mới node' })).toBeVisible()
+  await expect(activeDrawerPanel.getByText('Global node')).toBeVisible()
+  await expect(activeDrawerPanel.getByText('Runtime/config binding')).toBeVisible()
+  await activeDrawerPanel.getByRole('button', { name: /B2P Web\/API/ }).click()
+  await activeFormContent.evaluate((element) => {
+    element.scrollTop = 0
+  })
+  await expect(activeDrawerPanel.getByText('Đang sửa node')).toBeVisible()
+  await expect(activeDrawerPanel.getByRole('button', { name: 'Cập nhật node' })).toBeVisible()
+  await activeFormContent.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+  await expect(activeDrawerPanel.getByText('Config groups')).toBeVisible()
   await drawer.getByRole('tab', { name: 'Dependencies' }).click()
+  await activeFormContent.evaluate((element) => {
+    element.scrollTop = 0
+  })
   await expect(drawer.getByRole('button', { name: /DB_HOST/ }).first()).toBeVisible()
-  await expect(drawer.getByText('Config dependency theo environment')).toBeVisible()
-  await expect(drawer.getByText('Environment config')).toBeVisible()
+  await expect(activeDrawerPanel.getByText('Tạo dependency mới')).toBeVisible()
+  await expect(activeDrawerPanel.getByRole('button', { name: 'Lưu mới dependency' })).toBeVisible()
+  await expect(activeDrawerPanel.getByText('Global dependency')).toBeVisible()
+  await activeFormContent.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+  await expect(activeDrawerPanel.getByText('Edge config binding')).toBeVisible()
+  await expect(activeDrawerPanel.getByText('Environment config')).toBeVisible()
+  await activeDrawerPanel.getByRole('button', { name: /DB_HOST/ }).first().click()
+  await activeFormContent.evaluate((element) => {
+    element.scrollTop = 0
+  })
+  await expect(activeDrawerPanel.getByText('Đang sửa dependency')).toBeVisible()
+  await expect(activeDrawerPanel.getByRole('button', { name: 'Cập nhật dependency' })).toBeVisible()
 })
