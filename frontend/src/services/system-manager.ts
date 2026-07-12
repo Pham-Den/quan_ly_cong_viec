@@ -105,6 +105,52 @@ function collapsedEdgeLabel(items: ConfigItem[], fallback: string) {
   return items.length > 1 ? `${firstKey} +${items.length - 1}` : firstKey
 }
 
+function appRootKey(node: TopologyNodeRecord) {
+  const id = node.id.toLowerCase()
+
+  return id.endsWith('-app') ? id.slice(0, -4) : id
+}
+
+function componentBelongsToApp(componentNode: TopologyNodeRecord, appNode: TopologyNodeRecord) {
+  return componentNode.kind === 'component' && componentNode.id.toLowerCase().startsWith(`${appRootKey(appNode)}-`)
+}
+
+function appNodeScore(appNode: TopologyNodeRecord, nodes: TopologyNodeRecord[], edges: TopologyEdgeRecord[]) {
+  const directEdgeCount = edges.filter((edge) => edge.source === appNode.id).length
+  const componentCount = nodes.filter((node) => componentBelongsToApp(node, appNode)).length
+  const canonicalNameScore = appNode.id.toLowerCase().endsWith('-app') ? 0 : 1
+
+  return directEdgeCount * 1000 + componentCount * 100 + canonicalNameScore
+}
+
+function chooseCollapsedAppNode(nodes: TopologyNodeRecord[], edges: TopologyEdgeRecord[]) {
+  const appNodes = nodes.filter((node) => node.kind === 'app')
+
+  return (
+    appNodes
+      .map((node) => ({
+        node,
+        score: appNodeScore(node, nodes, edges),
+      }))
+      .sort((left, right) => right.score - left.score || left.node.id.localeCompare(right.node.id))[0]?.node ??
+    nodes[0]
+  )
+}
+
+function relatedCollapsedEdges(
+  appNode: TopologyNodeRecord,
+  nodes: TopologyNodeRecord[],
+  edges: TopologyEdgeRecord[],
+) {
+  const componentIds = new Set(
+    nodes.filter((node) => componentBelongsToApp(node, appNode)).map((node) => node.id),
+  )
+
+  const relatedEdges = edges.filter((edge) => edge.source === appNode.id || componentIds.has(edge.source))
+
+  return relatedEdges.length ? relatedEdges : edges
+}
+
 function buildCollapsedEdges(appNode: TopologyNodeRecord, edges: TopologyEdgeRecord[]) {
   const grouped = new Map<string, TopologyEdgeRecord[]>()
 
@@ -137,14 +183,19 @@ function buildCollapsedEdges(appNode: TopologyNodeRecord, edges: TopologyEdgeRec
 }
 
 function toTopologyData(response: ApiTopologyResponse): TopologyEnvironmentData {
-  const appNode = response.nodes.find((node) => node.kind === 'app') ?? response.nodes[0]
+  const appNode = chooseCollapsedAppNode(response.nodes, response.edges)
+  const collapsedEdges = appNode ? buildCollapsedEdges(appNode, relatedCollapsedEdges(appNode, response.nodes, response.edges)) : []
+  const collapsedServiceIds = new Set(collapsedEdges.map((edge) => edge.target))
   const serviceNodes = response.nodes.filter((node) => node.kind === 'service')
+  const collapsedServices = collapsedServiceIds.size
+    ? serviceNodes.filter((node) => collapsedServiceIds.has(node.id))
+    : serviceNodes
 
   return {
     key: response.environment.key,
     label: response.environment.label,
-    collapsedNodes: appNode ? [appNode, ...serviceNodes] : serviceNodes,
-    collapsedEdges: appNode ? buildCollapsedEdges(appNode, response.edges) : [],
+    collapsedNodes: appNode ? [appNode, ...collapsedServices] : collapsedServices,
+    collapsedEdges,
     expandedNodes: response.nodes,
     expandedEdges: response.edges,
   }

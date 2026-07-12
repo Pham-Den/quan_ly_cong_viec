@@ -23,7 +23,7 @@ import {
   type SaveSystemNodeInput,
   type SystemManagerEnvironment,
   type SystemManagerHost,
-} from '../services/system-manager'
+} from '../../services/system-manager'
 import type {
   ConfigGroup,
   ConfigItem,
@@ -31,7 +31,7 @@ import type {
   TopologyEdgeRecord,
   TopologyEnvironmentData,
   TopologyNodeRecord,
-} from './mockTopology'
+} from '../../system-manager/mockTopology'
 
 type EnvironmentForm = SaveSystemEnvironmentInput & {
   id: string

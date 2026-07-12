@@ -113,7 +113,10 @@ async function main() {
   })
 
   await ensureWorkflowStatuses(prisma, project.id)
-  await ensureSystemManagerSeed(prisma)
+
+  if (process.env.SEED_SYSTEM_MANAGER_SAMPLE === 'true') {
+    await ensureSystemManagerSeed(prisma)
+  }
 }
 
 main()

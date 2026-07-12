@@ -27,7 +27,7 @@ export default defineConfig({
       command: [
         'rm -f backend/prisma/e2e.db backend/prisma/e2e.db-journal',
         `RUST_LOG=info DATABASE_URL=${testDatabaseUrl} npm --workspace backend run db:push`,
-        `DATABASE_URL=${testDatabaseUrl} npm --workspace backend run db:seed`,
+        `SEED_SYSTEM_MANAGER_SAMPLE=true DATABASE_URL=${testDatabaseUrl} npm --workspace backend run db:seed`,
         [
           `BACKEND_PORT=${backendPort}`,
           `FRONTEND_ORIGIN=${frontendUrl}`,
