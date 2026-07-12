@@ -1,5 +1,7 @@
 import type { AppFeature, FeatureMenuItem } from '../types'
-import { systemManagerRouteName, systemManagerRoutes } from './routes'
+import { systemManagerRoutes } from './routes'
+
+const systemManagerRouteName = String(systemManagerRoutes[0]?.name ?? 'system-manager')
 
 export const systemManagerMenuItems: FeatureMenuItem[] = [
   {

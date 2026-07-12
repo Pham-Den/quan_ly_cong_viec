@@ -2,8 +2,4 @@ export {
   systemManagerFeature,
   systemManagerMenuItems,
 } from './register'
-export {
-  systemManagerPath,
-  systemManagerRouteName,
-  systemManagerRoutes,
-} from './routes'
+export { systemManagerRoutes } from './routes'
