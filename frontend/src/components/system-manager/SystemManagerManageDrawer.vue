@@ -2,6 +2,8 @@
 import { message } from 'ant-design-vue'
 import { computed, reactive, ref, watch } from 'vue'
 
+import StatusTag from '../../core/components/StatusTag.vue'
+import { statusTagMeta } from '../../core/components/statusTag'
 import {
   createSystemManagerDependency,
   createSystemManagerEnvironment,
@@ -129,10 +131,7 @@ const kindOptions = [
   { label: 'Component', value: 'component' },
   { label: 'Service', value: 'service' },
 ]
-const statusOptions = ['healthy', 'warning', 'down', 'unknown', 'maintenance', 'disabled'].map((status) => ({
-  label: status,
-  value: status,
-}))
+const statusValues = ['healthy', 'warning', 'down', 'unknown', 'maintenance', 'disabled']
 const directionOptions = ['request', 'read', 'write', 'publish', 'consume', 'proxy'].map((direction) => ({
   label: direction,
   value: direction,
@@ -164,6 +163,10 @@ function emptyEnvironmentForm(): EnvironmentForm {
     description: '',
     sortOrder: 0,
   }
+}
+
+function statusLabel(status: string) {
+  return statusTagMeta(status).label
 }
 
 function hashText(value: string) {
@@ -1022,7 +1025,19 @@ watch(
                 <a-spin :spinning="loadingNodeBinding">
                 <div class="manager-form-grid">
                   <a-form-item label="Status">
-                    <a-select v-model:value="nodeForm.status" :options="statusOptions" />
+                    <a-select v-model:value="nodeForm.status">
+                      <template #option="{ value }">
+                        <StatusTag :value="String(value)" size="small" />
+                      </template>
+                      <a-select-option
+                        v-for="status in statusValues"
+                        :key="status"
+                        :label="statusLabel(status)"
+                        :value="status"
+                      >
+                        <StatusTag :value="status" size="small" />
+                      </a-select-option>
+                    </a-select>
                   </a-form-item>
                   <a-form-item label="Host">
                     <a-select

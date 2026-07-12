@@ -57,7 +57,11 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
   await expect(page.getByRole('button', { name: 'Bỏ chọn dependency' })).toBeVisible()
   await page.getByRole('button', { name: 'Bỏ chọn dependency' }).click()
   await expect(page.getByText('Config detail')).not.toBeVisible()
-  await page.getByRole('button', { name: 'Xem config nhanh' }).first().dispatchEvent('click')
+  await page
+    .locator('.edge-config-label')
+    .filter({ has: page.getByRole('button', { name: /^DB_HOST \(1\)$/ }) })
+    .getByRole('button', { name: 'Xem config nhanh' })
+    .dispatchEvent('click')
   await expect(page.getByText('Config nhanh')).toBeVisible()
   await expect(page.locator('.edge-config-popover').getByText('DB_HOST (1)')).toBeVisible()
   await expect(page.locator('.edge-config-popover')).toHaveCSS('z-index', '1200')
@@ -101,7 +105,7 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
   await page.locator('.ant-segmented-item').filter({ hasText: 'Dev' }).click()
   await expect(page.locator('.vue-flow__node').filter({ hasText: 'B2P' }).first()).toBeVisible()
 
-  await page.getByRole('button', { name: 'Quản lý dữ liệu' }).click()
+  await page.getByRole('button', { name: /^(Quản lý dữ liệu|Data\s*Set)$/ }).click()
   const drawer = page.locator('.ant-drawer').filter({ hasText: 'Quản lý dữ liệu System Manager' })
   const activeDrawerPanel = drawer.locator('.ant-tabs-tabpane-active')
   const activeFormContent = activeDrawerPanel.locator('.manager-form-content')
@@ -119,6 +123,7 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
     element.scrollTop = 0
   })
   await expect(activeDrawerPanel.getByText('Đang sửa node')).toBeVisible()
+  await expect(activeDrawerPanel.locator('.status-tag').filter({ hasText: 'Healthy' }).first()).toBeVisible()
   await expect(activeDrawerPanel.getByRole('button', { name: 'Cập nhật node' })).toBeVisible()
   await activeFormContent.evaluate((element) => {
     element.scrollTop = element.scrollHeight

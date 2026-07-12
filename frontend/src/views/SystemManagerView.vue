@@ -26,13 +26,15 @@ import {
   PlusOutlined,
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, h, nextTick, onMounted, ref, watch, type CSSProperties } from 'vue'
 
 import {
   loadSystemManagerEnvironments,
   loadSystemManagerTopology,
   type SystemManagerEnvironment,
 } from '../services/system-manager'
+import StatusTag from '../core/components/StatusTag.vue'
+import { statusTagMeta } from '../core/components/statusTag'
 import SystemManagerManageDrawer from '../components/system-manager/SystemManagerManageDrawer.vue'
 import SystemManagerQuickConfigPopover from '../components/system-manager/SystemManagerQuickConfigPopover.vue'
 import {
@@ -46,7 +48,6 @@ import {
   type SystemEnvironment,
   type TopologyEdgeRecord,
   type TopologyNodeRecord,
-  type TopologyStatus,
   type TopologyEnvironmentData,
 } from '../system-manager/mockTopology'
 
@@ -106,12 +107,54 @@ const emptyTopology: TopologyEnvironmentData = {
   expandedEdges: [],
 }
 
+const environmentColorOverrides: Record<string, string> = {
+  local: '#475467',
+  dev: '#2563eb',
+  development: '#2563eb',
+  staging: '#d97706',
+  stage: '#d97706',
+  production: '#dc2626',
+  prod: '#dc2626',
+}
+
+const environmentColorPalette = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#c026d3', '#0891b2']
+
+function hashText(value: string) {
+  return value.split('').reduce((hash, char) => hash + char.charCodeAt(0), 0)
+}
+
+function environmentColor(key: string) {
+  const normalizedKey = key.trim().toLowerCase()
+
+  return (
+    environmentColorOverrides[normalizedKey] ??
+    environmentColorPalette[hashText(normalizedKey) % environmentColorPalette.length] ??
+    '#667085'
+  )
+}
+
+function environmentOptionLabel(environment: SystemManagerEnvironment) {
+  return h(
+    'span',
+    {
+      class: 'environment-option-label',
+      style: { '--environment-color': environmentColor(environment.key) } as CSSProperties,
+    },
+    [h('span', { class: 'environment-option-dot' }), h('span', environment.label)],
+  )
+}
+
 const environmentOptions = computed(() =>
   environments.value.map((environment) => ({
-    label: environment.label,
+    label: environmentOptionLabel(environment),
+    title: environment.label,
     value: environment.key,
+    className: 'environment-segmented-option',
   })),
 )
+const environmentSegmentedStyle = computed(() => ({
+  '--environment-active-color': environmentColor(selectedEnvironment.value),
+}))
 const topology = computed(() => topologies.value[selectedEnvironment.value] ?? emptyTopology)
 const visibleNodes = computed(() =>
   appExpanded.value ? topology.value.expandedNodes : topology.value.collapsedNodes,
@@ -236,7 +279,7 @@ const groupedSearchResults = computed(() => {
         id: `node:${node.id}`,
         group: node.kind === 'service' ? 'Services' : 'Apps',
         label: node.name,
-        description: `${node.type} - ${node.status}`,
+        description: `${node.type} - ${topologyStatusLabel(node.status)}`,
         targetType: 'node',
         targetId: node.id,
       })
@@ -399,30 +442,8 @@ function defaultNodeId(data: TopologyEnvironmentData = topology.value) {
   return nodes.find((node) => node.kind === 'app')?.id ?? nodes[0]?.id ?? ''
 }
 
-function statusLabel(status: TopologyStatus) {
-  const labels: Record<TopologyStatus, string> = {
-    healthy: 'Healthy',
-    warning: 'Warning',
-    down: 'Down',
-    unknown: 'Unknown',
-    maintenance: 'Maintenance',
-    disabled: 'Disabled',
-  }
-
-  return labels[status]
-}
-
-function statusColor(status: TopologyStatus) {
-  const colors: Record<TopologyStatus, string> = {
-    healthy: 'green',
-    warning: 'gold',
-    down: 'red',
-    unknown: 'default',
-    maintenance: 'blue',
-    disabled: 'default',
-  }
-
-  return colors[status]
+function topologyStatusLabel(status: string) {
+  return statusTagMeta(status).label
 }
 
 function configEdgePath(edge: ConfigEdgeProps) {
@@ -864,12 +885,13 @@ onMounted(() => {
       <a-space>
         <a-segmented
           v-model:value="selectedEnvironment"
+          class="environment-segmented"
           :options="environmentOptions"
           :disabled="loadingTopology || !environmentOptions.length"
+          :style="environmentSegmentedStyle"
           @change="handleEnvironmentChange"
         />
-        <a-button @click="manageOpen = true">Quản lý dữ liệu</a-button>
-        <a-tag color="green">Backend data</a-tag>
+        <a-button @click="manageOpen = true">DataSet</a-button>
       </a-space>
     </div>
 
@@ -992,9 +1014,7 @@ onMounted(() => {
               <Handle type="target" :position="Position.Left" />
               <div class="node-topline">
                 <span>{{ data.record.type }}</span>
-                <a-tag :color="statusColor(data.record.status)">
-                  {{ statusLabel(data.record.status) }}
-                </a-tag>
+                <StatusTag :value="data.record.status" />
               </div>
               <strong>{{ data.record.name }}</strong>
               <small>{{ data.record.description }}</small>
@@ -1122,9 +1142,7 @@ onMounted(() => {
               <span>{{ selectedNode.type }}</span>
               <h2>{{ selectedNode.name }}</h2>
             </div>
-            <a-tag :color="statusColor(selectedNode.status)">
-              {{ statusLabel(selectedNode.status) }}
-            </a-tag>
+            <StatusTag :value="selectedNode.status" />
           </div>
 
           <a-tabs v-model:active-key="activeTab" size="small">
@@ -1132,7 +1150,7 @@ onMounted(() => {
               <a-descriptions size="small" :column="1" bordered>
                 <a-descriptions-item label="Environment">{{ topology.label }}</a-descriptions-item>
                 <a-descriptions-item label="Type">{{ selectedNode.type }}</a-descriptions-item>
-                <a-descriptions-item label="Status">{{ statusLabel(selectedNode.status) }}</a-descriptions-item>
+                <a-descriptions-item label="Status">{{ topologyStatusLabel(selectedNode.status) }}</a-descriptions-item>
                 <a-descriptions-item label="Tags">
                   <a-space wrap>
                     <a-tag v-for="tag in selectedNode.tags" :key="tag">{{ tag }}</a-tag>
@@ -1297,6 +1315,49 @@ onMounted(() => {
 .system-manager-header p {
   margin: 5px 0 0;
   color: #667085;
+}
+
+.environment-segmented {
+  padding: 3px;
+  background: #f8fafc;
+  border: 1px solid #e6edf5;
+}
+
+.environment-segmented :deep(.ant-segmented-item-label) {
+  min-height: 30px;
+  padding: 0 11px;
+  line-height: 30px;
+}
+
+.environment-segmented :deep(.ant-segmented-thumb),
+.environment-segmented :deep(.ant-segmented-item-selected) {
+  background: color-mix(in srgb, var(--environment-active-color) 13%, #ffffff);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--environment-active-color) 34%, transparent),
+    0 4px 12px rgba(23, 32, 51, 0.08);
+}
+
+.environment-segmented :deep(.ant-segmented-item-selected) {
+  color: var(--environment-active-color);
+  font-weight: 650;
+}
+
+.environment-segmented :deep(.environment-option-label) {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+}
+
+.environment-segmented :deep(.environment-option-dot) {
+  width: 7px;
+  height: 7px;
+  background: var(--environment-color);
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--environment-color) 14%, transparent);
+}
+
+.environment-segmented :deep(.ant-segmented-item-selected .environment-option-dot) {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--environment-color) 18%, transparent);
 }
 
 .system-manager-toolbar {
