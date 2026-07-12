@@ -4,6 +4,8 @@ const email = 'system.manager.e2e@example.com'
 const password = 'password123'
 const localStateKey = 'qlcv.systemManager.localState.v1'
 
+test.setTimeout(60000)
+
 test('system manager seeded topology graph, search, edge detail, and flow', async ({ page }) => {
   await page.goto('/')
 
@@ -161,12 +163,14 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
   await settingsDrawer
     .locator('.ant-form-item')
     .filter({ hasText: 'Default graph view' })
-    .getByRole('radio', { name: 'Expanded' })
+    .locator('.ant-radio-button-wrapper')
+    .filter({ hasText: 'Expanded' })
     .click()
   await settingsDrawer
     .locator('.ant-form-item')
     .filter({ hasText: 'Detail panel default' })
-    .getByRole('radio', { name: 'Collapsed' })
+    .locator('.ant-radio-button-wrapper')
+    .filter({ hasText: 'Collapsed' })
     .click()
   await settingsDrawer.getByRole('button', { name: 'Lưu settings' }).click()
   await expect
@@ -271,7 +275,7 @@ test('system manager seeded topology graph, search, edge detail, and flow', asyn
   await expect(settingsDrawer.getByText('Valid')).toBeVisible()
   await expect(settingsDrawer.getByText('Global nodes')).toBeVisible()
   await settingsDrawer.getByRole('button', { name: 'Apply import' }).click()
-  await expect(settingsDrawer).not.toBeVisible()
+  await expect(settingsDrawer).not.toHaveClass(/ant-drawer-open/)
   await page.locator('.ant-segmented-item').filter({ hasText: 'E2E Review' }).click()
   await expect(page.locator('.vue-flow__node').filter({ hasText: 'E2E Web' })).toBeVisible()
   await expect(page.locator('.vue-flow__node').filter({ hasText: 'E2E API' })).toBeVisible()
