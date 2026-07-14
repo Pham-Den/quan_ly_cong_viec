@@ -33,6 +33,9 @@ type Project = {
 type Task = {
   id: string
   code: string
+  title: string
+  status: string
+  workStatus: string
 }
 
 type ApiEnvironment = {
@@ -78,6 +81,7 @@ type ApiRequestRunResult = {
 type ApiFlowRunResult = {
   flowRun: {
     id: string
+    taskId: string | null
     status: string
     capturedVariablesJson: string
     errorMessage: string | null
@@ -120,6 +124,15 @@ type ApiHistoryItem = {
   assertionSummaryJson: string
   request: { id: string; name: string } | null
   flow: { id: string; name: string } | null
+}
+
+type TimelineEvent = {
+  id: string
+  eventType: string
+  taskId: string | null
+  title: string
+  description: string | null
+  metadataJson: string
 }
 
 type ApiFlow = {

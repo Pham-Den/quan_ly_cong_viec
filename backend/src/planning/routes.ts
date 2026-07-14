@@ -103,7 +103,44 @@ async function ensureTask(prisma: AppPrismaClient, taskId: string, userId: strin
       sourceNote: true,
       timelineEvents: {
         orderBy: { createdAt: 'desc' },
+        take: 50,
+      },
+      apiRequests: {
+        orderBy: [{ collectionName: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
+        select: {
+          id: true,
+          collectionName: true,
+          name: true,
+          method: true,
+          url: true,
+          _count: { select: { requestRuns: true } },
+        },
+      },
+      apiFlows: {
+        orderBy: [{ collectionName: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
+        select: {
+          id: true,
+          collectionName: true,
+          name: true,
+          enabled: true,
+          _count: { select: { flowRuns: true, steps: true } },
+        },
+      },
+      apiRequestRuns: {
+        orderBy: { createdAt: 'desc' },
         take: 20,
+        include: {
+          request: { select: { id: true, name: true, method: true, collectionName: true } },
+          flowRun: { include: { flow: { select: { id: true, name: true, collectionName: true } } } },
+          flowStep: { select: { id: true, name: true, sortOrder: true } },
+        },
+      },
+      apiFlowRuns: {
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        include: {
+          flow: { select: { id: true, name: true, collectionName: true } },
+        },
       },
       branchLinks: {
         where: { active: true },

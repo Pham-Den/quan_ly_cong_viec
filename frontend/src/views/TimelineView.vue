@@ -75,6 +75,8 @@ const eventTypeOptions = [
   { label: 'Branch đổi trạng thái', value: 'BRANCH_STATUS_CHANGED' },
   { label: 'Branch merge release', value: 'BRANCH_MERGED_RELEASE' },
   { label: 'Branch merge main', value: 'BRANCH_MERGED_MAIN' },
+  { label: 'API request evidence', value: 'API_REQUEST_RUN_ATTACHED' },
+  { label: 'API flow evidence', value: 'API_FLOW_RUN_ATTACHED' },
   { label: 'Ghi chú', value: 'TIMELINE_COMMENT' },
 ]
 const taskOptions = computed(() =>

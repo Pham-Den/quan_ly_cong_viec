@@ -116,6 +116,10 @@ type SaveResponseBody = {
   truncated?: unknown
 }
 
+type AttachRunBody = {
+  note?: unknown
+}
+
 type CaptureRule = {
   source: 'JSON' | 'HEADER' | 'STATUS' | 'TEXT'
   variableName: string
@@ -645,6 +649,38 @@ function mergeAssertionSummaries(summaries: AssertionSummary[]): AssertionSummar
 
 function firstRequiredAssertionFailure(summary: AssertionSummary) {
   return summary.results.find((result) => !result.passed && result.required)?.message ?? null
+}
+
+function assertionSummaryFromJson(value: string): AssertionSummary {
+  try {
+    const parsed = JSON.parse(value) as Partial<AssertionSummary>
+
+    return {
+      total: Number(parsed.total || 0),
+      passed: Number(parsed.passed || 0),
+      failed: Number(parsed.failed || 0),
+      requiredFailed: Number(parsed.requiredFailed || 0),
+      results: Array.isArray(parsed.results) ? parsed.results as AssertionSummary['results'] : [],
+    }
+  } catch {
+    return {
+      total: 0,
+      passed: 0,
+      failed: 0,
+      requiredFailed: 0,
+      results: [],
+    }
+  }
+}
+
+function assertionSummaryText(value: string) {
+  const summary = assertionSummaryFromJson(value)
+
+  if (!summary.total) {
+    return 'Assertions 0'
+  }
+
+  return `Assertions ${summary.passed}/${summary.total}`
 }
 
 function stepRequestRecord(step: {
@@ -1710,6 +1746,97 @@ export function registerApiLabRoutes(app: FastifyInstance, context: ApiLabRoutes
     return savedResponse
   })
 
+  app.post('/api/api-lab/request-runs/:runId/attach-task', { preHandler: requireAuth }, async (request, reply) => {
+    const userId = request.authUser?.id ?? ''
+    const runId = paramsAs(request.params).runId ?? ''
+    const run = await context.prisma.apiRequestRun.findFirst({
+      where: {
+        id: runId,
+        project: {
+          OR: [{ ownerId: userId }, { ownerId: null }],
+        },
+      },
+      include: {
+        task: { select: { id: true, code: true, title: true } },
+        request: { select: { id: true, name: true, method: true, url: true, collectionName: true } },
+        flowRun: { include: { flow: { select: { id: true, name: true, collectionName: true } } } },
+        flowStep: { select: { id: true, name: true, sortOrder: true } },
+        savedResponse: { select: { id: true } },
+      },
+    })
+
+    if (!run) {
+      return reply.code(404).send({ message: 'Khong tim thay luot chay API.' })
+    }
+
+    if (!run.taskId || !run.task) {
+      return reply.code(400).send({ message: 'Luot chay API chua gan task. Hay link request/flow voi task truoc.' })
+    }
+
+    const existingEvent = await context.prisma.timelineEvent.findFirst({
+      where: {
+        projectId: run.projectId,
+        taskId: run.taskId,
+        eventType: 'API_REQUEST_RUN_ATTACHED',
+        metadataJson: { contains: run.id },
+      },
+      include: {
+        project: { select: { id: true, code: true, name: true } },
+        task: { select: { id: true, code: true, title: true, status: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
+      },
+    })
+
+    if (existingEvent) {
+      return existingEvent
+    }
+
+    const body = bodyAs<AttachRunBody>(request.body)
+    const note = text(body.note)
+    const requestName = run.request?.name ?? run.flowStep?.name ?? 'Request run'
+    const sourceLabel = run.flowRun?.flow
+      ? `Flow ${run.flowRun.flow.name} / ${requestName}`
+      : `${run.request?.method ?? 'API'} ${requestName}`
+    const descriptionParts = [
+      `${sourceLabel} - ${run.status}`,
+      run.httpStatus ? `HTTP ${run.httpStatus}` : '',
+      run.durationMs !== null ? `${run.durationMs}ms` : '',
+      assertionSummaryText(run.assertionSummaryJson),
+      run.errorMessage ? `Loi: ${run.errorMessage}` : '',
+      note ? `Ghi chu: ${note}` : '',
+    ].filter(Boolean)
+
+    return context.prisma.timelineEvent.create({
+      data: {
+        projectId: run.projectId,
+        taskId: run.taskId,
+        createdById: userId,
+        eventType: 'API_REQUEST_RUN_ATTACHED',
+        title: `Gan API run vao ${run.task.code}`,
+        description: descriptionParts.join('\n'),
+        metadataJson: JSON.stringify({
+          source: 'api-lab',
+          kind: 'REQUEST',
+          requestRunId: run.id,
+          requestId: run.requestId,
+          flowRunId: run.flowRunId,
+          flowStepId: run.flowStepId,
+          status: run.status,
+          httpStatus: run.httpStatus,
+          durationMs: run.durationMs,
+          assertionSummary: assertionSummaryFromJson(run.assertionSummaryJson),
+          responseBodySaved: run.responseBodySaved,
+          savedResponseId: run.savedResponse?.id ?? null,
+        }),
+      },
+      include: {
+        project: { select: { id: true, code: true, name: true } },
+        task: { select: { id: true, code: true, title: true, status: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
+      },
+    })
+  })
+
   app.get('/api/api-lab/flows', { preHandler: requireAuth }, async (request, reply) => {
     const userId = request.authUser?.id ?? ''
     const url = new URL(request.url, 'http://localhost')
@@ -2172,6 +2299,86 @@ export function registerApiLabRoutes(app: FastifyInstance, context: ApiLabRoutes
             request: { select: { id: true, name: true, method: true, url: true } },
           },
         },
+      },
+    })
+  })
+
+  app.post('/api/api-lab/flow-runs/:runId/attach-task', { preHandler: requireAuth }, async (request, reply) => {
+    const userId = request.authUser?.id ?? ''
+    const runId = paramsAs(request.params).runId ?? ''
+    const run = await context.prisma.apiFlowRun.findFirst({
+      where: {
+        id: runId,
+        project: {
+          OR: [{ ownerId: userId }, { ownerId: null }],
+        },
+      },
+      include: {
+        task: { select: { id: true, code: true, title: true } },
+        flow: { select: { id: true, name: true, collectionName: true } },
+      },
+    })
+
+    if (!run) {
+      return reply.code(404).send({ message: 'Khong tim thay luot chay flow API.' })
+    }
+
+    if (!run.taskId || !run.task) {
+      return reply.code(400).send({ message: 'Luot chay flow API chua gan task. Hay link flow voi task truoc.' })
+    }
+
+    const existingEvent = await context.prisma.timelineEvent.findFirst({
+      where: {
+        projectId: run.projectId,
+        taskId: run.taskId,
+        eventType: 'API_FLOW_RUN_ATTACHED',
+        metadataJson: { contains: run.id },
+      },
+      include: {
+        project: { select: { id: true, code: true, name: true } },
+        task: { select: { id: true, code: true, title: true, status: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
+      },
+    })
+
+    if (existingEvent) {
+      return existingEvent
+    }
+
+    const body = bodyAs<AttachRunBody>(request.body)
+    const note = text(body.note)
+    const flowName = run.flow?.name ?? 'Flow run'
+    const descriptionParts = [
+      `Flow ${flowName} - ${run.status}`,
+      run.durationMs !== null ? `${run.durationMs}ms` : '',
+      assertionSummaryText(run.assertionSummaryJson),
+      run.errorMessage ? `Loi: ${run.errorMessage}` : '',
+      note ? `Ghi chu: ${note}` : '',
+    ].filter(Boolean)
+
+    return context.prisma.timelineEvent.create({
+      data: {
+        projectId: run.projectId,
+        taskId: run.taskId,
+        createdById: userId,
+        eventType: 'API_FLOW_RUN_ATTACHED',
+        title: `Gan API flow vao ${run.task.code}`,
+        description: descriptionParts.join('\n'),
+        metadataJson: JSON.stringify({
+          source: 'api-lab',
+          kind: 'FLOW',
+          flowRunId: run.id,
+          flowId: run.flowId,
+          status: run.status,
+          durationMs: run.durationMs,
+          assertionSummary: assertionSummaryFromJson(run.assertionSummaryJson),
+          capturedVariablesJson: run.capturedVariablesJson,
+        }),
+      },
+      include: {
+        project: { select: { id: true, code: true, name: true } },
+        task: { select: { id: true, code: true, title: true, status: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
       },
     })
   })

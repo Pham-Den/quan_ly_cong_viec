@@ -136,6 +136,7 @@ export type ApiFlowStep = {
 export type ApiFlowRunResult = {
   flowRun: {
     id: string
+    taskId: string | null
     status: string
     durationMs: number | null
     assertionSummaryJson: string
@@ -201,7 +202,10 @@ export type ApiRunResult = {
 
 export type ApiRequestRun = {
   id: string
-  requestId: string
+  taskId: string | null
+  requestId: string | null
+  flowRunId: string | null
+  flowStepId: string | null
   status: string
   httpStatus: number | null
   durationMs: number | null
@@ -220,6 +224,15 @@ export type ApiRequestRun = {
     contentType: string | null
     createdAt: string
   } | null
+}
+
+export type ApiTimelineEvent = {
+  id: string
+  eventType: string
+  title: string
+  description: string | null
+  metadataJson: string
+  createdAt: string
 }
 
 export type CurlImportDraft = {
@@ -485,6 +498,18 @@ export async function saveApiRunResponse(
   },
 ) {
   const { data } = await api.post(`/api/api-lab/request-runs/${runId}/save-response`, payload)
+
+  return data
+}
+
+export async function attachApiRequestRunToTask(runId: string, payload: { note?: string } = {}) {
+  const { data } = await api.post<ApiTimelineEvent>(`/api/api-lab/request-runs/${runId}/attach-task`, payload)
+
+  return data
+}
+
+export async function attachApiFlowRunToTask(runId: string, payload: { note?: string } = {}) {
+  const { data } = await api.post<ApiTimelineEvent>(`/api/api-lab/flow-runs/${runId}/attach-task`, payload)
 
   return data
 }

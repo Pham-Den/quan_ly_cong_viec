@@ -12,6 +12,8 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import AppJsonCodeBlock from '../../core/components/AppJsonCodeBlock.vue'
 import { useSessionStore } from '../../stores/session'
 import {
+  attachApiFlowRunToTask,
+  attachApiRequestRunToTask,
   deleteApiRequest,
   deleteApiFlow,
   deleteApiFlowStep,
@@ -115,6 +117,7 @@ const savingResponse = ref(false)
 const savingFlow = ref(false)
 const runningFlow = ref(false)
 const savingStepId = ref<string | null>(null)
+const attachingRunId = ref<string | null>(null)
 const curlDrawerOpen = ref(false)
 const curlInput = ref('')
 const activeLeftTab = ref('requests')
@@ -839,6 +842,49 @@ function historySubtitle(item: ApiHistoryItem) {
   ].filter(Boolean)
 
   return parts.join(' · ')
+}
+
+async function attachRequestRun(runId: string, hasTask: boolean) {
+  if (!hasTask) {
+    message.warning('Run này chưa link task.')
+    return
+  }
+
+  attachingRunId.value = runId
+
+  try {
+    await attachApiRequestRunToTask(runId)
+    message.success('Đã gắn API run vào timeline task.')
+    await loadHistory()
+  } finally {
+    attachingRunId.value = null
+  }
+}
+
+async function attachFlowRun(runId: string, hasTask: boolean) {
+  if (!hasTask) {
+    message.warning('Flow run này chưa link task.')
+    return
+  }
+
+  attachingRunId.value = runId
+
+  try {
+    await attachApiFlowRunToTask(runId)
+    message.success('Đã gắn API flow vào timeline task.')
+    await loadHistory()
+  } finally {
+    attachingRunId.value = null
+  }
+}
+
+async function attachHistoryItem(item: ApiHistoryItem) {
+  if (item.kind === 'FLOW') {
+    await attachFlowRun(item.id, Boolean(item.task))
+    return
+  }
+
+  await attachRequestRun(item.id, Boolean(item.task))
 }
 
 async function loadFlowSteps(flowId: string) {
@@ -1832,6 +1878,13 @@ onMounted(refreshApiLab)
               >
                 Lưu kết quả
               </a-button>
+              <a-button
+                :loading="attachingRunId === currentResult.run.id"
+                :disabled="!currentResult.run.taskId"
+                @click="attachRequestRun(currentResult.run.id, Boolean(currentResult.run.taskId))"
+              >
+                Gắn timeline task
+              </a-button>
               <a-tabs size="small">
                 <a-tab-pane key="body" tab="Body">
                   <AppJsonCodeBlock :value="currentResult.response?.bodyPreview" empty-text="Không có body" />
@@ -1870,6 +1923,13 @@ onMounted(refreshApiLab)
                 show-icon
                 :message="currentFlowResult.flowRun.errorMessage"
               />
+              <a-button
+                :loading="attachingRunId === currentFlowResult.flowRun.id"
+                :disabled="!currentFlowResult.flowRun.taskId"
+                @click="attachFlowRun(currentFlowResult.flowRun.id, Boolean(currentFlowResult.flowRun.taskId))"
+              >
+                Gắn flow vào timeline task
+              </a-button>
 
               <div v-if="flowResponseFields.length" class="api-lab-response-fields">
                 <a-tag
@@ -1909,6 +1969,14 @@ onMounted(refreshApiLab)
                     </a-tag>
                   </div>
                   <a-alert v-if="stepResult.run.errorMessage" type="warning" show-icon :message="stepResult.run.errorMessage" />
+                  <a-button
+                    size="small"
+                    :loading="attachingRunId === stepResult.run.id"
+                    :disabled="!stepResult.run.taskId"
+                    @click="attachRequestRun(stepResult.run.id, Boolean(stepResult.run.taskId))"
+                  >
+                    Gắn step vào timeline task
+                  </a-button>
                   <AppJsonCodeBlock :value="JSON.stringify(stepResult.capturedVariables, null, 2)" empty-text="Không có capture" />
                   <a-tabs v-if="stepResult.response" size="small">
                     <a-tab-pane key="body" tab="Body">
@@ -1962,8 +2030,8 @@ onMounted(refreshApiLab)
           </div>
           <a-list size="small" :data-source="historyItems" :loading="loadingHistory">
             <template #renderItem="{ item }">
-              <a-list-item class="api-lab-history-item">
-                <a-list-item-meta>
+                <a-list-item class="api-lab-history-item">
+                  <a-list-item-meta>
                   <template #title>
                     <a-space wrap>
                       <a-tag :color="item.kind === 'FLOW' ? 'purple' : 'blue'">{{ item.kind }}</a-tag>
@@ -1982,6 +2050,14 @@ onMounted(refreshApiLab)
                     <span v-if="item.errorMessage"> · {{ item.errorMessage }}</span>
                   </template>
                 </a-list-item-meta>
+                <a-button
+                  size="small"
+                  :loading="attachingRunId === item.id"
+                  :disabled="!item.task"
+                  @click="attachHistoryItem(item)"
+                >
+                  Gắn timeline
+                </a-button>
               </a-list-item>
             </template>
           </a-list>

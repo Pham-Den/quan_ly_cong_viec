@@ -73,6 +73,63 @@ type TaskRecord = {
     }
   }>
   timelineEvents?: TimelineEventRecord[]
+  apiRequests?: Array<{
+    id: string
+    collectionName: string
+    name: string
+    method: string
+    url: string
+    _count?: {
+      requestRuns: number
+    }
+  }>
+  apiFlows?: Array<{
+    id: string
+    collectionName: string
+    name: string
+    enabled: boolean
+    _count?: {
+      steps: number
+      flowRuns: number
+    }
+  }>
+  apiRequestRuns?: Array<{
+    id: string
+    status: string
+    httpStatus: number | null
+    durationMs: number | null
+    assertionSummaryJson: string
+    errorMessage: string | null
+    responseBodySaved: boolean
+    createdAt: string
+    request?: {
+      name: string
+      method: string
+      collectionName: string
+    } | null
+    flowRun?: {
+      flow?: {
+        name: string
+        collectionName: string
+      } | null
+    } | null
+    flowStep?: {
+      name: string
+      sortOrder: number
+    } | null
+  }>
+  apiFlowRuns?: Array<{
+    id: string
+    status: string
+    durationMs: number | null
+    assertionSummaryJson: string
+    errorMessage: string | null
+    createdAt: string
+    flow?: {
+      name: string
+      collectionName: string
+    } | null
+  }>
 }
 
 type TimelineEventRecord = {
@@ -80,6 +137,7 @@ type TimelineEventRecord = {
   eventType: string
   title: string
   description: string | null
+  metadataJson: string
   createdAt: string
 }
 
@@ -259,6 +317,41 @@ function branchStatusColor(status: string) {
   return statusMeta(workflowStatuses.value, 'BRANCH', status).color
 }
 
+function apiRunStatusColor(status: string) {
+  if (status === 'PASSED') {
+    return 'green'
+  }
+
+  if (status === 'FAILED') {
+    return 'red'
+  }
+
+  return 'default'
+}
+
+function assertionSummaryLabel(value: string) {
+  try {
+    const parsed = JSON.parse(value || '{}') as { total?: number; passed?: number }
+    const total = Number(parsed.total || 0)
+
+    if (!total) {
+      return 'Assertions 0'
+    }
+
+    return `Assertions ${Number(parsed.passed || 0)}/${total}`
+  } catch {
+    return 'Assertions 0'
+  }
+}
+
+function apiRunTitle(run: NonNullable<TaskRecord['apiRequestRuns']>[number]) {
+  if (run.flowRun?.flow) {
+    return `${run.flowRun.flow.name} / ${run.flowStep?.name ?? 'Step'}`
+  }
+
+  return `${run.request?.method ?? 'API'} ${run.request?.name ?? 'Request run'}`
+}
+
 function bucketColor(bucket: { statuses: string[] }) {
   return taskStatusColor(bucket.statuses[0] ?? 'PLANNED')
 }
@@ -324,6 +417,9 @@ function canEditTask(task: TaskRecord) {
 }
 
 const taskFormReadonly = computed(() => Boolean(editingTask.value && !canEditTask(editingTask.value)))
+const apiEvidenceEvents = computed(() =>
+  (editingTask.value?.timelineEvents ?? []).filter((event) => event.eventType.startsWith('API_')),
+)
 
 async function loadTaskGroups() {
   if (!selectedProjectId.value) {
@@ -928,6 +1024,73 @@ onMounted(() => {
             <div class="muted-text">{{ event.description }}</div>
           </a-timeline-item>
         </a-timeline>
+      </a-tab-pane>
+      <a-tab-pane key="api-lab" tab="API Lab">
+        <a-divider orientation="left">Request đã link</a-divider>
+        <a-list size="small" :data-source="editingTask.apiRequests ?? []">
+          <template #renderItem="{ item }">
+            <a-list-item>
+              <a-list-item-meta :title="`${item.method} ${item.name}`" :description="`${item.collectionName} · ${item.url}`" />
+              <a-tag>{{ item._count?.requestRuns ?? 0 }} run</a-tag>
+            </a-list-item>
+          </template>
+        </a-list>
+        <a-empty v-if="!editingTask.apiRequests?.length" description="Chưa có request link task" />
+
+        <a-divider orientation="left">Flow đã link</a-divider>
+        <a-list size="small" :data-source="editingTask.apiFlows ?? []">
+          <template #renderItem="{ item }">
+            <a-list-item>
+              <a-list-item-meta :title="item.name" :description="item.collectionName" />
+              <a-space>
+                <a-tag>{{ item._count?.steps ?? 0 }} step</a-tag>
+                <a-tag>{{ item._count?.flowRuns ?? 0 }} run</a-tag>
+              </a-space>
+            </a-list-item>
+          </template>
+        </a-list>
+        <a-empty v-if="!editingTask.apiFlows?.length" description="Chưa có flow link task" />
+
+        <a-divider orientation="left">Run gần đây</a-divider>
+        <a-list size="small" :data-source="editingTask.apiRequestRuns ?? []">
+          <template #renderItem="{ item }">
+            <a-list-item>
+              <a-list-item-meta :title="apiRunTitle(item)" :description="item.errorMessage || new Date(item.createdAt).toLocaleString('vi-VN')" />
+              <a-space wrap>
+                <a-tag :color="apiRunStatusColor(item.status)">{{ item.status }}</a-tag>
+                <a-tag>{{ item.httpStatus ?? 'No status' }}</a-tag>
+                <a-tag>{{ item.durationMs ?? 0 }}ms</a-tag>
+                <a-tag>{{ assertionSummaryLabel(item.assertionSummaryJson) }}</a-tag>
+                <a-tag v-if="item.responseBodySaved" color="blue">Đã lưu body</a-tag>
+              </a-space>
+            </a-list-item>
+          </template>
+        </a-list>
+        <a-list size="small" :data-source="editingTask.apiFlowRuns ?? []">
+          <template #renderItem="{ item }">
+            <a-list-item>
+              <a-list-item-meta :title="`FLOW ${item.flow?.name ?? 'Flow run'}`" :description="item.errorMessage || new Date(item.createdAt).toLocaleString('vi-VN')" />
+              <a-space wrap>
+                <a-tag :color="apiRunStatusColor(item.status)">{{ item.status }}</a-tag>
+                <a-tag>{{ item.durationMs ?? 0 }}ms</a-tag>
+                <a-tag>{{ assertionSummaryLabel(item.assertionSummaryJson) }}</a-tag>
+              </a-space>
+            </a-list-item>
+          </template>
+        </a-list>
+        <a-empty
+          v-if="!editingTask.apiRequestRuns?.length && !editingTask.apiFlowRuns?.length"
+          description="Chưa có API run cho task"
+        />
+
+        <a-divider orientation="left">Evidence đã gắn timeline</a-divider>
+        <a-timeline>
+          <a-timeline-item v-for="event in apiEvidenceEvents" :key="event.id">
+            <strong>{{ event.title }}</strong>
+            <div class="muted-text">{{ event.description }}</div>
+          </a-timeline-item>
+        </a-timeline>
+        <a-empty v-if="!apiEvidenceEvents.length" description="Chưa gắn API run vào timeline" />
       </a-tab-pane>
     </a-tabs>
   </a-drawer>

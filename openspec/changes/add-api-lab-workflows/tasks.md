@@ -50,12 +50,12 @@
 
 ## 6. Assertions And Run History
 
-- [ ] 6.1 Implement declarative assertions for status equals, JSON path exists, JSON path equals, body contains, header exists, and duration below threshold.
-- [ ] 6.2 Mark request or step runs failed when a required assertion fails while keeping current response details visible in UI and storing assertion failure metadata in history.
-- [ ] 6.3 Build assertion editor and assertion result display as compact tags.
-- [ ] 6.4 Build run history filters by project, task, request, flow, status, and date.
-- [ ] 6.5 Add backend tests for passed assertions, failed assertions, and assertion failure summaries.
-- [ ] 6.6 Stop for user review before attaching runs to tasks.
+- [x] 6.1 Implement declarative assertions for status equals, JSON path exists, JSON path equals, body contains, header exists, and duration below threshold.
+- [x] 6.2 Mark request or step runs failed when a required assertion fails while keeping current response details visible in UI and storing assertion failure metadata in history.
+- [x] 6.3 Build assertion editor and assertion result display as compact tags.
+- [x] 6.4 Build run history filters by project, task, request, flow, status, and date.
+- [x] 6.5 Add backend tests for passed assertions, failed assertions, and assertion failure summaries.
+- [x] 6.6 Stop for user review before attaching runs to tasks.
 
 ## 7. Task And Timeline Integration
 

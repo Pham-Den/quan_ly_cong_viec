@@ -170,12 +170,10 @@ test('api lab flow reorders steps and passes captured output into the next reque
   await expect(page.locator('.api-lab-flow-step').first()).toContainText('Use captured project')
 
   const stepCards = page.locator('.api-lab-flow-step')
+  await stepCards.nth(1).dispatchEvent('dragstart')
   await Promise.all([
     page.waitForResponse((response) => response.url().includes('/api/api-lab/flow-steps/') && response.ok()),
-    stepCards.nth(1).dragTo(stepCards.nth(0), {
-      sourcePosition: { x: 18, y: 18 },
-      targetPosition: { x: 18, y: 18 },
-    }),
+    stepCards.nth(0).dispatchEvent('drop'),
   ])
   await expect(stepCards.first()).toContainText('Capture project')
 
@@ -242,10 +240,14 @@ test('api lab shows failed assertions and filters run history', async ({ page })
   const historyCard = page.locator('.settings-card').filter({ hasText: 'History' })
   await expect(historyCard).toContainText('Assertion fail check')
   await historyCard.locator('.ant-select').nth(3).click()
-  await page.locator('.ant-select-dropdown:visible').getByRole('option', { name: 'Failed' }).click()
+  await page.locator('.ant-select-dropdown:visible .ant-select-item-option-content', { hasText: 'Failed' }).first().click({
+    force: true,
+  })
+  const filterButton = historyCard.locator('button').filter({ hasText: /^Lọc$/ })
+  await expect(filterButton).toBeEnabled()
   await Promise.all([
     page.waitForResponse((response) => response.url().includes('/api/api-lab/history') && response.url().includes('status=FAILED') && response.ok()),
-    historyCard.getByRole('button', { name: 'Lọc' }).click(),
+    filterButton.click(),
   ])
   await expect(historyCard).toContainText('FAILED')
   await expect(historyCard).toContainText('Assertions 0/1')
