@@ -13,14 +13,23 @@ import AppJsonCodeBlock from '../../core/components/AppJsonCodeBlock.vue'
 import { useSessionStore } from '../../stores/session'
 import {
   deleteApiRequest,
+  deleteApiFlow,
+  deleteApiFlowStep,
   importCurl,
+  loadApiFlowSteps,
+  loadApiFlows,
   loadApiEnvironments,
   loadApiRequestRuns,
   loadApiRequests,
+  runApiFlow,
   runApiRequest,
   saveApiEnvironment,
+  saveApiFlow,
+  saveApiFlowStep,
   saveApiRequest,
   saveApiRunResponse,
+  type ApiFlow,
+  type ApiFlowRunResult,
   type ApiEnvironment,
   type ApiEnvironmentVariable,
   type ApiRequest,
@@ -52,26 +61,65 @@ type TaskOptionRecord = {
   title: string
 }
 
+type CaptureRuleRow = {
+  source: string
+  path: string
+  header: string
+  as: string
+  required: boolean
+  secret: boolean
+}
+
+type FlowStepForm = {
+  id: string
+  requestId: string | null
+  name: string
+  sortOrder: number
+  overrideMethod: string
+  overrideUrl: string
+  overrideBodyText: string
+  continueOnFailure: boolean
+  captureRules: CaptureRuleRow[]
+}
+
+type ResponseField = {
+  stepId: string
+  stepName: string
+  path: string
+  variableName: string
+  value: string
+}
+
 const session = useSessionStore()
 const loading = ref(false)
 const savingEnvironment = ref(false)
 const savingRequest = ref(false)
 const runningRequest = ref(false)
 const savingResponse = ref(false)
+const savingFlow = ref(false)
+const runningFlow = ref(false)
+const savingStepId = ref<string | null>(null)
 const curlDrawerOpen = ref(false)
 const curlInput = ref('')
 const activeLeftTab = ref('requests')
 const environments = ref<ApiEnvironment[]>([])
 const requests = ref<ApiRequest[]>([])
+const flows = ref<ApiFlow[]>([])
+const flowSteps = ref<FlowStepForm[]>([])
 const tasks = ref<TaskOptionRecord[]>([])
 const requestRuns = ref<ApiRequestRun[]>([])
 const selectedEnvironmentId = ref<string | null>(null)
 const selectedRequestId = ref<string | null>(null)
+const selectedFlowId = ref<string | null>(null)
 const currentResult = ref<ApiRunResult | null>(null)
+const currentFlowResult = ref<ApiFlowRunResult | null>(null)
 const runtimeVariablesText = ref('{}')
 const runSaveResponseBody = ref(false)
+const draggedStepIndex = ref<number | null>(null)
+const draggedResponseField = ref<ResponseField | null>(null)
 const selectedProjectId = computed(() => session.selectedProjectId)
 const selectedRequest = computed(() => requests.value.find((request) => request.id === selectedRequestId.value) ?? null)
+const selectedFlow = computed(() => flows.value.find((flow) => flow.id === selectedFlowId.value) ?? null)
 const environmentOptions = computed(() =>
   environments.value.map((environment) => ({
     label: `${environment.name} (${environment.environmentType.toLowerCase()})`,
@@ -89,6 +137,17 @@ const requestList = computed(() =>
     `${left.collectionName}-${left.sortOrder}-${left.name}`.localeCompare(`${right.collectionName}-${right.sortOrder}-${right.name}`),
   ),
 )
+const flowList = computed(() =>
+  [...flows.value].sort((left, right) =>
+    `${left.collectionName}-${left.sortOrder}-${left.name}`.localeCompare(`${right.collectionName}-${right.sortOrder}-${right.name}`),
+  ),
+)
+const requestOptions = computed(() =>
+  requestList.value.map((request) => ({
+    label: `${request.method} ${request.name}`,
+    value: request.id,
+  })),
+)
 const responseStatusColor = computed(() => {
   const status = currentResult.value?.run.status
 
@@ -105,6 +164,40 @@ const responseStatusColor = computed(() => {
 const responseHeadersText = computed(() =>
   currentResult.value?.response?.headers ? JSON.stringify(currentResult.value.response.headers, null, 2) : '',
 )
+const flowStatusColor = computed(() => {
+  const status = currentFlowResult.value?.flowRun.status
+
+  if (status === 'PASSED') {
+    return 'green'
+  }
+
+  if (status === 'FAILED') {
+    return 'red'
+  }
+
+  return 'default'
+})
+const flowResponseFields = computed(() => {
+  const fields: ResponseField[] = []
+
+  for (const step of currentFlowResult.value?.steps ?? []) {
+    const body = step.response?.bodyPreview
+
+    if (!body) {
+      continue
+    }
+
+    for (const field of collectJsonFields(body)) {
+      fields.push({
+        stepId: step.step.id,
+        stepName: step.step.name,
+        ...field,
+      })
+    }
+  }
+
+  return fields
+})
 
 const environmentForm = reactive({
   id: '',
@@ -132,6 +225,14 @@ const requestForm = reactive({
   timeoutMs: 30000,
   storeResponseBody: false,
 })
+const flowForm = reactive({
+  id: '',
+  collectionName: 'Mac dinh',
+  name: '',
+  taskId: null as string | null,
+  enabled: true,
+  storeResponseBody: false,
+})
 const environmentTypeOptions = [
   { label: 'Local', value: 'LOCAL' },
   { label: 'Dev', value: 'DEV' },
@@ -154,6 +255,12 @@ const authTypeOptions = [
   { label: 'Bearer token', value: 'BEARER' },
   { label: 'Basic auth', value: 'BASIC' },
 ]
+const captureSourceOptions = [
+  { label: 'JSON path', value: 'JSON' },
+  { label: 'Header', value: 'HEADER' },
+  { label: 'Status code', value: 'STATUS' },
+  { label: 'Raw text', value: 'TEXT' },
+]
 
 function parseJsonArray(value: string) {
   try {
@@ -172,6 +279,40 @@ function parseJsonObject(value: string) {
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {}
   } catch {
     return {}
+  }
+}
+
+function collectJsonFields(value: string) {
+  try {
+    const parsed = JSON.parse(value)
+    const fields: Array<{ path: string; variableName: string; value: string }> = []
+    const walk = (entry: unknown, path: string) => {
+      if (entry && typeof entry === 'object') {
+        if (Array.isArray(entry)) {
+          entry.forEach((item, index) => walk(item, `${path}[${index}]`))
+          return
+        }
+
+        Object.entries(entry as Record<string, unknown>).forEach(([key, item]) => {
+          walk(item, path === '$' ? `$.${key}` : `${path}.${key}`)
+        })
+        return
+      }
+
+      const lastPathPart = path.split('.').pop()?.replace(/\W+/g, '') || 'value'
+
+      fields.push({
+        path,
+        variableName: lastPathPart,
+        value: entry == null ? '' : String(entry),
+      })
+    }
+
+    walk(parsed, '$')
+
+    return fields.slice(0, 24)
+  } catch {
+    return []
   }
 }
 
@@ -282,6 +423,76 @@ function setRequestForm(request: ApiRequest) {
   authFromJson(request.authJson)
 }
 
+function resetFlowForm() {
+  flowForm.id = ''
+  flowForm.collectionName = selectedFlow.value?.collectionName ?? 'Mac dinh'
+  flowForm.name = ''
+  flowForm.taskId = null
+  flowForm.enabled = true
+  flowForm.storeResponseBody = false
+  selectedFlowId.value = null
+  flowSteps.value = []
+  currentFlowResult.value = null
+}
+
+function setFlowForm(flow: ApiFlow) {
+  flowForm.id = flow.id
+  flowForm.collectionName = flow.collectionName
+  flowForm.name = flow.name
+  flowForm.taskId = flow.taskId
+  flowForm.enabled = flow.enabled
+  flowForm.storeResponseBody = flow.storeResponseBody
+}
+
+function captureRulesFromJson(value: string): CaptureRuleRow[] {
+  return parseJsonArray(value).map((row) => ({
+    source: typeof row?.source === 'string' ? row.source.toUpperCase() : 'JSON',
+    path: typeof row?.path === 'string' ? row.path : '',
+    header: typeof row?.header === 'string' ? row.header : '',
+    as: typeof row?.as === 'string' ? row.as : typeof row?.variableName === 'string' ? row.variableName : '',
+    required: row?.required === true,
+    secret: row?.secret === true,
+  }))
+}
+
+function flowStepFromApi(step: {
+  id: string
+  requestId: string | null
+  name: string
+  sortOrder: number
+  overrideJson: string
+  captureRulesJson: string
+  continueOnFailure: boolean
+}): FlowStepForm {
+  const override = parseJsonObject(step.overrideJson)
+
+  return {
+    id: step.id,
+    requestId: step.requestId,
+    name: step.name,
+    sortOrder: step.sortOrder,
+    overrideMethod: typeof override.method === 'string' ? override.method : '',
+    overrideUrl: typeof override.url === 'string' ? override.url : '',
+    overrideBodyText: typeof override.bodyText === 'string' ? override.bodyText : '',
+    continueOnFailure: step.continueOnFailure,
+    captureRules: captureRulesFromJson(step.captureRulesJson),
+  }
+}
+
+function emptyFlowStep(): FlowStepForm {
+  return {
+    id: '',
+    requestId: requestList.value[0]?.id ?? null,
+    name: requestList.value[0]?.name ?? '',
+    sortOrder: flowSteps.value.length,
+    overrideMethod: '',
+    overrideUrl: '',
+    overrideBodyText: '',
+    continueOnFailure: false,
+    captureRules: [],
+  }
+}
+
 function addKeyValueRow(rows: KeyValueRow[]) {
   rows.push({ key: '', value: '', enabled: true })
 }
@@ -310,6 +521,21 @@ function removeVariant(variable: VariableRow, index: number) {
   variable.variants.splice(index, 1)
 }
 
+function addCaptureRule(step: FlowStepForm, preset?: Partial<CaptureRuleRow>) {
+  step.captureRules.push({
+    source: preset?.source ?? 'JSON',
+    path: preset?.path ?? '',
+    header: preset?.header ?? '',
+    as: preset?.as ?? '',
+    required: preset?.required ?? false,
+    secret: preset?.secret ?? false,
+  })
+}
+
+function removeCaptureRule(step: FlowStepForm, index: number) {
+  step.captureRules.splice(index, 1)
+}
+
 async function loadTasks() {
   if (!selectedProjectId.value) {
     tasks.value = []
@@ -325,23 +551,27 @@ async function refreshApiLab() {
   if (!selectedProjectId.value) {
     environments.value = []
     requests.value = []
+    flows.value = []
     tasks.value = []
     resetEnvironmentForm()
     resetRequestForm()
+    resetFlowForm()
     return
   }
 
   loading.value = true
 
   try {
-    const [environmentData, requestData] = await Promise.all([
+    const [environmentData, requestData, flowData] = await Promise.all([
       loadApiEnvironments(selectedProjectId.value),
       loadApiRequests(selectedProjectId.value),
+      loadApiFlows(selectedProjectId.value),
     ])
     await loadTasks()
 
     environments.value = environmentData
     requests.value = requestData
+    flows.value = flowData
 
     if (!selectedEnvironmentId.value || !environmentData.some((environment) => environment.id === selectedEnvironmentId.value)) {
       selectedEnvironmentId.value = environmentData[0]?.id ?? null
@@ -367,6 +597,19 @@ async function refreshApiLab() {
       setRequestForm(requestData[0])
       await loadRuns(requestData[0].id)
     }
+
+    if (selectedFlowId.value) {
+      const selected = flowData.find((flow) => flow.id === selectedFlowId.value)
+
+      if (selected) {
+        setFlowForm(selected)
+        await loadFlowSteps(selected.id)
+      }
+    } else if (flowData[0]) {
+      selectedFlowId.value = flowData[0].id
+      setFlowForm(flowData[0])
+      await loadFlowSteps(flowData[0].id)
+    }
   } finally {
     loading.value = false
   }
@@ -376,7 +619,12 @@ async function loadRuns(requestId: string) {
   requestRuns.value = await loadApiRequestRuns(requestId)
 }
 
+async function loadFlowSteps(flowId: string) {
+  flowSteps.value = (await loadApiFlowSteps(flowId)).map(flowStepFromApi)
+}
+
 function selectRequest(request: ApiRequest) {
+  activeLeftTab.value = 'requests'
   selectedRequestId.value = request.id
   setRequestForm(request)
   currentResult.value = null
@@ -384,8 +632,22 @@ function selectRequest(request: ApiRequest) {
 }
 
 function newRequest() {
+  activeLeftTab.value = 'requests'
   resetRequestForm()
   requestForm.collectionName = selectedRequest.value?.collectionName ?? 'Mac dinh'
+}
+
+function selectFlow(flow: ApiFlow) {
+  activeLeftTab.value = 'flows'
+  selectedFlowId.value = flow.id
+  setFlowForm(flow)
+  currentFlowResult.value = null
+  void loadFlowSteps(flow.id)
+}
+
+function newFlow() {
+  activeLeftTab.value = 'flows'
+  resetFlowForm()
 }
 
 async function submitEnvironment() {
@@ -471,6 +733,211 @@ async function removeRequest() {
   await refreshApiLab()
 }
 
+async function submitFlow() {
+  if (!selectedProjectId.value || !flowForm.name.trim()) {
+    message.warning('Cần nhập tên flow.')
+    return
+  }
+
+  savingFlow.value = true
+
+  try {
+    const saved = await saveApiFlow({
+      id: flowForm.id || undefined,
+      projectId: selectedProjectId.value,
+      taskId: flowForm.taskId,
+      collectionName: flowForm.collectionName,
+      name: flowForm.name,
+      enabled: flowForm.enabled,
+      storeResponseBody: flowForm.storeResponseBody,
+    })
+
+    selectedFlowId.value = saved.id
+    setFlowForm(saved)
+    message.success('Đã lưu flow.')
+    await refreshApiLab()
+  } finally {
+    savingFlow.value = false
+  }
+}
+
+async function removeFlow() {
+  if (!flowForm.id) {
+    return
+  }
+
+  await deleteApiFlow(flowForm.id)
+  message.success('Đã xóa flow.')
+  resetFlowForm()
+  await refreshApiLab()
+}
+
+async function ensureFlowSaved() {
+  if (!flowForm.id) {
+    await submitFlow()
+  }
+
+  return Boolean(flowForm.id)
+}
+
+async function addFlowStep() {
+  if (!(await ensureFlowSaved())) {
+    return
+  }
+
+  flowSteps.value.push(emptyFlowStep())
+}
+
+function flowStepOverridePayload(step: FlowStepForm) {
+  const override: Record<string, unknown> = {}
+
+  if (step.overrideMethod) {
+    override.method = step.overrideMethod
+  }
+
+  if (step.overrideUrl.trim()) {
+    override.url = step.overrideUrl.trim()
+  }
+
+  if (step.overrideBodyText.trim()) {
+    override.bodyText = step.overrideBodyText
+    override.bodyType = /^[\[{]/.test(step.overrideBodyText.trim()) ? 'JSON' : 'TEXT'
+  }
+
+  return override
+}
+
+async function saveFlowStepRow(step: FlowStepForm) {
+  if (!(await ensureFlowSaved())) {
+    return
+  }
+
+  if (!step.name.trim() && step.requestId) {
+    step.name = requests.value.find((request) => request.id === step.requestId)?.name ?? ''
+  }
+
+  if (!step.name.trim()) {
+    message.warning('Cần nhập tên step.')
+    return
+  }
+
+  savingStepId.value = step.id || `draft-${step.sortOrder}`
+
+  try {
+    const saved = await saveApiFlowStep({
+      id: step.id || undefined,
+      flowId: flowForm.id,
+      requestId: step.requestId,
+      name: step.name,
+      sortOrder: step.sortOrder,
+      override: flowStepOverridePayload(step),
+      captureRules: step.captureRules
+        .filter((rule) => rule.as.trim())
+        .map((rule) => ({
+          source: rule.source,
+          path: rule.path,
+          header: rule.header,
+          as: rule.as.trim(),
+          required: rule.required,
+          secret: rule.secret,
+        })),
+      continueOnFailure: step.continueOnFailure,
+    })
+
+    const index = flowSteps.value.indexOf(step)
+    flowSteps.value.splice(index, 1, flowStepFromApi(saved))
+    message.success('Đã lưu step.')
+    await refreshApiLab()
+  } finally {
+    savingStepId.value = null
+  }
+}
+
+async function removeFlowStep(step: FlowStepForm, index: number) {
+  if (step.id) {
+    await deleteApiFlowStep(step.id)
+  }
+
+  flowSteps.value.splice(index, 1)
+  flowSteps.value.forEach((item, itemIndex) => {
+    item.sortOrder = itemIndex
+  })
+  message.success('Đã xóa step.')
+}
+
+function startStepDrag(index: number) {
+  draggedStepIndex.value = index
+}
+
+async function dropStep(targetIndex: number) {
+  if (draggedStepIndex.value === null || draggedStepIndex.value === targetIndex) {
+    draggedStepIndex.value = null
+    return
+  }
+
+  const [moved] = flowSteps.value.splice(draggedStepIndex.value, 1)
+
+  if (!moved) {
+    draggedStepIndex.value = null
+    return
+  }
+
+  flowSteps.value.splice(targetIndex, 0, moved)
+  flowSteps.value.forEach((step, index) => {
+    step.sortOrder = index
+  })
+  draggedStepIndex.value = null
+
+  for (const step of flowSteps.value.filter((item) => item.id)) {
+    await saveApiFlowStep({
+      id: step.id,
+      flowId: flowForm.id,
+      requestId: step.requestId,
+      name: step.name,
+      sortOrder: step.sortOrder,
+      override: flowStepOverridePayload(step),
+      captureRules: step.captureRules,
+      continueOnFailure: step.continueOnFailure,
+    })
+  }
+
+  message.success('Đã đổi thứ tự step.')
+}
+
+function startResponseFieldDrag(field: ResponseField) {
+  draggedResponseField.value = field
+}
+
+function dropResponseField(targetStep: FlowStepForm, target: 'url' | 'body') {
+  const field = draggedResponseField.value
+
+  if (!field) {
+    return
+  }
+
+  const token = `{{${field.variableName}}}`
+
+  if (target === 'url') {
+    targetStep.overrideUrl = `${targetStep.overrideUrl}${token}`
+  } else {
+    targetStep.overrideBodyText = `${targetStep.overrideBodyText}${token}`
+  }
+
+  const sourceStep = flowSteps.value.find((step) => step.id === field.stepId)
+
+  if (sourceStep && !sourceStep.captureRules.some((rule) => rule.as === field.variableName)) {
+    addCaptureRule(sourceStep, {
+      source: 'JSON',
+      path: field.path,
+      as: field.variableName,
+      required: true,
+    })
+  }
+
+  draggedResponseField.value = null
+  message.success('Đã thêm mapping vào flow draft.')
+}
+
 function runtimeVariables() {
   try {
     const parsed = JSON.parse(runtimeVariablesText.value || '{}')
@@ -518,6 +985,40 @@ async function runCurrentRequest() {
     }
   } finally {
     runningRequest.value = false
+  }
+}
+
+async function runCurrentFlow() {
+  if (!flowForm.id) {
+    await submitFlow()
+  }
+
+  if (!flowForm.id) {
+    return
+  }
+
+  const runtime = runtimeVariables()
+
+  if (!runtime) {
+    return
+  }
+
+  runningFlow.value = true
+
+  try {
+    currentFlowResult.value = await runApiFlow(flowForm.id, {
+      environmentId: selectedEnvironmentId.value,
+      runtimeVariables: runtime,
+      saveResponseBody: runSaveResponseBody.value,
+    })
+
+    if (currentFlowResult.value.flowRun.status === 'PASSED') {
+      message.success('Flow chạy thành công.')
+    } else {
+      message.warning(currentFlowResult.value.flowRun.errorMessage || 'Flow chạy lỗi.')
+    }
+  } finally {
+    runningFlow.value = false
   }
 }
 
@@ -583,6 +1084,10 @@ onMounted(refreshApiLab)
     </div>
     <a-space>
       <a-button @click="refreshApiLab">Làm mới</a-button>
+      <a-button @click="newFlow">
+        <template #icon><PlusOutlined /></template>
+        Flow
+      </a-button>
       <a-button type="primary" @click="newRequest">
         <template #icon><PlusOutlined /></template>
         Request
@@ -632,12 +1137,38 @@ onMounted(refreshApiLab)
             </a-list>
           </a-tab-pane>
           <a-tab-pane key="flows" tab="Flows">
-            <a-empty description="Flow nhiều request sẽ làm ở phase sau." />
+            <a-button class="api-lab-full-button" @click="newFlow">
+              <template #icon><PlusOutlined /></template>
+              Flow mới
+            </a-button>
+            <a-list class="api-lab-request-list" size="small" :data-source="flowList">
+              <template #renderItem="{ item }">
+                <a-list-item
+                  class="api-lab-request-item"
+                  :class="{ 'api-lab-request-item-active': item.id === selectedFlowId }"
+                  @click="selectFlow(item)"
+                >
+                  <a-list-item-meta>
+                    <template #title>
+                      <a-space>
+                        <a-tag color="purple">FLOW</a-tag>
+                        <span>{{ item.name }}</span>
+                      </a-space>
+                    </template>
+                    <template #description>
+                      <span>{{ item.collectionName }}</span>
+                      <span v-if="item.task"> · {{ item.task.code }}</span>
+                      <span> · {{ item._count?.steps ?? 0 }} step</span>
+                    </template>
+                  </a-list-item-meta>
+                </a-list-item>
+              </template>
+            </a-list>
           </a-tab-pane>
         </a-tabs>
       </a-card>
 
-      <a-card class="settings-card api-lab-editor-card" title="Request editor">
+      <a-card v-if="activeLeftTab === 'requests'" class="settings-card api-lab-editor-card" title="Request editor">
         <a-form layout="vertical" :model="requestForm" @finish="submitRequest">
           <div class="form-grid">
             <a-form-item label="Collection">
@@ -746,6 +1277,149 @@ onMounted(refreshApiLab)
         </a-form>
       </a-card>
 
+      <a-card v-else class="settings-card api-lab-editor-card" title="Flow editor">
+        <a-form layout="vertical" :model="flowForm" @finish="submitFlow">
+          <div class="form-grid">
+            <a-form-item label="Collection">
+              <a-input v-model:value="flowForm.collectionName" />
+            </a-form-item>
+            <a-form-item label="Link task">
+              <a-select
+                v-model:value="flowForm.taskId"
+                allow-clear
+                show-search
+                :options="taskOptions"
+                placeholder="Không bắt buộc"
+              />
+            </a-form-item>
+            <a-form-item label="Tên flow" required>
+              <a-input v-model:value="flowForm.name" placeholder="Login -> tạo dữ liệu -> kiểm tra kết quả" />
+            </a-form-item>
+          </div>
+
+          <a-space class="form-actions" wrap>
+            <a-checkbox v-model:checked="flowForm.enabled">Bật flow</a-checkbox>
+            <a-checkbox v-model:checked="flowForm.storeResponseBody">Luôn lưu response body</a-checkbox>
+          </a-space>
+
+          <a-space class="form-actions" wrap>
+            <a-button type="primary" html-type="submit" :loading="savingFlow">
+              <template #icon><SaveOutlined /></template>
+              Lưu flow
+            </a-button>
+            <a-button @click="addFlowStep">
+              <template #icon><PlusOutlined /></template>
+              Thêm step
+            </a-button>
+            <a-popconfirm v-if="flowForm.id" title="Xóa flow này?" @confirm="removeFlow">
+              <a-button danger>
+                <template #icon><DeleteOutlined /></template>
+                Xóa flow
+              </a-button>
+            </a-popconfirm>
+          </a-space>
+        </a-form>
+
+        <a-empty v-if="!flowSteps.length" description="Chưa có step trong flow." />
+        <div v-else class="api-lab-flow-steps">
+          <div
+            v-for="(step, index) in flowSteps"
+            :key="step.id || `draft-${index}`"
+            class="api-lab-flow-step"
+            draggable="true"
+            @dragstart="startStepDrag(index)"
+            @dragover.prevent
+            @drop="dropStep(index)"
+          >
+            <div class="api-lab-flow-step-head">
+              <a-tag color="blue">{{ index + 1 }}</a-tag>
+              <a-input v-model:value="step.name" placeholder="Tên step" />
+              <a-select
+                v-model:value="step.requestId"
+                allow-clear
+                show-search
+                :options="requestOptions"
+                placeholder="Chọn request hoặc dùng inline URL"
+              />
+              <a-checkbox v-model:checked="step.continueOnFailure">Tiếp tục khi lỗi</a-checkbox>
+            </div>
+
+            <a-tabs size="small">
+              <a-tab-pane key="override" tab="Override">
+                <div class="api-lab-flow-override">
+                  <a-select
+                    v-model:value="step.overrideMethod"
+                    allow-clear
+                    :options="methodOptions"
+                    placeholder="Giữ method request"
+                  />
+                  <a-input
+                    v-model:value="step.overrideUrl"
+                    class="api-lab-drop-target"
+                    placeholder="Override URL hoặc inline URL"
+                    @dragover.prevent
+                    @drop="dropResponseField(step, 'url')"
+                  />
+                </div>
+                <a-textarea
+                  v-model:value="step.overrideBodyText"
+                  class="api-lab-drop-target"
+                  :rows="4"
+                  placeholder="Override body, có thể dùng {{capturedValue}}"
+                  @dragover.prevent
+                  @drop="dropResponseField(step, 'body')"
+                />
+              </a-tab-pane>
+              <a-tab-pane key="captures" tab="Captures">
+                <div class="api-lab-capture-list">
+                  <div v-for="(rule, ruleIndex) in step.captureRules" :key="ruleIndex" class="api-lab-capture-row">
+                    <a-select v-model:value="rule.source" :options="captureSourceOptions" />
+                    <a-input v-model:value="rule.as" placeholder="Tên biến" />
+                    <a-input
+                      v-if="rule.source === 'HEADER'"
+                      v-model:value="rule.header"
+                      placeholder="Header name"
+                    />
+                    <a-input
+                      v-else-if="rule.source !== 'STATUS'"
+                      v-model:value="rule.path"
+                      placeholder="$.data.id"
+                    />
+                    <span v-else class="api-lab-muted">HTTP status</span>
+                    <a-checkbox v-model:checked="rule.required">Bắt buộc</a-checkbox>
+                    <a-checkbox v-model:checked="rule.secret">Secret</a-checkbox>
+                    <a-button danger @click="removeCaptureRule(step, ruleIndex)">
+                      <template #icon><DeleteOutlined /></template>
+                    </a-button>
+                  </div>
+                  <a-button @click="addCaptureRule(step)">
+                    <template #icon><PlusOutlined /></template>
+                    Thêm capture
+                  </a-button>
+                </div>
+              </a-tab-pane>
+            </a-tabs>
+
+            <a-space class="form-actions">
+              <a-button
+                type="primary"
+                :loading="savingStepId === (step.id || `draft-${step.sortOrder}`)"
+                @click="saveFlowStepRow(step)"
+              >
+                <template #icon><SaveOutlined /></template>
+                Lưu step
+              </a-button>
+              <a-popconfirm title="Xóa step này?" @confirm="removeFlowStep(step, index)">
+                <a-button danger>
+                  <template #icon><DeleteOutlined /></template>
+                  Xóa step
+                </a-button>
+              </a-popconfirm>
+            </a-space>
+          </div>
+        </div>
+      </a-card>
+
       <div class="api-lab-side-stack">
         <a-card class="settings-card" title="Môi trường">
           <a-form layout="vertical" :model="environmentForm" @finish="submitEnvironment">
@@ -794,7 +1468,7 @@ onMounted(refreshApiLab)
           </a-form>
         </a-card>
 
-        <a-card class="settings-card" title="Run và response">
+        <a-card v-if="activeLeftTab === 'requests'" class="settings-card" title="Run và response">
           <a-space direction="vertical" class="api-lab-run-panel">
             <a-checkbox v-model:checked="runSaveResponseBody">Lưu response body cho lần chạy này</a-checkbox>
             <a-form-item label="Runtime variables JSON">
@@ -833,7 +1507,69 @@ onMounted(refreshApiLab)
           </a-space>
         </a-card>
 
-        <a-card class="settings-card" title="Lịch sử gần đây">
+        <a-card v-else class="settings-card" title="Chạy flow">
+          <a-space direction="vertical" class="api-lab-run-panel">
+            <a-checkbox v-model:checked="runSaveResponseBody">Lưu response body cho lần chạy này</a-checkbox>
+            <a-form-item label="Runtime variables JSON">
+              <a-textarea v-model:value="runtimeVariablesText" :rows="3" />
+            </a-form-item>
+            <a-button type="primary" :loading="runningFlow" :disabled="!flowForm.id || !flowSteps.length" @click="runCurrentFlow">
+              <template #icon><SendOutlined /></template>
+              Chạy flow
+            </a-button>
+
+            <a-empty v-if="!currentFlowResult" description="Chưa có kết quả flow." />
+            <template v-else>
+              <a-space wrap>
+                <a-tag :color="flowStatusColor">{{ currentFlowResult.flowRun.status }}</a-tag>
+                <a-tag>{{ currentFlowResult.flowRun.durationMs ?? 0 }}ms</a-tag>
+              </a-space>
+              <a-alert
+                v-if="currentFlowResult.flowRun.errorMessage"
+                type="error"
+                show-icon
+                :message="currentFlowResult.flowRun.errorMessage"
+              />
+
+              <div v-if="flowResponseFields.length" class="api-lab-response-fields">
+                <a-tag
+                  v-for="field in flowResponseFields"
+                  :key="`${field.stepId}-${field.path}`"
+                  class="api-lab-draggable-field"
+                  draggable="true"
+                  @dragstart="startResponseFieldDrag(field)"
+                >
+                  {{ field.stepName }} · {{ field.path }}
+                </a-tag>
+              </div>
+
+              <div class="api-lab-flow-results">
+                <div v-for="stepResult in currentFlowResult.steps" :key="stepResult.run.id" class="api-lab-result-step">
+                  <a-space wrap>
+                    <strong>{{ stepResult.step.sortOrder + 1 }}. {{ stepResult.step.name }}</strong>
+                    <a-tag :color="stepResult.run.status === 'PASSED' ? 'green' : stepResult.run.status === 'SKIPPED' ? 'default' : 'red'">
+                      {{ stepResult.run.status }}
+                    </a-tag>
+                    <a-tag>{{ stepResult.run.httpStatus ?? 'No status' }}</a-tag>
+                    <a-tag>{{ stepResult.run.durationMs ?? 0 }}ms</a-tag>
+                  </a-space>
+                  <a-alert v-if="stepResult.run.errorMessage" type="warning" show-icon :message="stepResult.run.errorMessage" />
+                  <AppJsonCodeBlock :value="JSON.stringify(stepResult.capturedVariables, null, 2)" empty-text="Không có capture" />
+                  <a-tabs v-if="stepResult.response" size="small">
+                    <a-tab-pane key="body" tab="Body">
+                      <AppJsonCodeBlock :value="stepResult.response.bodyPreview" empty-text="Không có body" />
+                    </a-tab-pane>
+                    <a-tab-pane key="headers" tab="Headers">
+                      <AppJsonCodeBlock :value="JSON.stringify(stepResult.response.headers, null, 2)" empty-text="Không có headers" />
+                    </a-tab-pane>
+                  </a-tabs>
+                </div>
+              </div>
+            </template>
+          </a-space>
+        </a-card>
+
+        <a-card v-if="activeLeftTab === 'requests'" class="settings-card" title="Lịch sử gần đây">
           <a-list size="small" :data-source="requestRuns">
             <template #renderItem="{ item }">
               <a-list-item>
@@ -859,11 +1595,11 @@ onMounted(refreshApiLab)
   </a-spin>
 
   <a-drawer v-model:open="curlDrawerOpen" title="Import cURL" width="720">
-    <a-form layout="vertical" @finish="applyCurlImport">
+    <a-form layout="vertical">
       <a-form-item label="cURL">
         <a-textarea v-model:value="curlInput" :rows="12" placeholder="curl -X POST ..." />
       </a-form-item>
-      <a-button type="primary" html-type="submit">
+      <a-button type="primary" @click="applyCurlImport">
         <template #icon><ImportOutlined /></template>
         Import vào request
       </a-button>

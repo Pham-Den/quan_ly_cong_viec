@@ -74,6 +74,35 @@ type ApiRequestRunResult = {
   } | null
 }
 
+type ApiFlowRunResult = {
+  flowRun: {
+    id: string
+    status: string
+    capturedVariablesJson: string
+    errorMessage: string | null
+  }
+  steps: Array<{
+    step: {
+      id: string
+      name: string
+      sortOrder: number
+    }
+    run: {
+      id: string
+      status: string
+      httpStatus: number | null
+      capturedVariablesJson: string
+      errorMessage: string | null
+    }
+    response: {
+      bodyPreview: string
+      headers: Record<string, string>
+    } | null
+    capturedVariables: Record<string, string>
+  }>
+  capturedVariables: Record<string, string>
+}
+
 type CurlImportDraft = {
   method: string
   url: string
@@ -477,6 +506,158 @@ describe('api lab foundation', () => {
       assert.equal(run.response.statusCode, 200)
       assert.equal(run.body.run.status, 'FAILED')
       assert.match(run.body.run.errorMessage ?? '', /timeout/i)
+    } finally {
+      await internalApi.close()
+    }
+  })
+
+  test('runs a flow sequentially and passes captured output into later steps', async () => {
+    const internalApi = await startInternalApi((incomingRequest, response) => {
+      response.setHeader('content-type', 'application/json')
+
+      if (incomingRequest.url?.startsWith('/create')) {
+        response.setHeader('x-flow-token', 'dynamic-secret')
+        response.end(JSON.stringify({ data: { id: 'user-123' } }))
+        return
+      }
+
+      response.end(
+        JSON.stringify({
+          url: incomingRequest.url,
+          authorization: incomingRequest.headers.authorization,
+          fromStatus: incomingRequest.headers['x-from-status'],
+        }),
+      )
+    })
+
+    try {
+      const token = await setupSession()
+      const project = await setupProject('CHAIN', token)
+      const environment = await createEnvironment(token, project.id, internalApi.baseUrl)
+      const createRequest = await createApiRequest(token, {
+        projectId: project.id,
+        name: 'Create user',
+        method: 'GET',
+        url: '{{baseUrl}}/create',
+      })
+      const readRequest = await createApiRequest(token, {
+        projectId: project.id,
+        name: 'Read user',
+        method: 'GET',
+        url: '{{baseUrl}}/users/{{userId}}',
+        headers: [
+          { key: 'authorization', value: 'Bearer {{flowToken}}' },
+          { key: 'x-from-status', value: '{{createStatus}}' },
+        ],
+      })
+      const flow = await request<ApiFlow>('POST', '/api/api-lab/flows', token, {
+        projectId: project.id,
+        name: 'Create then read',
+      })
+      const readStep = await request<ApiFlowStep>('POST', `/api/api-lab/flows/${flow.body.id}/steps`, token, {
+        requestId: readRequest.id,
+        name: 'Read user',
+        sortOrder: 0,
+      })
+      const createStep = await request<ApiFlowStep>('POST', `/api/api-lab/flows/${flow.body.id}/steps`, token, {
+        requestId: createRequest.id,
+        name: 'Create user',
+        sortOrder: 1,
+        captureRules: [
+          { source: 'JSON', path: '$.data.id', as: 'userId', required: true },
+          { source: 'HEADER', header: 'x-flow-token', as: 'flowToken', required: true, secret: true },
+          { source: 'STATUS', as: 'createStatus' },
+        ],
+      })
+
+      await request<ApiFlowStep>('PATCH', `/api/api-lab/flow-steps/${createStep.body.id}`, token, {
+        requestId: createRequest.id,
+        name: 'Create user',
+        sortOrder: 0,
+        captureRules: [
+          { source: 'JSON', path: '$.data.id', as: 'userId', required: true },
+          { source: 'HEADER', header: 'x-flow-token', as: 'flowToken', required: true, secret: true },
+          { source: 'STATUS', as: 'createStatus' },
+        ],
+      })
+      await request<ApiFlowStep>('PATCH', `/api/api-lab/flow-steps/${readStep.body.id}`, token, {
+        requestId: readRequest.id,
+        name: 'Read user',
+        sortOrder: 1,
+      })
+
+      const steps = await request<ApiFlowStep[]>('GET', `/api/api-lab/flows/${flow.body.id}/steps`, token)
+
+      assert.equal(steps.body[0]?.id, createStep.body.id)
+      assert.equal(steps.body[1]?.id, readStep.body.id)
+
+      const run = await request<ApiFlowRunResult>('POST', `/api/api-lab/flows/${flow.body.id}/run`, token, {
+        environmentId: environment.id,
+      })
+
+      assert.equal(run.response.statusCode, 200)
+      assert.equal(run.body.flowRun.status, 'PASSED')
+      assert.equal(run.body.steps.length, 2)
+      assert.equal(run.body.steps[0]?.capturedVariables.userId, 'user-123')
+      assert.equal(run.body.steps[0]?.capturedVariables.flowToken, '********')
+      assert.match(run.body.steps[1]?.response?.bodyPreview ?? '', /\/users\/user-123/)
+      assert.match(run.body.steps[1]?.response?.bodyPreview ?? '', /"fromStatus":"200"/)
+      assert.doesNotMatch(run.body.steps[1]?.response?.bodyPreview ?? '', /dynamic-secret/)
+      assert.match(run.body.steps[1]?.response?.bodyPreview ?? '', /\*\*\*\*\*\*\*\*/)
+      assert.equal(await prisma.apiFlowRun.count(), 1)
+      assert.equal(await prisma.apiRequestRun.count({ where: { flowRunId: run.body.flowRun.id } }), 2)
+    } finally {
+      await internalApi.close()
+    }
+  })
+
+  test('stops a flow when a required capture is missing and records skipped steps', async () => {
+    const internalApi = await startInternalApi((_incomingRequest, response) => {
+      response.setHeader('content-type', 'application/json')
+      response.end(JSON.stringify({ data: {} }))
+    })
+
+    try {
+      const token = await setupSession()
+      const project = await setupProject('MISS', token)
+      const environment = await createEnvironment(token, project.id, internalApi.baseUrl)
+      const firstRequest = await createApiRequest(token, {
+        projectId: project.id,
+        name: 'Missing capture',
+        method: 'GET',
+        url: '{{baseUrl}}/missing',
+      })
+      const secondRequest = await createApiRequest(token, {
+        projectId: project.id,
+        name: 'Should skip',
+        method: 'GET',
+        url: '{{baseUrl}}/next/{{missingId}}',
+      })
+      const flow = await request<ApiFlow>('POST', '/api/api-lab/flows', token, {
+        projectId: project.id,
+        name: 'Missing required capture',
+      })
+
+      await request<ApiFlowStep>('POST', `/api/api-lab/flows/${flow.body.id}/steps`, token, {
+        requestId: firstRequest.id,
+        name: 'Missing capture',
+        captureRules: [{ source: 'JSON', path: '$.data.id', as: 'missingId', required: true }],
+      })
+      await request<ApiFlowStep>('POST', `/api/api-lab/flows/${flow.body.id}/steps`, token, {
+        requestId: secondRequest.id,
+        name: 'Should skip',
+      })
+
+      const run = await request<ApiFlowRunResult>('POST', `/api/api-lab/flows/${flow.body.id}/run`, token, {
+        environmentId: environment.id,
+      })
+
+      assert.equal(run.response.statusCode, 200)
+      assert.equal(run.body.flowRun.status, 'FAILED')
+      assert.match(run.body.flowRun.errorMessage ?? '', /Thieu capture bat buoc/)
+      assert.equal(run.body.steps[0]?.run.status, 'FAILED')
+      assert.equal(run.body.steps[1]?.run.status, 'SKIPPED')
+      assert.match(run.body.steps[1]?.run.errorMessage ?? '', /bo qua/)
     } finally {
       await internalApi.close()
     }

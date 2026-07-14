@@ -58,6 +58,88 @@ export type ApiRequest = {
   }
 }
 
+export type ApiFlow = {
+  id: string
+  projectId: string
+  taskId: string | null
+  collectionName: string
+  name: string
+  description: string | null
+  enabled: boolean
+  storeResponseBody: boolean
+  sortOrder: number
+  task?: {
+    id: string
+    code: string
+    title: string
+  } | null
+  _count?: {
+    steps: number
+    flowRuns: number
+  }
+}
+
+export type CaptureRulePayload = {
+  source: string
+  path?: string
+  header?: string
+  as: string
+  required?: boolean
+  secret?: boolean
+}
+
+export type ApiFlowStep = {
+  id: string
+  flowId: string
+  requestId: string | null
+  name: string
+  sortOrder: number
+  overrideJson: string
+  captureRulesJson: string
+  assertionRulesJson: string
+  continueOnFailure: boolean
+  request?: {
+    id: string
+    name: string
+    method: string
+    url: string
+    collectionName: string
+  } | null
+}
+
+export type ApiFlowRunResult = {
+  flowRun: {
+    id: string
+    status: string
+    durationMs: number | null
+    capturedVariablesJson: string
+    errorMessage: string | null
+    startedAt: string
+    finishedAt: string | null
+    createdAt: string
+  }
+  steps: Array<{
+    step: {
+      id: string
+      name: string
+      sortOrder: number
+      continueOnFailure: boolean
+    }
+    run: ApiRequestRun
+    response: {
+      httpStatus: number | null
+      durationMs: number
+      headers: Record<string, string>
+      bodyPreview: string
+      originalSize: number
+      truncated: boolean
+      savedResponseId: string | null
+    } | null
+    capturedVariables: Record<string, string>
+  }>
+  capturedVariables: Record<string, string>
+}
+
 export type ApiRequestPayload = {
   projectId: string
   taskId?: string | null
@@ -176,6 +258,94 @@ export async function saveApiRequest(payload: ApiRequestPayload & { id?: string 
 
 export async function deleteApiRequest(requestId: string) {
   await api.delete(`/api/api-lab/requests/${requestId}`)
+}
+
+export async function loadApiFlows(projectId: string) {
+  const { data } = await api.get<ApiFlow[]>(`/api/api-lab/flows?projectId=${projectId}`)
+
+  return data
+}
+
+export async function saveApiFlow(payload: {
+  id?: string
+  projectId: string
+  taskId?: string | null
+  collectionName: string
+  name: string
+  enabled: boolean
+  storeResponseBody: boolean
+  sortOrder?: number
+}) {
+  if (payload.id) {
+    const { data } = await api.patch<ApiFlow>(`/api/api-lab/flows/${payload.id}`, payload)
+
+    return data
+  }
+
+  const { data } = await api.post<ApiFlow>('/api/api-lab/flows', payload)
+
+  return data
+}
+
+export async function deleteApiFlow(flowId: string) {
+  await api.delete(`/api/api-lab/flows/${flowId}`)
+}
+
+export async function loadApiFlowSteps(flowId: string) {
+  const { data } = await api.get<ApiFlowStep[]>(`/api/api-lab/flows/${flowId}/steps`)
+
+  return data
+}
+
+export async function saveApiFlowStep(payload: {
+  id?: string
+  flowId: string
+  requestId?: string | null
+  name: string
+  sortOrder: number
+  override: Record<string, unknown>
+  captureRules: CaptureRulePayload[]
+  assertionRules?: unknown[]
+  continueOnFailure: boolean
+}) {
+  const body = {
+    requestId: payload.requestId,
+    name: payload.name,
+    sortOrder: payload.sortOrder,
+    override: payload.override,
+    captureRules: payload.captureRules,
+    assertionRules: payload.assertionRules ?? [],
+    continueOnFailure: payload.continueOnFailure,
+  }
+
+  if (payload.id) {
+    const { data } = await api.patch<ApiFlowStep>(`/api/api-lab/flow-steps/${payload.id}`, body)
+
+    return data
+  }
+
+  const { data } = await api.post<ApiFlowStep>(`/api/api-lab/flows/${payload.flowId}/steps`, body)
+
+  return data
+}
+
+export async function deleteApiFlowStep(stepId: string) {
+  await api.delete(`/api/api-lab/flow-steps/${stepId}`)
+}
+
+export async function runApiFlow(
+  flowId: string,
+  payload: {
+    environmentId?: string | null
+    variableVariants?: Record<string, string>
+    runtimeVariables?: Record<string, string>
+    saveResponseBody?: boolean
+    timeoutMs?: number
+  },
+) {
+  const { data } = await api.post<ApiFlowRunResult>(`/api/api-lab/flows/${flowId}/run`, payload)
+
+  return data
 }
 
 export async function runApiRequest(

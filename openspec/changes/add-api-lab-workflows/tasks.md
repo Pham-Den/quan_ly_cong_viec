@@ -27,26 +27,26 @@
 
 ## 4. API Lab Menu And Single Request UI
 
-- [ ] 4.1 Add `API Lab` item to the main sidebar and route guard.
-- [ ] 4.2 Build compact API Lab layout with left request/flow list, center editor, and right response/history panel.
-- [ ] 4.3 Build environment selector and environment variable editor with masked secret display.
-- [ ] 4.4 Build saved request editor for method, URL/path, query, headers, body type, body content, timeout, response-storage option, and optional task link.
-- [ ] 4.5 Build cURL import UI that creates a request draft before saving.
-- [ ] 4.6 Build single request run action and response viewer with status, duration, headers, body preview, save-response action, and assertion summary placeholder.
-- [ ] 4.7 Add browser test for opening API Lab, creating an environment, importing cURL, saving a request, and seeing it in the list.
-- [ ] 4.8 Stop for user review before adding multi-step flows.
+- [x] 4.1 Add `API Lab` item to the main sidebar and route guard.
+- [x] 4.2 Build compact API Lab layout with left request/flow list, center editor, and right response/history panel.
+- [x] 4.3 Build environment selector and environment variable editor with masked secret display.
+- [x] 4.4 Build saved request editor for method, URL/path, query, headers, body type, body content, timeout, response-storage option, and optional task link.
+- [x] 4.5 Build cURL import UI that creates a request draft before saving.
+- [x] 4.6 Build single request run action and response viewer with status, duration, headers, body preview, save-response action, and assertion summary placeholder.
+- [x] 4.7 Add browser test for opening API Lab, creating an environment, importing cURL, saving a request, and seeing it in the list.
+- [x] 4.8 Stop for user review before adding multi-step flows.
 
 ## 5. Flow Runner And Output-To-Input Chaining
 
-- [ ] 5.1 Build backend capture rule support for JSON path, response header, status code, and raw text.
-- [ ] 5.2 Build backend flow execution that runs steps sequentially and passes captured variables into later steps.
-- [ ] 5.3 Support required captures and continue-on-failure behavior.
-- [ ] 5.4 Store parent flow run and child step run records with per-step captured variables and errors.
-- [ ] 5.5 Build flow editor with drag-and-drop ordered steps, saved-request picker, inline overrides, capture rules, and continue-on-failure toggle.
-- [ ] 5.6 Build drag-and-drop mapping from response JSON preview into a later request URL, query, header, or body field.
-- [ ] 5.7 Build flow run UI with per-step result, captured variables, skipped steps, and failure reason.
-- [ ] 5.8 Add backend and browser tests proving output from one API can be used as input for the next API and that drag/drop step ordering persists.
-- [ ] 5.9 Stop for user review before adding assertions and timeline integration.
+- [x] 5.1 Build backend capture rule support for JSON path, response header, status code, and raw text.
+- [x] 5.2 Build backend flow execution that runs steps sequentially and passes captured variables into later steps.
+- [x] 5.3 Support required captures and continue-on-failure behavior.
+- [x] 5.4 Store parent flow run and child step run records with per-step captured variables and errors.
+- [x] 5.5 Build flow editor with drag-and-drop ordered steps, saved-request picker, inline overrides, capture rules, and continue-on-failure toggle.
+- [x] 5.6 Build drag-and-drop mapping from response JSON preview into a later request URL, query, header, or body field.
+- [x] 5.7 Build flow run UI with per-step result, captured variables, skipped steps, and failure reason.
+- [x] 5.8 Add backend and browser tests proving output from one API can be used as input for the next API and that drag/drop step ordering persists.
+- [x] 5.9 Stop for user review before adding assertions and timeline integration.
 
 ## 6. Assertions And Run History
 

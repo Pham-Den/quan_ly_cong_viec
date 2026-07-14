@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 import { resetE2eDatabase } from './reset-e2e-db'
 
@@ -12,7 +12,7 @@ test.beforeEach(() => {
   resetE2eDatabase()
 })
 
-test('api lab creates environment, imports curl, saves and runs a request', async ({ page }) => {
+async function setupFirstAccount(page: Page) {
   await page.goto('/')
 
   await expect(page).toHaveURL(/\/setup$/)
@@ -20,6 +20,19 @@ test('api lab creates environment, imports curl, saves and runs a request', asyn
   await page.locator('input[autocomplete="email"]').fill(email)
   await page.locator('input[autocomplete="new-password"]').fill(password)
   await page.getByRole('button', { name: 'Tạo tài khoản' }).click()
+  await expect(page.getByRole('heading', { name: 'Tổng quan' })).toBeVisible()
+
+  const accessToken = await page.evaluate(() => localStorage.getItem('qlcv.accessToken'))
+
+  if (!accessToken) {
+    throw new Error('Missing access token')
+  }
+
+  return accessToken
+}
+
+test('api lab creates environment, imports curl, saves and runs a request', async ({ page }) => {
+  await setupFirstAccount(page)
 
   await page.getByRole('menuitem', { name: 'API Lab' }).click()
   await expect(page).toHaveURL(/\/api-lab$/)
@@ -69,4 +82,105 @@ test('api lab creates environment, imports curl, saves and runs a request', asyn
     page.getByRole('button', { name: 'Lưu kết quả' }).click(),
   ])
   await expect(page.getByText('Đã lưu body')).toBeVisible()
+})
+
+test('api lab flow reorders steps and passes captured output into the next request', async ({ page }) => {
+  const accessToken = await setupFirstAccount(page)
+  const apiHeaders = { authorization: `Bearer ${accessToken}` }
+  const projectsResponse = await page.request.get(`${apiBaseUrl}/api/projects`, { headers: apiHeaders })
+  const projects = (await projectsResponse.json()) as Array<{ id: string; code: string }>
+  const project = projects.find((item) => item.code === 'PERSONAL')
+
+  if (!project) {
+    throw new Error('Missing PERSONAL project')
+  }
+
+  await expect(
+    page.request.post(`${apiBaseUrl}/api/api-lab/environments`, {
+      headers: apiHeaders,
+      data: {
+        projectId: project.id,
+        name: 'local',
+        environmentType: 'LOCAL',
+        baseUrl: apiBaseUrl,
+        variables: [{ key: 'accessToken', secret: true, variants: [{ name: 'default', value: accessToken }] }],
+      },
+    }),
+  ).resolves.toBeOK()
+
+  const listProjectsResponse = await page.request.post(`${apiBaseUrl}/api/api-lab/requests`, {
+    headers: apiHeaders,
+    data: {
+      projectId: project.id,
+      collectionName: 'Flow E2E',
+      name: 'Capture project',
+      method: 'GET',
+      url: '{{baseUrl}}/api/projects',
+      headers: [{ key: 'authorization', value: 'Bearer {{accessToken}}' }],
+    },
+  })
+  await expect(listProjectsResponse).toBeOK()
+  const listProjectsRequest = (await listProjectsResponse.json()) as { id: string }
+  const listGroupsResponse = await page.request.post(`${apiBaseUrl}/api/api-lab/requests`, {
+    headers: apiHeaders,
+    data: {
+      projectId: project.id,
+      collectionName: 'Flow E2E',
+      name: 'Use captured project',
+      method: 'GET',
+      url: '{{baseUrl}}/api/projects/{{projectId}}/task-groups',
+      headers: [{ key: 'authorization', value: 'Bearer {{accessToken}}' }],
+    },
+  })
+  await expect(listGroupsResponse).toBeOK()
+  const listGroupsRequest = (await listGroupsResponse.json()) as { id: string }
+  const flowResponse = await page.request.post(`${apiBaseUrl}/api/api-lab/flows`, {
+    headers: apiHeaders,
+    data: {
+      projectId: project.id,
+      collectionName: 'Flow E2E',
+      name: 'Project groups flow',
+    },
+  })
+  await expect(flowResponse).toBeOK()
+  const flow = (await flowResponse.json()) as { id: string }
+  const useStepResponse = await page.request.post(`${apiBaseUrl}/api/api-lab/flows/${flow.id}/steps`, {
+    headers: apiHeaders,
+    data: {
+      requestId: listGroupsRequest.id,
+      name: 'Use captured project',
+      sortOrder: 0,
+    },
+  })
+  await expect(useStepResponse).toBeOK()
+  const captureStepResponse = await page.request.post(`${apiBaseUrl}/api/api-lab/flows/${flow.id}/steps`, {
+    headers: apiHeaders,
+    data: {
+      requestId: listProjectsRequest.id,
+      name: 'Capture project',
+      sortOrder: 1,
+      captureRules: [{ source: 'JSON', path: '$[0].id', as: 'projectId', required: true }],
+    },
+  })
+  await expect(captureStepResponse).toBeOK()
+
+  await page.getByRole('menuitem', { name: 'API Lab' }).click()
+  await expect(page).toHaveURL(/\/api-lab$/)
+  await page.getByRole('tab', { name: 'Flows' }).click()
+  await expect(page.locator('.api-lab-flow-step').first()).toContainText('Use captured project')
+
+  const stepCards = page.locator('.api-lab-flow-step')
+  await Promise.all([
+    page.waitForResponse((response) => response.url().includes('/api/api-lab/flow-steps/') && response.ok()),
+    stepCards.nth(1).dragTo(stepCards.nth(0)),
+  ])
+  await expect(stepCards.first()).toContainText('Capture project')
+
+  await Promise.all([
+    page.waitForResponse((response) => response.url().includes(`/api/api-lab/flows/${flow.id}/run`) && response.ok()),
+    page.getByRole('button', { name: 'Chạy flow' }).click(),
+  ])
+  await expect(page.locator('.api-lab-flow-results').getByText('PASSED').first()).toBeVisible()
+  await expect(page.locator('.api-lab-flow-results')).toContainText('PERSONAL')
+  await expect(page.locator('.api-lab-flow-results')).not.toContainText(accessToken)
 })

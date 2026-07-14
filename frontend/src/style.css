@@ -880,6 +880,70 @@ body {
   align-items: center;
 }
 
+.api-lab-flow-steps,
+.api-lab-capture-list,
+.api-lab-flow-results {
+  display: grid;
+  gap: 12px;
+}
+
+.api-lab-flow-step,
+.api-lab-result-step {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e5e9f0;
+  border-radius: 8px;
+}
+
+.api-lab-flow-step {
+  cursor: grab;
+}
+
+.api-lab-flow-step:active {
+  cursor: grabbing;
+}
+
+.api-lab-flow-step-head {
+  display: grid;
+  grid-template-columns: 42px minmax(120px, 0.4fr) minmax(180px, 0.6fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.api-lab-flow-override {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.api-lab-capture-row {
+  display: grid;
+  grid-template-columns: 120px minmax(100px, 0.25fr) minmax(130px, 0.45fr) auto auto 36px;
+  gap: 8px;
+  align-items: center;
+}
+
+.api-lab-muted {
+  color: #98a2b3;
+}
+
+.api-lab-drop-target {
+  border-color: #91caff;
+}
+
+.api-lab-response-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.api-lab-draggable-field {
+  cursor: grab;
+}
+
 @media (max-width: 900px) {
   .app-sidebar {
     display: none;
@@ -943,7 +1007,10 @@ body {
   .api-lab-url-row,
   .api-lab-kv-row,
   .api-lab-variable-head,
-  .api-lab-variant-row {
+  .api-lab-variant-row,
+  .api-lab-flow-step-head,
+  .api-lab-flow-override,
+  .api-lab-capture-row {
     grid-template-columns: 1fr;
   }
 

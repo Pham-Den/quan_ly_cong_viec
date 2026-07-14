@@ -96,6 +96,28 @@ Rationale: internal API examples are often shared as cURL. Importing them reduce
 
 Alternative considered: postpone cURL import. The rest of the lab would still work, but initial request creation would be slower.
 
+### Design Reference: Postman-style API Workspace
+
+Use Postman as the main interaction reference for API Lab, adapted to this app's compact personal workflow rather than copied as a full clone.
+
+Reference signals from the provided Postman screenshot:
+
+- Workspace shell: a clear workspace title, top actions such as `New`, `Import`, and an environment selector near the top/right.
+- Left navigation: a narrow mode rail for `Collections`, `Environments`, `History`, and `Flows`, plus a searchable collection tree next to it.
+- Collection tree: nested folders with request rows, method badges (`GET`, `POST`, `PUT`, `DEL`) and active-row highlighting.
+- Request workspace: tabs for open requests, breadcrumb/path context above the editor, and a strong method + URL row with primary `Send` action.
+- Request editor tabs: `Params`, `Authorization`, `Headers`, `Body`, `Scripts`, and `Settings`; Phase 6+ can map assertions/scripts into this area without cluttering the first screen.
+- Headers/params table: dense editable rows with enabled checkbox, `Key`, `Value`, and optional `Description`; bulk edit/preset actions can remain later backlog.
+- Response area: bottom panel with `Response` and `History` tabs, empty state before sending, then body/headers/status/duration after run.
+- Visual priority: API Lab should feel like a workbench, not a dashboard card page. Keep controls dense, aligned, scan-friendly, and optimized for repeated editing/running.
+
+Adaptation rules for this app:
+
+- Keep Vietnamese labels, but preserve common API terms where natural (`Collections`, `Headers`, `Body`, `Send`, `Response`).
+- Keep the app's existing light Ant Design style for now; a Postman-like dark theme can be a future UI option, not a blocker for the MVP.
+- Avoid building every Postman feature. Prioritize the user's needs: task-linked requests, internal API runs, flow chaining, capture variables, assertions, and task evidence.
+- Future UI refinement should move API Lab closer to this reference: left collection tree, central request/flow editor, bottom response panel, and compact row-based parameter editors.
+
 ## Risks / Trade-offs
 
 - Secret leakage in history -> Mask variables marked secret before saving run logs or optional response bodies, avoid logging secret values, and show clear secret indicators in UI.

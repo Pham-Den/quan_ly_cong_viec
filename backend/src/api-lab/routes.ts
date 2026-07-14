@@ -115,6 +115,27 @@ type SaveResponseBody = {
   truncated?: unknown
 }
 
+type CaptureRule = {
+  source: 'JSON' | 'HEADER' | 'STATUS' | 'TEXT'
+  variableName: string
+  path: string
+  header: string
+  required: boolean
+  secret: boolean
+}
+
+type StepRequestRecord = {
+  method: string
+  url: string
+  queryJson: string
+  headersJson: string
+  bodyType: string
+  bodyText: string | null
+  authJson: string
+  timeoutMs: number
+  storeResponseBody: boolean
+}
+
 const environmentTypes = new Set(['LOCAL', 'DEV', 'UAT', 'PROD', 'CUSTOM'])
 const httpMethods = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'])
 const bodyTypes = new Set(['NONE', 'JSON', 'TEXT', 'FORM', 'FORM_DATA'])
@@ -223,6 +244,228 @@ function maskSecretValue(value: string, secret: boolean) {
   }
 
   return value ? '********' : ''
+}
+
+function parseJsonValue(json: string, fallback: unknown) {
+  try {
+    return JSON.parse(json)
+  } catch {
+    return fallback
+  }
+}
+
+function parseJsonObjectValue(json: string) {
+  const parsed = parseJsonValue(json, {})
+
+  return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {}
+}
+
+function parseJsonArrayValue(json: string) {
+  const parsed = parseJsonValue(json, [])
+
+  return Array.isArray(parsed) ? parsed : []
+}
+
+function normalizeCaptureSource(value: unknown) {
+  const source = text(value).toUpperCase()
+
+  if (['JSON', 'HEADER', 'STATUS', 'TEXT'].includes(source)) {
+    return source as CaptureRule['source']
+  }
+
+  if (source === 'BODY' || source === 'RAW') {
+    return 'TEXT'
+  }
+
+  return 'JSON'
+}
+
+function normalizeCaptureRules(value: string) {
+  return parseJsonArrayValue(value)
+    .map((item) => {
+      const rule = bodyAs<{
+        source?: unknown
+        type?: unknown
+        path?: unknown
+        header?: unknown
+        as?: unknown
+        name?: unknown
+        variableName?: unknown
+        required?: unknown
+        secret?: unknown
+      }>(item)
+      const variableName = text(rule.as) || text(rule.variableName) || text(rule.name)
+
+      if (!variableName) {
+        return null
+      }
+
+      return {
+        source: normalizeCaptureSource(rule.source ?? rule.type),
+        variableName,
+        path: text(rule.path),
+        header: text(rule.header),
+        required: booleanValue(rule.required, false),
+        secret: booleanValue(rule.secret, false),
+      }
+    })
+    .filter((rule): rule is CaptureRule => Boolean(rule))
+}
+
+function jsonPathSegments(path: string) {
+  const normalizedPath = path.trim().replace(/^\$\.?/, '')
+  const segments: string[] = []
+  const segmentPattern = /([^.[\]]+)|\[(\d+|"[^"]+"|'[^']+')\]/g
+
+  for (const match of normalizedPath.matchAll(segmentPattern)) {
+    const rawSegment = match[1] ?? match[2] ?? ''
+    const segment = rawSegment.replace(/^["']|["']$/g, '')
+
+    if (segment) {
+      segments.push(segment)
+    }
+  }
+
+  return segments
+}
+
+function readJsonPath(bodyText: string, path: string) {
+  const parsed = parseJsonValue(bodyText, undefined)
+
+  if (parsed === undefined) {
+    return null
+  }
+
+  if (!path.trim() || path.trim() === '$') {
+    return parsed
+  }
+
+  let currentValue = parsed
+
+  for (const segment of jsonPathSegments(path)) {
+    if (Array.isArray(currentValue)) {
+      currentValue = currentValue[Number(segment)]
+    } else if (currentValue && typeof currentValue === 'object') {
+      currentValue = (currentValue as Record<string, unknown>)[segment]
+    } else {
+      return null
+    }
+
+    if (currentValue === undefined || currentValue === null) {
+      return null
+    }
+  }
+
+  return currentValue
+}
+
+function extractedValueToString(value: unknown) {
+  if (value === null || value === undefined) {
+    return ''
+  }
+
+  return typeof value === 'object' ? JSON.stringify(value) : String(value)
+}
+
+function headerValue(headers: Record<string, string>, headerName: string) {
+  const lowerHeaderName = headerName.toLowerCase()
+  const entry = Object.entries(headers).find(([key]) => key.toLowerCase() === lowerHeaderName)
+
+  return entry?.[1] ?? ''
+}
+
+function extractCaptureValue(rule: CaptureRule, result: { httpStatus: number | null; headers: Record<string, string>; bodyPreview: string }) {
+  if (rule.source === 'STATUS') {
+    return result.httpStatus === null ? '' : String(result.httpStatus)
+  }
+
+  if (rule.source === 'HEADER') {
+    return headerValue(result.headers, rule.header || rule.path)
+  }
+
+  if (rule.source === 'TEXT') {
+    return result.bodyPreview
+  }
+
+  return extractedValueToString(readJsonPath(result.bodyPreview, rule.path || '$'))
+}
+
+function evaluateCaptureRules(
+  rules: CaptureRule[],
+  result: { httpStatus: number | null; headers: Record<string, string>; bodyPreview: string },
+) {
+  const values: Record<string, string> = {}
+  const publicValues: Record<string, string> = {}
+  const secretValues: string[] = []
+  const missingRequired = rules
+    .map((rule) => {
+      const value = extractCaptureValue(rule, result)
+
+      if (!value) {
+        return rule.required ? rule.variableName : ''
+      }
+
+      values[rule.variableName] = value
+      publicValues[rule.variableName] = rule.secret ? '********' : value
+
+      if (rule.secret) {
+        secretValues.push(value)
+      }
+
+      return ''
+    })
+    .filter(Boolean)
+
+  return {
+    values,
+    publicValues,
+    secretValues,
+    missingRequired,
+  }
+}
+
+function stepRequestRecord(step: {
+  name: string
+  overrideJson: string
+  request: {
+    collectionName: string
+    name: string
+    description: string | null
+    method: string
+    url: string
+    queryJson: string
+    headersJson: string
+    bodyType: string
+    bodyText: string | null
+    authJson: string
+    timeoutMs: number
+    storeResponseBody: boolean
+    sortOrder: number
+  } | null
+}) {
+  const override = parseJsonObjectValue(step.overrideJson)
+  const fallback = step.request ?? {
+    collectionName: 'Inline',
+    name: step.name,
+    description: null,
+    method: 'GET',
+    url: '',
+    queryJson: '[]',
+    headersJson: '[]',
+    bodyType: 'NONE',
+    bodyText: null,
+    authJson: '{}',
+    timeoutMs: 30000,
+    storeResponseBody: false,
+    sortOrder: 0,
+  }
+  const payload = requestPayload(override as ApiRequestBody, fallback)
+
+  if (!payload.url) {
+    return null
+  }
+
+  return payload satisfies StepRequestRecord
 }
 
 async function ensureProject(prisma: AppPrismaClient, projectId: string, userId: string, reply: FastifyReply) {
@@ -1255,6 +1498,339 @@ export function registerApiLabRoutes(app: FastifyInstance, context: ApiLabRoutes
     await context.prisma.apiFlow.delete({ where: { id: flow.id } })
 
     return { ok: true }
+  })
+
+  app.post('/api/api-lab/flows/:flowId/run', { preHandler: requireAuth }, async (request, reply) => {
+    const userId = request.authUser?.id ?? ''
+    const flowId = paramsAs(request.params).flowId ?? ''
+    const flow = await context.prisma.apiFlow.findFirst({
+      where: {
+        id: flowId,
+        project: {
+          OR: [{ ownerId: userId }, { ownerId: null }],
+        },
+      },
+      include: {
+        steps: {
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+          include: { request: true },
+        },
+      },
+    })
+
+    if (!flow) {
+      return reply.code(404).send({ message: 'Khong tim thay API flow.' })
+    }
+
+    if (!flow.enabled) {
+      return reply.code(400).send({ message: 'API flow dang bi tat.' })
+    }
+
+    if (flow.steps.length === 0) {
+      return reply.code(400).send({ message: 'API flow chua co step.' })
+    }
+
+    const body = bodyAs<RunRequestBody>(request.body)
+    const environmentId = nullableText(body.environmentId)
+    const environment = await ensureEnvironmentInProject(context.prisma, environmentId, flow.projectId, reply)
+
+    if (environment === false) {
+      return
+    }
+
+    const task = await ensureTaskInProject(context.prisma, flow.taskId, flow.projectId, reply)
+
+    if (task === false) {
+      return
+    }
+
+    const startedAt = new Date()
+    const runtimeVariables = recordFromUnknown(body.runtimeVariables)
+    const variableVariants = recordFromUnknown(body.variableVariants)
+    const baseVariableContext = buildVariableContext(environment, task, runtimeVariables, variableVariants)
+    const capturedVariables: Record<string, string> = {}
+    const publicCapturedVariables: Record<string, string> = {}
+    const flowSecretValues = [...baseVariableContext.secretValues]
+    const stepResults: Array<{
+      step: {
+        id: string
+        name: string
+        sortOrder: number
+        continueOnFailure: boolean
+      }
+      run: Awaited<ReturnType<typeof context.prisma.apiRequestRun.create>>
+      response: {
+        httpStatus: number | null
+        durationMs: number
+        headers: Record<string, string>
+        bodyPreview: string
+        originalSize: number
+        truncated: boolean
+        savedResponseId: string | null
+      } | null
+      capturedVariables: Record<string, string>
+    }> = []
+    const flowRun = await context.prisma.apiFlowRun.create({
+      data: {
+        projectId: flow.projectId,
+        taskId: flow.taskId,
+        environmentId,
+        flowId: flow.id,
+        status: 'RUNNING',
+        assertionSummaryJson: JSON.stringify({ total: 0, passed: 0, failed: 0 }),
+        capturedVariablesJson: '{}',
+        startedAt,
+      },
+    })
+    let finalStatus: 'PASSED' | 'FAILED' = 'PASSED'
+    let finalErrorMessage: string | null = null
+    let shouldSkipRemaining = false
+
+    for (const step of flow.steps) {
+      if (shouldSkipRemaining) {
+        const now = new Date()
+        const skippedRun = await context.prisma.apiRequestRun.create({
+          data: {
+            projectId: flow.projectId,
+            taskId: flow.taskId,
+            environmentId,
+            requestId: step.requestId,
+            flowRunId: flowRun.id,
+            flowStepId: step.id,
+            status: 'SKIPPED',
+            durationMs: 0,
+            assertionSummaryJson: JSON.stringify({ total: 0, passed: 0, failed: 0 }),
+            capturedVariablesJson: '{}',
+            errorMessage: 'Bi bo qua vi step truoc that bai.',
+            responseBodySaved: false,
+            startedAt: now,
+            finishedAt: now,
+          },
+        })
+
+        stepResults.push({
+          step: {
+            id: step.id,
+            name: step.name,
+            sortOrder: step.sortOrder,
+            continueOnFailure: step.continueOnFailure,
+          },
+          run: skippedRun,
+          response: null,
+          capturedVariables: {},
+        })
+        continue
+      }
+
+      const stepStartedAt = new Date()
+      const requestRecord = stepRequestRecord(step)
+
+      if (!requestRecord) {
+        const finishedAt = new Date()
+        const failedRun = await context.prisma.apiRequestRun.create({
+          data: {
+            projectId: flow.projectId,
+            taskId: flow.taskId,
+            environmentId,
+            requestId: step.requestId,
+            flowRunId: flowRun.id,
+            flowStepId: step.id,
+            status: 'FAILED',
+            durationMs: finishedAt.getTime() - stepStartedAt.getTime(),
+            assertionSummaryJson: JSON.stringify({ total: 0, passed: 0, failed: 0 }),
+            capturedVariablesJson: '{}',
+            errorMessage: 'Step chua co request hoac URL inline.',
+            responseBodySaved: false,
+            startedAt: stepStartedAt,
+            finishedAt,
+          },
+        })
+
+        finalStatus = 'FAILED'
+        finalErrorMessage ??= failedRun.errorMessage
+        shouldSkipRemaining = !step.continueOnFailure
+        stepResults.push({
+          step: {
+            id: step.id,
+            name: step.name,
+            sortOrder: step.sortOrder,
+            continueOnFailure: step.continueOnFailure,
+          },
+          run: failedRun,
+          response: null,
+          capturedVariables: {},
+        })
+        continue
+      }
+
+      try {
+        const resolvedRequest = buildResolvedRequest(
+          requestRecord,
+          { ...baseVariableContext.values, ...capturedVariables },
+          body.timeoutMs === undefined ? undefined : Math.max(1, numberValue(body.timeoutMs, requestRecord.timeoutMs)),
+        )
+        const result = await executeResolvedRequest(resolvedRequest)
+        const captureRules = normalizeCaptureRules(step.captureRulesJson)
+        const captures = evaluateCaptureRules(captureRules, result)
+        const stepSecretValues = [...flowSecretValues, ...captures.secretValues]
+        const maskedHeaders = maskHeaders(result.headers, stepSecretValues)
+        const maskedBodyPreview = maskKnownSecrets(result.bodyPreview, stepSecretValues)
+        const captureError =
+          captures.missingRequired.length > 0
+            ? `Thieu capture bat buoc: ${captures.missingRequired.join(', ')}.`
+            : null
+        const stepStatus = result.status === 'PASSED' && !captureError ? 'PASSED' : 'FAILED'
+        const shouldSaveResponse =
+          booleanValue(body.saveResponseBody, false) || flow.storeResponseBody || requestRecord.storeResponseBody
+        const responseBodySaved = shouldSaveResponse && (maskedBodyPreview.length > 0 || result.httpStatus !== null)
+        const finishedAt = new Date()
+        const stepRun = await context.prisma.apiRequestRun.create({
+          data: {
+            projectId: flow.projectId,
+            taskId: flow.taskId ?? step.request?.taskId ?? null,
+            environmentId,
+            requestId: step.requestId,
+            flowRunId: flowRun.id,
+            flowStepId: step.id,
+            status: stepStatus,
+            httpStatus: result.httpStatus,
+            durationMs: result.durationMs,
+            assertionSummaryJson: JSON.stringify({ total: 0, passed: 0, failed: 0 }),
+            capturedVariablesJson: JSON.stringify(captures.publicValues),
+            errorMessage: captureError ?? result.errorMessage,
+            responseBodySaved,
+            startedAt: stepStartedAt,
+            finishedAt,
+          },
+        })
+        const savedResponse = responseBodySaved
+          ? await context.prisma.apiSavedResponse.create({
+              data: {
+                requestRunId: stepRun.id,
+                statusCode: result.httpStatus,
+                headersJson: JSON.stringify(maskedHeaders),
+                bodyText: maskedBodyPreview,
+                contentType: result.headers['content-type'] ?? null,
+                originalSize: result.originalSize,
+                truncated: result.truncated,
+              },
+            })
+          : null
+
+        Object.assign(capturedVariables, captures.values)
+        Object.assign(publicCapturedVariables, captures.publicValues)
+        flowSecretValues.push(...captures.secretValues)
+
+        if (stepStatus === 'FAILED') {
+          finalStatus = 'FAILED'
+          finalErrorMessage ??= stepRun.errorMessage || `Step ${step.name} that bai.`
+          shouldSkipRemaining = !step.continueOnFailure
+        }
+
+        stepResults.push({
+          step: {
+            id: step.id,
+            name: step.name,
+            sortOrder: step.sortOrder,
+            continueOnFailure: step.continueOnFailure,
+          },
+          run: stepRun,
+          response: {
+            httpStatus: result.httpStatus,
+            durationMs: result.durationMs,
+            headers: maskedHeaders,
+            bodyPreview: maskedBodyPreview,
+            originalSize: result.originalSize,
+            truncated: result.truncated,
+            savedResponseId: savedResponse?.id ?? null,
+          },
+          capturedVariables: captures.publicValues,
+        })
+      } catch (error) {
+        const finishedAt = new Date()
+        const failedRun = await context.prisma.apiRequestRun.create({
+          data: {
+            projectId: flow.projectId,
+            taskId: flow.taskId ?? step.request?.taskId ?? null,
+            environmentId,
+            requestId: step.requestId,
+            flowRunId: flowRun.id,
+            flowStepId: step.id,
+            status: 'FAILED',
+            durationMs: finishedAt.getTime() - stepStartedAt.getTime(),
+            assertionSummaryJson: JSON.stringify({ total: 0, passed: 0, failed: 0 }),
+            capturedVariablesJson: '{}',
+            errorMessage:
+              error instanceof Error && error.message === 'INVALID_URL'
+                ? 'URL API khong hop le.'
+                : error instanceof Error
+                  ? error.message
+                  : 'Khong goi duoc API.',
+            responseBodySaved: false,
+            startedAt: stepStartedAt,
+            finishedAt,
+          },
+        })
+
+        finalStatus = 'FAILED'
+        finalErrorMessage ??= failedRun.errorMessage
+        shouldSkipRemaining = !step.continueOnFailure
+        stepResults.push({
+          step: {
+            id: step.id,
+            name: step.name,
+            sortOrder: step.sortOrder,
+            continueOnFailure: step.continueOnFailure,
+          },
+          run: failedRun,
+          response: null,
+          capturedVariables: {},
+        })
+      }
+    }
+
+    const finishedAt = new Date()
+    const updatedFlowRun = await context.prisma.apiFlowRun.update({
+      where: { id: flowRun.id },
+      data: {
+        status: finalStatus,
+        durationMs: finishedAt.getTime() - startedAt.getTime(),
+        capturedVariablesJson: JSON.stringify(publicCapturedVariables),
+        errorMessage: finalErrorMessage,
+        finishedAt,
+      },
+    })
+
+    return {
+      flowRun: updatedFlowRun,
+      steps: stepResults,
+      capturedVariables: publicCapturedVariables,
+    }
+  })
+
+  app.get('/api/api-lab/flows/:flowId/runs', { preHandler: requireAuth }, async (request, reply) => {
+    const userId = request.authUser?.id ?? ''
+    const flowId = paramsAs(request.params).flowId ?? ''
+    const flow = await ensureApiFlow(context.prisma, flowId, userId, reply)
+
+    if (!flow) {
+      return
+    }
+
+    return context.prisma.apiFlowRun.findMany({
+      where: { flowId: flow.id },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      include: {
+        stepRuns: {
+          orderBy: { createdAt: 'asc' },
+          include: {
+            flowStep: { select: { id: true, name: true, sortOrder: true } },
+            request: { select: { id: true, name: true, method: true, url: true } },
+          },
+        },
+      },
+    })
   })
 
   app.get('/api/api-lab/flows/:flowId/steps', { preHandler: requireAuth }, async (request, reply) => {
