@@ -815,4 +815,118 @@ describe('api lab foundation', () => {
       await internalApi.close()
     }
   })
+
+  test('attaches a successful request run to task timeline without changing task status', async () => {
+    const internalApi = await startInternalApi((_incomingRequest, response) => {
+      response.setHeader('content-type', 'application/json')
+      response.end(JSON.stringify({ ok: true }))
+    })
+
+    try {
+      const token = await setupSession()
+      const project = await setupProject('ATREQ', token)
+      const task = await createTask(token, project.id, 'Gan request run vao timeline')
+      const environment = await createEnvironment(token, project.id, internalApi.baseUrl)
+      const apiRequest = await createApiRequest(token, {
+        projectId: project.id,
+        taskId: task.id,
+        name: 'Attach request',
+        method: 'GET',
+        url: '{{baseUrl}}/attach-request',
+      })
+      const run = await request<ApiRequestRunResult>(
+        'POST',
+        `/api/api-lab/requests/${apiRequest.id}/run`,
+        token,
+        { environmentId: environment.id },
+      )
+      const attached = await request<TimelineEvent>(
+        'POST',
+        `/api/api-lab/request-runs/${run.body.run.id}/attach-task`,
+        token,
+      )
+      const taskAfter = await request<Task & {
+        timelineEvents: TimelineEvent[]
+        apiRequests: ApiRequest[]
+        apiRequestRuns: Array<{ id: string; status: string }>
+      }>('GET', `/api/tasks/${task.id}`, token)
+
+      assert.equal(attached.response.statusCode, 200)
+      assert.equal(attached.body.eventType, 'API_REQUEST_RUN_ATTACHED')
+      assert.equal(attached.body.taskId, task.id)
+      assert.match(attached.body.description ?? '', /Attach request - PASSED/)
+      assert.match(attached.body.metadataJson, new RegExp(run.body.run.id))
+      assert.equal(taskAfter.body.status, task.status)
+      assert.equal(taskAfter.body.workStatus, task.workStatus)
+      assert.ok(taskAfter.body.apiRequests.some((item) => item.id === apiRequest.id))
+      assert.ok(taskAfter.body.apiRequestRuns.some((item) => item.id === run.body.run.id))
+      assert.ok(taskAfter.body.timelineEvents.some((item) => item.id === attached.body.id))
+    } finally {
+      await internalApi.close()
+    }
+  })
+
+  test('attaches a failed flow run to task timeline without changing task work status', async () => {
+    const internalApi = await startInternalApi((_incomingRequest, response) => {
+      response.setHeader('content-type', 'application/json')
+      response.end(JSON.stringify({ ok: true }))
+    })
+
+    try {
+      const token = await setupSession()
+      const project = await setupProject('ATFLO', token)
+      const task = await createTask(token, project.id, 'Gan flow run loi vao timeline')
+      const environment = await createEnvironment(token, project.id, internalApi.baseUrl)
+      const apiRequest = await createApiRequest(token, {
+        projectId: project.id,
+        name: 'Flow assertion fail',
+        method: 'GET',
+        url: '{{baseUrl}}/flow-fail',
+        assertionRules: [{ type: 'STATUS_EQUALS', expected: '201', label: 'status 201' }],
+      })
+      const flow = await request<ApiFlow>('POST', '/api/api-lab/flows', token, {
+        projectId: project.id,
+        taskId: task.id,
+        collectionName: 'Attach',
+        name: 'Attach failed flow',
+      })
+      assert.equal(flow.response.statusCode, 200)
+      const step = await request<ApiFlowStep>('POST', `/api/api-lab/flows/${flow.body.id}/steps`, token, {
+        requestId: apiRequest.id,
+        name: 'Expected fail',
+      })
+      assert.equal(step.response.statusCode, 200)
+
+      const run = await request<ApiFlowRunResult>(
+        'POST',
+        `/api/api-lab/flows/${flow.body.id}/run`,
+        token,
+        { environmentId: environment.id },
+      )
+      const attached = await request<TimelineEvent>(
+        'POST',
+        `/api/api-lab/flow-runs/${run.body.flowRun.id}/attach-task`,
+        token,
+      )
+      const taskAfter = await request<Task & {
+        timelineEvents: TimelineEvent[]
+        apiFlows: ApiFlow[]
+        apiFlowRuns: Array<{ id: string; status: string }>
+      }>('GET', `/api/tasks/${task.id}`, token)
+
+      assert.equal(run.body.flowRun.status, 'FAILED')
+      assert.equal(attached.response.statusCode, 200)
+      assert.equal(attached.body.eventType, 'API_FLOW_RUN_ATTACHED')
+      assert.equal(attached.body.taskId, task.id)
+      assert.match(attached.body.description ?? '', /Attach failed flow - FAILED/)
+      assert.match(attached.body.metadataJson, new RegExp(run.body.flowRun.id))
+      assert.equal(taskAfter.body.status, task.status)
+      assert.equal(taskAfter.body.workStatus, task.workStatus)
+      assert.ok(taskAfter.body.apiFlows.some((item) => item.id === flow.body.id))
+      assert.ok(taskAfter.body.apiFlowRuns.some((item) => item.id === run.body.flowRun.id))
+      assert.ok(taskAfter.body.timelineEvents.some((item) => item.id === attached.body.id))
+    } finally {
+      await internalApi.close()
+    }
+  })
 })

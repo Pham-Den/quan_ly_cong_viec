@@ -252,3 +252,77 @@ test('api lab shows failed assertions and filters run history', async ({ page })
   await expect(historyCard).toContainText('FAILED')
   await expect(historyCard).toContainText('Assertions 0/1')
 })
+
+test('api lab attaches a request run to task API Lab evidence', async ({ page }) => {
+  const accessToken = await setupFirstAccount(page)
+  const apiHeaders = { authorization: `Bearer ${accessToken}` }
+  const projectsResponse = await page.request.get(`${apiBaseUrl}/api/projects`, { headers: apiHeaders })
+  const projects = (await projectsResponse.json()) as Array<{ id: string; code: string }>
+  const project = projects.find((item) => item.code === 'PERSONAL')
+
+  if (!project) {
+    throw new Error('Missing PERSONAL project')
+  }
+
+  await expect(
+    page.request.post(`${apiBaseUrl}/api/api-lab/environments`, {
+      headers: apiHeaders,
+      data: {
+        projectId: project.id,
+        name: 'local',
+        environmentType: 'LOCAL',
+        baseUrl: apiBaseUrl,
+        variables: [],
+      },
+    }),
+  ).resolves.toBeOK()
+
+  const taskResponse = await page.request.post(`${apiBaseUrl}/api/tasks`, {
+    headers: apiHeaders,
+    data: {
+      projectId: project.id,
+      title: 'API evidence task',
+      priority: 'MEDIUM',
+      type: 'FEATURE',
+    },
+  })
+  await expect(taskResponse).toBeOK()
+  const task = (await taskResponse.json()) as { id: string; code: string }
+
+  const requestResponse = await page.request.post(`${apiBaseUrl}/api/api-lab/requests`, {
+    headers: apiHeaders,
+    data: {
+      projectId: project.id,
+      taskId: task.id,
+      collectionName: 'Evidence E2E',
+      name: 'Evidence health',
+      method: 'GET',
+      url: '{{baseUrl}}/health',
+    },
+  })
+  await expect(requestResponse).toBeOK()
+
+  await page.getByRole('menuitem', { name: 'API Lab' }).click()
+  await expect(page).toHaveURL(/\/api-lab$/)
+  await page.locator('.api-lab-request-list').getByText('Evidence health').click()
+
+  await Promise.all([
+    page.waitForResponse((response) => response.url().includes('/api/api-lab/requests/') && response.url().includes('/run') && response.ok()),
+    page.getByRole('button', { name: 'Chạy request' }).click(),
+  ])
+  await expect(page.locator('.api-lab-run-panel')).toContainText('PASSED')
+
+  await Promise.all([
+    page.waitForResponse((response) => response.url().includes('/api/api-lab/request-runs/') && response.url().includes('/attach-task') && response.ok()),
+    page.getByRole('button', { name: 'Gắn timeline task' }).click(),
+  ])
+  await expect(page.getByText('Đã gắn API run vào timeline task.')).toBeVisible()
+
+  await page.goto(`/tasks?taskId=${task.id}`)
+  const taskDrawer = page.locator('.ant-drawer-content:visible')
+  await expect(taskDrawer).toBeVisible()
+  await taskDrawer.getByRole('tab', { name: 'API Lab' }).click()
+  await expect(taskDrawer).toContainText('Evidence health')
+  await expect(taskDrawer).toContainText('Gan API run vao')
+  await expect(taskDrawer).toContainText('PASSED')
+})

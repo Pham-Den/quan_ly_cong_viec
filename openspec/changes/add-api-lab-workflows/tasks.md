@@ -59,12 +59,12 @@
 
 ## 7. Task And Timeline Integration
 
-- [ ] 7.1 Add API run attachment action for linked task runs.
-- [ ] 7.2 Write timeline events when a request run or flow run is attached as task evidence.
-- [ ] 7.3 Add task detail API Lab section or tab showing linked requests, flows, and attached runs.
-- [ ] 7.4 Ensure API Lab events do not change task branch status or task work status.
-- [ ] 7.5 Add tests for attaching successful and failed runs to task timeline.
-- [ ] 7.6 Stop for user review before final verification.
+- [x] 7.1 Add API run attachment action for linked task runs.
+- [x] 7.2 Write timeline events when a request run or flow run is attached as task evidence.
+- [x] 7.3 Add task detail API Lab section or tab showing linked requests, flows, and attached runs.
+- [x] 7.4 Ensure API Lab events do not change task branch status or task work status.
+- [x] 7.5 Add tests for attaching successful and failed runs to task timeline.
+- [x] 7.6 Stop for user review before final verification.
 
 ## 8. Verification And Documentation
 
