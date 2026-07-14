@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import {
+  ApartmentOutlined,
   DeleteOutlined,
+  EnvironmentOutlined,
+  FolderOpenOutlined,
+  HistoryOutlined,
   ImportOutlined,
   PlusOutlined,
   SaveOutlined,
+  SearchOutlined,
   SendOutlined,
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
@@ -108,6 +113,16 @@ type ResponseField = {
   value: string
 }
 
+type RequestCollectionGroup = {
+  name: string
+  items: ApiRequest[]
+}
+
+type FlowCollectionGroup = {
+  name: string
+  items: ApiFlow[]
+}
+
 const session = useSessionStore()
 const loading = ref(false)
 const savingEnvironment = ref(false)
@@ -121,6 +136,7 @@ const attachingRunId = ref<string | null>(null)
 const curlDrawerOpen = ref(false)
 const curlInput = ref('')
 const activeLeftTab = ref('requests')
+const collectionSearch = ref('')
 const environments = ref<ApiEnvironment[]>([])
 const requests = ref<ApiRequest[]>([])
 const flows = ref<ApiFlow[]>([])
@@ -171,6 +187,60 @@ const flowList = computed(() =>
     `${left.collectionName}-${left.sortOrder}-${left.name}`.localeCompare(`${right.collectionName}-${right.sortOrder}-${right.name}`),
   ),
 )
+const requestCollectionGroups = computed<RequestCollectionGroup[]>(() => {
+  const query = collectionSearch.value.trim().toLowerCase()
+  const groups = new Map<string, ApiRequest[]>()
+
+  for (const request of requestList.value) {
+    const collectionName = request.collectionName || 'Mac dinh'
+    const searchable = `${collectionName} ${request.method} ${request.name} ${request.url} ${request.task?.code ?? ''}`.toLowerCase()
+
+    if (query && !searchable.includes(query)) {
+      continue
+    }
+
+    groups.set(collectionName, [...(groups.get(collectionName) ?? []), request])
+  }
+
+  return [...groups.entries()].map(([name, items]) => ({ name, items }))
+})
+const flowCollectionGroups = computed<FlowCollectionGroup[]>(() => {
+  const query = collectionSearch.value.trim().toLowerCase()
+  const groups = new Map<string, ApiFlow[]>()
+
+  for (const flow of flowList.value) {
+    const collectionName = flow.collectionName || 'Mac dinh'
+    const searchable = `${collectionName} ${flow.name} ${flow.task?.code ?? ''}`.toLowerCase()
+
+    if (query && !searchable.includes(query)) {
+      continue
+    }
+
+    groups.set(collectionName, [...(groups.get(collectionName) ?? []), flow])
+  }
+
+  return [...groups.entries()].map(([name, items]) => ({ name, items }))
+})
+const activeWorkspaceTitle = computed(() => {
+  if (activeLeftTab.value === 'requests') {
+    return requestForm.name || 'Request chưa lưu'
+  }
+
+  return flowForm.name || 'Flow chưa lưu'
+})
+const activeWorkspaceSubtitle = computed(() => {
+  if (activeLeftTab.value === 'requests') {
+    return requestForm.collectionName || 'Mac dinh'
+  }
+
+  return flowForm.collectionName || 'Mac dinh'
+})
+const activeWorkspaceTaskLabel = computed(() => {
+  const taskId = activeLeftTab.value === 'requests' ? requestForm.taskId : flowForm.taskId
+  const task = tasks.value.find((item) => item.id === taskId)
+
+  return task ? `${task.code} - ${task.title}` : 'Chưa gắn task'
+})
 const requestOptions = computed(() =>
   requestList.value.map((request) => ({
     label: `${request.method} ${request.name}`,
@@ -1392,71 +1462,149 @@ onMounted(refreshApiLab)
   />
 
   <a-spin :spinning="loading">
-    <section class="api-lab-grid">
-      <a-card class="settings-card api-lab-left-panel" title="Collection">
-        <a-tabs v-model:active-key="activeLeftTab" size="small">
-          <a-tab-pane key="requests" tab="Requests">
-            <a-button class="api-lab-full-button" @click="newRequest">
-              <template #icon><PlusOutlined /></template>
-              Request mới
-            </a-button>
-            <a-list class="api-lab-request-list" size="small" :data-source="requestList">
-              <template #renderItem="{ item }">
-                <a-list-item
-                  class="api-lab-request-item"
+    <section class="api-lab-workbench">
+      <aside class="api-lab-mode-rail">
+        <button
+          class="api-lab-rail-button"
+          :class="{ 'api-lab-rail-button-active': activeLeftTab === 'requests' }"
+          role="tab"
+          :aria-selected="activeLeftTab === 'requests'"
+          type="button"
+          @click="activeLeftTab = 'requests'"
+        >
+          <FolderOpenOutlined />
+          <span>Collections</span>
+        </button>
+        <button
+          class="api-lab-rail-button"
+          :class="{ 'api-lab-rail-button-active': activeLeftTab === 'flows' }"
+          role="tab"
+          :aria-selected="activeLeftTab === 'flows'"
+          type="button"
+          @click="activeLeftTab = 'flows'"
+        >
+          <ApartmentOutlined />
+          <span>Flows</span>
+        </button>
+        <a class="api-lab-rail-button" href="#api-lab-environments">
+          <EnvironmentOutlined />
+          <span>Env</span>
+        </a>
+        <a class="api-lab-rail-button" href="#api-lab-history">
+          <HistoryOutlined />
+          <span>History</span>
+        </a>
+      </aside>
+
+      <aside class="api-lab-collection-pane">
+        <div class="api-lab-pane-head">
+          <div>
+            <span>My Workspace</span>
+            <strong>{{ activeLeftTab === 'requests' ? 'Collections' : 'Flows' }}</strong>
+          </div>
+          <a-button size="small" type="primary" @click="activeLeftTab === 'requests' ? newRequest() : newFlow()">
+            New
+          </a-button>
+        </div>
+
+        <a-input v-model:value="collectionSearch" allow-clear class="api-lab-search" size="small" placeholder="Search collections">
+          <template #prefix><SearchOutlined /></template>
+        </a-input>
+
+        <div class="api-lab-collection-tree api-lab-request-list">
+          <template v-if="activeLeftTab === 'requests'">
+            <a-empty v-if="!requestCollectionGroups.length" description="Không có request." />
+            <template v-else>
+              <section v-for="group in requestCollectionGroups" :key="group.name" class="api-lab-tree-group">
+                <div class="api-lab-folder-row">
+                  <FolderOpenOutlined />
+                  <span>{{ group.name }}</span>
+                  <small>{{ group.items.length }}</small>
+                </div>
+                <button
+                  v-for="item in group.items"
+                  :key="item.id"
+                  class="api-lab-request-item api-lab-tree-row"
                   :class="{ 'api-lab-request-item-active': item.id === selectedRequestId }"
+                  type="button"
                   @click="selectRequest(item)"
                 >
-                  <a-list-item-meta>
-                    <template #title>
-                      <a-space>
-                        <a-tag color="blue">{{ item.method }}</a-tag>
-                        <span>{{ item.name }}</span>
-                      </a-space>
-                    </template>
-                    <template #description>
-                      <span>{{ item.collectionName }}</span>
-                      <span v-if="item.task"> · {{ item.task.code }}</span>
-                      <span> · {{ item._count?.requestRuns ?? 0 }} run</span>
-                    </template>
-                  </a-list-item-meta>
-                </a-list-item>
-              </template>
-            </a-list>
-          </a-tab-pane>
-          <a-tab-pane key="flows" tab="Flows">
-            <a-button class="api-lab-full-button" @click="newFlow">
-              <template #icon><PlusOutlined /></template>
-              Flow mới
-            </a-button>
-            <a-list class="api-lab-request-list" size="small" :data-source="flowList">
-              <template #renderItem="{ item }">
-                <a-list-item
-                  class="api-lab-request-item"
+                  <span class="api-lab-method-pill" :class="`api-lab-method-${item.method.toLowerCase()}`">{{ item.method }}</span>
+                  <span class="api-lab-tree-title">{{ item.name }}</span>
+                  <span class="api-lab-tree-meta">
+                    {{ item.task?.code ?? 'No task' }} / {{ item._count?.requestRuns ?? 0 }} run
+                  </span>
+                </button>
+              </section>
+            </template>
+          </template>
+
+          <template v-else>
+            <a-empty v-if="!flowCollectionGroups.length" description="Không có flow." />
+            <template v-else>
+              <section v-for="group in flowCollectionGroups" :key="group.name" class="api-lab-tree-group">
+                <div class="api-lab-folder-row">
+                  <FolderOpenOutlined />
+                  <span>{{ group.name }}</span>
+                  <small>{{ group.items.length }}</small>
+                </div>
+                <button
+                  v-for="item in group.items"
+                  :key="item.id"
+                  class="api-lab-request-item api-lab-tree-row"
                   :class="{ 'api-lab-request-item-active': item.id === selectedFlowId }"
+                  type="button"
                   @click="selectFlow(item)"
                 >
-                  <a-list-item-meta>
-                    <template #title>
-                      <a-space>
-                        <a-tag color="purple">FLOW</a-tag>
-                        <span>{{ item.name }}</span>
-                      </a-space>
-                    </template>
-                    <template #description>
-                      <span>{{ item.collectionName }}</span>
-                      <span v-if="item.task"> · {{ item.task.code }}</span>
-                      <span> · {{ item._count?.steps ?? 0 }} step</span>
-                    </template>
-                  </a-list-item-meta>
-                </a-list-item>
-              </template>
-            </a-list>
-          </a-tab-pane>
-        </a-tabs>
-      </a-card>
+                  <span class="api-lab-method-pill api-lab-method-flow">FLOW</span>
+                  <span class="api-lab-tree-title">{{ item.name }}</span>
+                  <span class="api-lab-tree-meta">
+                    {{ item.task?.code ?? 'No task' }} / {{ item._count?.steps ?? 0 }} step
+                  </span>
+                </button>
+              </section>
+            </template>
+          </template>
+        </div>
+      </aside>
 
-      <a-card v-if="activeLeftTab === 'requests'" class="settings-card api-lab-editor-card" title="Request editor">
+      <main class="api-lab-main-pane">
+        <div class="api-lab-workspace-bar">
+          <div class="api-lab-workspace-title">
+            <span>{{ activeWorkspaceSubtitle }}</span>
+            <strong>{{ activeWorkspaceTitle }}</strong>
+          </div>
+          <a-tag>{{ activeWorkspaceTaskLabel }}</a-tag>
+          <a-select
+            v-model:value="selectedEnvironmentId"
+            allow-clear
+            class="api-lab-environment-select"
+            :options="environmentOptions"
+            placeholder="Environment"
+          />
+          <a-button
+            v-if="activeLeftTab === 'requests'"
+            type="primary"
+            :loading="runningRequest"
+            :disabled="!requestForm.url"
+            @click="runCurrentRequest"
+          >
+            <template #icon><SendOutlined /></template>
+            Send
+          </a-button>
+          <a-button
+            v-else
+            type="primary"
+            :loading="runningFlow"
+            :disabled="!flowForm.id || !flowSteps.length"
+            @click="runCurrentFlow"
+          >
+            <template #icon><SendOutlined /></template>
+            Send
+          </a-button>
+        </div>
+
+        <a-card v-if="activeLeftTab === 'requests'" class="settings-card api-lab-editor-card" title="Request editor">
         <a-form layout="vertical" :model="requestForm" @finish="submitRequest">
           <div class="form-grid">
             <a-form-item label="Collection">
@@ -1786,66 +1934,20 @@ onMounted(refreshApiLab)
             </a-space>
           </div>
         </div>
-      </a-card>
-
-      <div class="api-lab-side-stack">
-        <a-card class="settings-card" title="Môi trường">
-          <a-form layout="vertical" :model="environmentForm" @finish="submitEnvironment">
-            <a-form-item label="Chọn environment">
-              <a-select v-model:value="selectedEnvironmentId" allow-clear :options="environmentOptions" />
-            </a-form-item>
-            <div class="form-grid">
-              <a-form-item label="Tên">
-                <a-input v-model:value="environmentForm.name" />
-              </a-form-item>
-              <a-form-item label="Loại">
-                <a-select v-model:value="environmentForm.environmentType" :options="environmentTypeOptions" />
-              </a-form-item>
-            </div>
-            <a-form-item label="Base URL">
-              <a-input v-model:value="environmentForm.baseUrl" placeholder="http://localhost:4000" />
-            </a-form-item>
-            <div class="api-lab-variable-list">
-              <div v-for="(variable, variableIndex) in environmentForm.variables" :key="variableIndex" class="api-lab-variable">
-                <div class="api-lab-variable-head">
-                  <a-input v-model:value="variable.key" placeholder="Tên biến" />
-                  <a-checkbox v-model:checked="variable.secret">Secret</a-checkbox>
-                  <a-button danger @click="removeVariable(variableIndex)">
-                    <template #icon><DeleteOutlined /></template>
-                  </a-button>
-                </div>
-                <div v-for="(variant, variantIndex) in variable.variants" :key="variantIndex" class="api-lab-variant-row">
-                  <a-input v-model:value="variant.name" placeholder="variant" />
-                  <a-input-password v-if="variable.secret" v-model:value="variant.value" placeholder="Giá trị secret" />
-                  <a-input v-else v-model:value="variant.value" placeholder="value" />
-                  <a-checkbox v-model:checked="variant.enabled">Dùng</a-checkbox>
-                  <a-button danger @click="removeVariant(variable, variantIndex)">
-                    <template #icon><DeleteOutlined /></template>
-                  </a-button>
-                </div>
-                <a-button size="small" @click="addVariant(variable)">Thêm variant</a-button>
-              </div>
-              <a-button @click="addVariable">
-                <template #icon><PlusOutlined /></template>
-                Thêm biến
-              </a-button>
-            </div>
-            <a-button class="api-lab-full-button" type="primary" html-type="submit" :loading="savingEnvironment">
-              Lưu environment
-            </a-button>
-          </a-form>
         </a-card>
 
-        <a-card v-if="activeLeftTab === 'requests'" class="settings-card" title="Run và response">
+        <a-card v-if="activeLeftTab === 'requests'" class="settings-card api-lab-response-card" title="Response">
           <a-space direction="vertical" class="api-lab-run-panel">
-            <a-checkbox v-model:checked="runSaveResponseBody">Lưu response body cho lần chạy này</a-checkbox>
+            <div class="api-lab-run-controls">
+              <a-checkbox v-model:checked="runSaveResponseBody">Lưu body</a-checkbox>
+              <a-button type="primary" :loading="runningRequest" :disabled="!requestForm.url" @click="runCurrentRequest">
+                <template #icon><SendOutlined /></template>
+                Chạy request
+              </a-button>
+            </div>
             <a-form-item label="Runtime variables JSON">
               <a-textarea v-model:value="runtimeVariablesText" :rows="3" />
             </a-form-item>
-            <a-button type="primary" :loading="runningRequest" :disabled="!requestForm.url" @click="runCurrentRequest">
-              <template #icon><SendOutlined /></template>
-              Chạy request
-            </a-button>
 
             <a-empty v-if="!currentResult" description="Chưa có response." />
             <template v-else>
@@ -1871,20 +1973,22 @@ onMounted(refreshApiLab)
                 </a-tag>
               </div>
               <a-alert v-if="currentResult.run.errorMessage" type="error" show-icon :message="currentResult.run.errorMessage" />
-              <a-button
-                v-if="currentResult.response && !currentResult.response.savedResponseId"
-                :loading="savingResponse"
-                @click="saveCurrentResponse"
-              >
-                Lưu kết quả
-              </a-button>
-              <a-button
-                :loading="attachingRunId === currentResult.run.id"
-                :disabled="!currentResult.run.taskId"
-                @click="attachRequestRun(currentResult.run.id, Boolean(currentResult.run.taskId))"
-              >
-                Gắn timeline task
-              </a-button>
+              <a-space wrap>
+                <a-button
+                  v-if="currentResult.response && !currentResult.response.savedResponseId"
+                  :loading="savingResponse"
+                  @click="saveCurrentResponse"
+                >
+                  Lưu kết quả
+                </a-button>
+                <a-button
+                  :loading="attachingRunId === currentResult.run.id"
+                  :disabled="!currentResult.run.taskId"
+                  @click="attachRequestRun(currentResult.run.id, Boolean(currentResult.run.taskId))"
+                >
+                  Gắn timeline task
+                </a-button>
+              </a-space>
               <a-tabs size="small">
                 <a-tab-pane key="body" tab="Body">
                   <AppJsonCodeBlock :value="currentResult.response?.bodyPreview" empty-text="Không có body" />
@@ -1897,16 +2001,18 @@ onMounted(refreshApiLab)
           </a-space>
         </a-card>
 
-        <a-card v-else class="settings-card" title="Chạy flow">
+        <a-card v-else class="settings-card api-lab-response-card" title="Flow response">
           <a-space direction="vertical" class="api-lab-run-panel">
-            <a-checkbox v-model:checked="runSaveResponseBody">Lưu response body cho lần chạy này</a-checkbox>
+            <div class="api-lab-run-controls">
+              <a-checkbox v-model:checked="runSaveResponseBody">Lưu body</a-checkbox>
+              <a-button type="primary" :loading="runningFlow" :disabled="!flowForm.id || !flowSteps.length" @click="runCurrentFlow">
+                <template #icon><SendOutlined /></template>
+                Chạy flow
+              </a-button>
+            </div>
             <a-form-item label="Runtime variables JSON">
               <a-textarea v-model:value="runtimeVariablesText" :rows="3" />
             </a-form-item>
-            <a-button type="primary" :loading="runningFlow" :disabled="!flowForm.id || !flowSteps.length" @click="runCurrentFlow">
-              <template #icon><SendOutlined /></template>
-              Chạy flow
-            </a-button>
 
             <a-empty v-if="!currentFlowResult" description="Chưa có kết quả flow." />
             <template v-else>
@@ -1991,8 +2097,54 @@ onMounted(refreshApiLab)
             </template>
           </a-space>
         </a-card>
+      </main>
 
-        <a-card class="settings-card" title="History">
+      <aside class="api-lab-side-stack api-lab-inspector-pane">
+        <a-card id="api-lab-environments" class="settings-card" title="Môi trường">
+          <a-form layout="vertical" :model="environmentForm" @finish="submitEnvironment">
+            <div class="form-grid">
+              <a-form-item label="Tên">
+                <a-input v-model:value="environmentForm.name" />
+              </a-form-item>
+              <a-form-item label="Loại">
+                <a-select v-model:value="environmentForm.environmentType" :options="environmentTypeOptions" />
+              </a-form-item>
+            </div>
+            <a-form-item label="Base URL">
+              <a-input v-model:value="environmentForm.baseUrl" placeholder="http://localhost:4000" />
+            </a-form-item>
+            <div class="api-lab-variable-list">
+              <div v-for="(variable, variableIndex) in environmentForm.variables" :key="variableIndex" class="api-lab-variable">
+                <div class="api-lab-variable-head">
+                  <a-input v-model:value="variable.key" placeholder="Tên biến" />
+                  <a-checkbox v-model:checked="variable.secret">Secret</a-checkbox>
+                  <a-button danger @click="removeVariable(variableIndex)">
+                    <template #icon><DeleteOutlined /></template>
+                  </a-button>
+                </div>
+                <div v-for="(variant, variantIndex) in variable.variants" :key="variantIndex" class="api-lab-variant-row">
+                  <a-input v-model:value="variant.name" placeholder="variant" />
+                  <a-input-password v-if="variable.secret" v-model:value="variant.value" placeholder="Giá trị secret" />
+                  <a-input v-else v-model:value="variant.value" placeholder="value" />
+                  <a-checkbox v-model:checked="variant.enabled">Dùng</a-checkbox>
+                  <a-button danger @click="removeVariant(variable, variantIndex)">
+                    <template #icon><DeleteOutlined /></template>
+                  </a-button>
+                </div>
+                <a-button size="small" @click="addVariant(variable)">Thêm variant</a-button>
+              </div>
+              <a-button @click="addVariable">
+                <template #icon><PlusOutlined /></template>
+                Thêm biến
+              </a-button>
+            </div>
+            <a-button class="api-lab-full-button" type="primary" html-type="submit" :loading="savingEnvironment">
+              Lưu environment
+            </a-button>
+          </a-form>
+        </a-card>
+
+        <a-card id="api-lab-history" class="settings-card" title="History">
           <div class="api-lab-history-filters">
             <a-select
               v-model:value="historyFilters.taskId"
@@ -2062,7 +2214,7 @@ onMounted(refreshApiLab)
             </template>
           </a-list>
         </a-card>
-      </div>
+      </aside>
     </section>
   </a-spin>
 
