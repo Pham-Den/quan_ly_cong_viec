@@ -68,6 +68,7 @@ type ApiRequestBody = {
   bodyType?: unknown
   bodyText?: unknown
   auth?: unknown
+  assertionRules?: unknown
   timeoutMs?: unknown
   storeResponseBody?: unknown
   sortOrder?: unknown
@@ -124,6 +125,31 @@ type CaptureRule = {
   secret: boolean
 }
 
+type AssertionRule = {
+  type: 'STATUS_EQUALS' | 'JSON_PATH_EXISTS' | 'JSON_PATH_EQUALS' | 'BODY_CONTAINS' | 'HEADER_EXISTS' | 'DURATION_BELOW'
+  label: string
+  path: string
+  expected: string
+  header: string
+  maxDurationMs: number
+  required: boolean
+  enabled: boolean
+}
+
+type AssertionSummary = {
+  total: number
+  passed: number
+  failed: number
+  requiredFailed: number
+  results: Array<{
+    label: string
+    type: string
+    passed: boolean
+    required: boolean
+    message: string
+  }>
+}
+
 type StepRequestRecord = {
   method: string
   url: string
@@ -132,6 +158,7 @@ type StepRequestRecord = {
   bodyType: string
   bodyText: string | null
   authJson: string
+  assertionRulesJson?: string
   timeoutMs: number
   storeResponseBody: boolean
 }
@@ -170,6 +197,24 @@ function numberValue(value: unknown, fallback: number) {
 
 function booleanValue(value: unknown, fallback: boolean) {
   return typeof value === 'boolean' ? value : fallback
+}
+
+function dateValue(value: string | null, endOfDay = false) {
+  if (!value) {
+    return null
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+
+  if (endOfDay && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    date.setHours(23, 59, 59, 999)
+  }
+
+  return date
 }
 
 function normalizeEnvironmentType(value: unknown, fallback = 'CUSTOM') {
@@ -424,6 +469,184 @@ function evaluateCaptureRules(
   }
 }
 
+function normalizeAssertionType(value: unknown) {
+  const type = text(value).toUpperCase()
+
+  if (['STATUS_EQUALS', 'STATUS'].includes(type)) {
+    return 'STATUS_EQUALS'
+  }
+
+  if (['JSON_PATH_EXISTS', 'JSON_EXISTS'].includes(type)) {
+    return 'JSON_PATH_EXISTS'
+  }
+
+  if (['JSON_PATH_EQUALS', 'JSON_EQUALS'].includes(type)) {
+    return 'JSON_PATH_EQUALS'
+  }
+
+  if (['BODY_CONTAINS', 'TEXT_CONTAINS'].includes(type)) {
+    return 'BODY_CONTAINS'
+  }
+
+  if (['HEADER_EXISTS', 'HEADER'].includes(type)) {
+    return 'HEADER_EXISTS'
+  }
+
+  if (['DURATION_BELOW', 'DURATION'].includes(type)) {
+    return 'DURATION_BELOW'
+  }
+
+  return 'STATUS_EQUALS'
+}
+
+function normalizeAssertionRules(value: string) {
+  return parseJsonArrayValue(value)
+    .map((item) => {
+      const rule = bodyAs<{
+        type?: unknown
+        label?: unknown
+        path?: unknown
+        expected?: unknown
+        header?: unknown
+        maxDurationMs?: unknown
+        required?: unknown
+        enabled?: unknown
+      }>(item)
+      const assertionType = normalizeAssertionType(rule.type)
+      const label = text(rule.label) || assertionType.toLowerCase().replaceAll('_', ' ')
+
+      return {
+        type: assertionType,
+        label,
+        path: text(rule.path),
+        expected: text(rule.expected),
+        header: text(rule.header),
+        maxDurationMs: numberValue(rule.maxDurationMs, 0),
+        required: booleanValue(rule.required, true),
+        enabled: booleanValue(rule.enabled, true),
+      }
+    })
+    .filter((rule): rule is AssertionRule => Boolean(rule.enabled))
+}
+
+function valueMatchesExpected(value: unknown, expected: string) {
+  if (value === undefined || value === null) {
+    return false
+  }
+
+  if (typeof value === 'object') {
+    return JSON.stringify(value) === expected
+  }
+
+  return String(value) === expected
+}
+
+function evaluateAssertion(
+  rule: AssertionRule,
+  result: { httpStatus: number | null; durationMs: number; headers: Record<string, string>; bodyPreview: string },
+) {
+  if (rule.type === 'STATUS_EQUALS') {
+    const passed = String(result.httpStatus ?? '') === rule.expected
+
+    return {
+      passed,
+      message: passed ? `Status = ${rule.expected}` : `Status ${result.httpStatus ?? 'none'} khac ${rule.expected}.`,
+    }
+  }
+
+  if (rule.type === 'JSON_PATH_EXISTS') {
+    const value = readJsonPath(result.bodyPreview, rule.path)
+    const passed = value !== null && value !== undefined
+
+    return {
+      passed,
+      message: passed ? `${rule.path} ton tai` : `Khong tim thay ${rule.path}.`,
+    }
+  }
+
+  if (rule.type === 'JSON_PATH_EQUALS') {
+    const value = readJsonPath(result.bodyPreview, rule.path)
+    const passed = valueMatchesExpected(value, rule.expected)
+
+    return {
+      passed,
+      message: passed ? `${rule.path} = ${rule.expected}` : `${rule.path} khong bang ${rule.expected}.`,
+    }
+  }
+
+  if (rule.type === 'BODY_CONTAINS') {
+    const passed = result.bodyPreview.includes(rule.expected)
+
+    return {
+      passed,
+      message: passed ? `Body co ${rule.expected}` : `Body khong co ${rule.expected}.`,
+    }
+  }
+
+  if (rule.type === 'HEADER_EXISTS') {
+    const passed = Boolean(headerValue(result.headers, rule.header))
+
+    return {
+      passed,
+      message: passed ? `Header ${rule.header} ton tai` : `Khong tim thay header ${rule.header}.`,
+    }
+  }
+
+  const passed = rule.maxDurationMs > 0 && result.durationMs < rule.maxDurationMs
+
+  return {
+    passed,
+    message: passed ? `Duration < ${rule.maxDurationMs}ms` : `Duration ${result.durationMs}ms vuot ${rule.maxDurationMs}ms.`,
+  }
+}
+
+function evaluateAssertionRules(
+  rules: AssertionRule[],
+  result: { httpStatus: number | null; durationMs: number; headers: Record<string, string>; bodyPreview: string },
+): AssertionSummary {
+  const results = rules.map((rule) => {
+    const assertionResult = evaluateAssertion(rule, result)
+
+    return {
+      label: rule.label,
+      type: rule.type,
+      passed: assertionResult.passed,
+      required: rule.required,
+      message: assertionResult.message,
+    }
+  })
+  const passed = results.filter((resultItem) => resultItem.passed).length
+  const failed = results.length - passed
+  const requiredFailed = results.filter((resultItem) => !resultItem.passed && resultItem.required).length
+
+  return {
+    total: results.length,
+    passed,
+    failed,
+    requiredFailed,
+    results,
+  }
+}
+
+function mergeAssertionSummaries(summaries: AssertionSummary[]): AssertionSummary {
+  const results = summaries.flatMap((summary) => summary.results)
+  const passed = results.filter((resultItem) => resultItem.passed).length
+  const failed = results.length - passed
+  const requiredFailed = results.filter((resultItem) => !resultItem.passed && resultItem.required).length
+
+  return {
+    total: results.length,
+    passed,
+    failed,
+    requiredFailed,
+    results,
+  }
+}
+
+function firstRequiredAssertionFailure(summary: AssertionSummary) {
+  return summary.results.find((result) => !result.passed && result.required)?.message ?? null
+}
+
 function stepRequestRecord(step: {
   name: string
   overrideJson: string
@@ -438,6 +661,7 @@ function stepRequestRecord(step: {
     bodyType: string
     bodyText: string | null
     authJson: string
+    assertionRulesJson: string
     timeoutMs: number
     storeResponseBody: boolean
     sortOrder: number
@@ -455,6 +679,7 @@ function stepRequestRecord(step: {
     bodyType: 'NONE',
     bodyText: null,
     authJson: '{}',
+    assertionRulesJson: '[]',
     timeoutMs: 30000,
     storeResponseBody: false,
     sortOrder: 0,
@@ -832,6 +1057,7 @@ function requestPayload(
     bodyType: string
     bodyText: string | null
     authJson: string
+    assertionRulesJson: string
     timeoutMs: number
     storeResponseBody: boolean
     sortOrder: number
@@ -853,6 +1079,10 @@ function requestPayload(
     bodyType: normalizeBodyType(body.bodyType, fallback?.bodyType ?? 'NONE'),
     bodyText: body.bodyText === undefined ? fallback?.bodyText ?? null : nullableText(body.bodyText),
     authJson: body.auth === undefined ? fallback?.authJson ?? '{}' : jsonObjectString(body.auth),
+    assertionRulesJson:
+      body.assertionRules === undefined
+        ? fallback?.assertionRulesJson ?? '[]'
+        : jsonArrayString(body.assertionRules),
     timeoutMs: Math.max(1000, numberValue(body.timeoutMs, fallback?.timeoutMs ?? 30000)),
     storeResponseBody: booleanValue(body.storeResponseBody, fallback?.storeResponseBody ?? false),
     sortOrder: numberValue(body.sortOrder, fallback?.sortOrder ?? 0),
@@ -928,6 +1158,105 @@ export function registerApiLabRoutes(app: FastifyInstance, context: ApiLabRoutes
     } catch {
       return reply.code(400).send({ message: 'Lenh cURL khong hop le hoac thieu URL.' })
     }
+  })
+
+  app.get('/api/api-lab/history', { preHandler: requireAuth }, async (request, reply) => {
+    const userId = request.authUser?.id ?? ''
+    const url = new URL(request.url, 'http://localhost')
+    const projectId = url.searchParams.get('projectId') ?? ''
+    const taskId = url.searchParams.get('taskId')
+    const requestId = url.searchParams.get('requestId')
+    const flowId = url.searchParams.get('flowId')
+    const status = url.searchParams.get('status')
+    const dateFrom = dateValue(url.searchParams.get('dateFrom'))
+    const dateTo = dateValue(url.searchParams.get('dateTo'), true)
+    const project = await ensureProject(context.prisma, projectId, userId, reply)
+
+    if (!project) {
+      return
+    }
+
+    const createdAt =
+      dateFrom || dateTo
+        ? {
+            ...(dateFrom ? { gte: dateFrom } : {}),
+            ...(dateTo ? { lte: dateTo } : {}),
+          }
+        : undefined
+    const requestRunWhere = {
+      projectId: project.id,
+      ...(taskId ? { taskId } : {}),
+      ...(requestId ? { requestId } : {}),
+      ...(status ? { status } : {}),
+      ...(createdAt ? { createdAt } : {}),
+      ...(flowId ? { flowRun: { flowId } } : {}),
+    }
+    const flowRunWhere = {
+      projectId: project.id,
+      ...(taskId ? { taskId } : {}),
+      ...(flowId ? { flowId } : {}),
+      ...(status ? { status } : {}),
+      ...(createdAt ? { createdAt } : {}),
+    }
+    const [requestRuns, flowRuns] = await Promise.all([
+      context.prisma.apiRequestRun.findMany({
+        where: requestRunWhere,
+        orderBy: { createdAt: 'desc' },
+        take: 80,
+        include: {
+          task: { select: { id: true, code: true, title: true } },
+          request: { select: { id: true, name: true, method: true, url: true, collectionName: true } },
+          flowRun: { include: { flow: { select: { id: true, name: true, collectionName: true } } } },
+          flowStep: { select: { id: true, name: true, sortOrder: true } },
+        },
+      }),
+      requestId
+        ? Promise.resolve([])
+        : context.prisma.apiFlowRun.findMany({
+            where: flowRunWhere,
+            orderBy: { createdAt: 'desc' },
+            take: 80,
+            include: {
+              task: { select: { id: true, code: true, title: true } },
+              flow: { select: { id: true, name: true, collectionName: true } },
+            },
+          }),
+    ])
+
+    return [
+      ...requestRuns.map((run) => ({
+        kind: 'REQUEST',
+        id: run.id,
+        status: run.status,
+        httpStatus: run.httpStatus,
+        durationMs: run.durationMs,
+        assertionSummaryJson: run.assertionSummaryJson,
+        errorMessage: run.errorMessage,
+        responseBodySaved: run.responseBodySaved,
+        createdAt: run.createdAt,
+        task: run.task,
+        request: run.request,
+        flow: run.flowRun?.flow ?? null,
+        flowStep: run.flowStep,
+      })),
+      ...flowRuns.map((run) => ({
+        kind: 'FLOW',
+        id: run.id,
+        status: run.status,
+        httpStatus: null,
+        durationMs: run.durationMs,
+        assertionSummaryJson: run.assertionSummaryJson,
+        errorMessage: run.errorMessage,
+        responseBodySaved: false,
+        createdAt: run.createdAt,
+        task: run.task,
+        request: null,
+        flow: run.flow,
+        flowStep: null,
+      })),
+    ]
+      .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
+      .slice(0, 80)
   })
 
   app.get('/api/api-lab/environments', { preHandler: requireAuth }, async (request, reply) => {
@@ -1227,6 +1556,9 @@ export function registerApiLabRoutes(app: FastifyInstance, context: ApiLabRoutes
       )
       const result = await executeResolvedRequest(resolvedRequest)
       const finishedAt = new Date()
+      const assertionSummary = evaluateAssertionRules(normalizeAssertionRules(apiRequest.assertionRulesJson), result)
+      const assertionError = firstRequiredAssertionFailure(assertionSummary)
+      const runStatus = result.status === 'PASSED' && !assertionError ? 'PASSED' : 'FAILED'
       const maskedHeaders = maskHeaders(result.headers, variableContext.secretValues)
       const maskedBodyPreview = maskKnownSecrets(result.bodyPreview, variableContext.secretValues)
       const responseBodySaved = shouldSaveResponse && (maskedBodyPreview.length > 0 || result.httpStatus !== null)
@@ -1236,12 +1568,12 @@ export function registerApiLabRoutes(app: FastifyInstance, context: ApiLabRoutes
           taskId: apiRequest.taskId,
           environmentId,
           requestId: apiRequest.id,
-          status: result.status,
+          status: runStatus,
           httpStatus: result.httpStatus,
           durationMs: result.durationMs,
-          assertionSummaryJson: JSON.stringify({ total: 0, passed: 0, failed: 0 }),
+          assertionSummaryJson: JSON.stringify(assertionSummary),
           capturedVariablesJson: '{}',
-          errorMessage: result.errorMessage,
+          errorMessage: assertionError ?? result.errorMessage,
           responseBodySaved,
           startedAt,
           finishedAt,
@@ -1551,6 +1883,7 @@ export function registerApiLabRoutes(app: FastifyInstance, context: ApiLabRoutes
     const capturedVariables: Record<string, string> = {}
     const publicCapturedVariables: Record<string, string> = {}
     const flowSecretValues = [...baseVariableContext.secretValues]
+    const assertionSummaries: AssertionSummary[] = []
     const stepResults: Array<{
       step: {
         id: string
@@ -1672,6 +2005,15 @@ export function registerApiLabRoutes(app: FastifyInstance, context: ApiLabRoutes
         const result = await executeResolvedRequest(resolvedRequest)
         const captureRules = normalizeCaptureRules(step.captureRulesJson)
         const captures = evaluateCaptureRules(captureRules, result)
+        const assertionSummary = evaluateAssertionRules(
+          [
+            ...normalizeAssertionRules(step.request?.assertionRulesJson ?? '[]'),
+            ...normalizeAssertionRules(step.assertionRulesJson),
+          ],
+          result,
+        )
+        const assertionError = firstRequiredAssertionFailure(assertionSummary)
+        assertionSummaries.push(assertionSummary)
         const stepSecretValues = [...flowSecretValues, ...captures.secretValues]
         const maskedHeaders = maskHeaders(result.headers, stepSecretValues)
         const maskedBodyPreview = maskKnownSecrets(result.bodyPreview, stepSecretValues)
@@ -1679,7 +2021,7 @@ export function registerApiLabRoutes(app: FastifyInstance, context: ApiLabRoutes
           captures.missingRequired.length > 0
             ? `Thieu capture bat buoc: ${captures.missingRequired.join(', ')}.`
             : null
-        const stepStatus = result.status === 'PASSED' && !captureError ? 'PASSED' : 'FAILED'
+        const stepStatus = result.status === 'PASSED' && !captureError && !assertionError ? 'PASSED' : 'FAILED'
         const shouldSaveResponse =
           booleanValue(body.saveResponseBody, false) || flow.storeResponseBody || requestRecord.storeResponseBody
         const responseBodySaved = shouldSaveResponse && (maskedBodyPreview.length > 0 || result.httpStatus !== null)
@@ -1695,9 +2037,9 @@ export function registerApiLabRoutes(app: FastifyInstance, context: ApiLabRoutes
             status: stepStatus,
             httpStatus: result.httpStatus,
             durationMs: result.durationMs,
-            assertionSummaryJson: JSON.stringify({ total: 0, passed: 0, failed: 0 }),
+            assertionSummaryJson: JSON.stringify(assertionSummary),
             capturedVariablesJson: JSON.stringify(captures.publicValues),
-            errorMessage: captureError ?? result.errorMessage,
+            errorMessage: captureError ?? assertionError ?? result.errorMessage,
             responseBodySaved,
             startedAt: stepStartedAt,
             finishedAt,
@@ -1795,6 +2137,7 @@ export function registerApiLabRoutes(app: FastifyInstance, context: ApiLabRoutes
       data: {
         status: finalStatus,
         durationMs: finishedAt.getTime() - startedAt.getTime(),
+        assertionSummaryJson: JSON.stringify(mergeAssertionSummaries(assertionSummaries)),
         capturedVariablesJson: JSON.stringify(publicCapturedVariables),
         errorMessage: finalErrorMessage,
         finishedAt,

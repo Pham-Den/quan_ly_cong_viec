@@ -16,6 +16,7 @@ import {
   deleteApiFlow,
   deleteApiFlowStep,
   importCurl,
+  loadApiHistory,
   loadApiFlowSteps,
   loadApiFlows,
   loadApiEnvironments,
@@ -32,9 +33,12 @@ import {
   type ApiFlowRunResult,
   type ApiEnvironment,
   type ApiEnvironmentVariable,
+  type ApiHistoryItem,
   type ApiRequest,
   type ApiRequestRun,
   type ApiRunResult,
+  type AssertionRulePayload,
+  type AssertionSummary,
 } from './ts/service'
 import { api } from '../../services/api'
 
@@ -70,6 +74,17 @@ type CaptureRuleRow = {
   secret: boolean
 }
 
+type AssertionRuleRow = {
+  type: string
+  label: string
+  path: string
+  expected: string
+  header: string
+  maxDurationMs: number
+  required: boolean
+  enabled: boolean
+}
+
 type FlowStepForm = {
   id: string
   requestId: string | null
@@ -80,6 +95,7 @@ type FlowStepForm = {
   overrideBodyText: string
   continueOnFailure: boolean
   captureRules: CaptureRuleRow[]
+  assertionRules: AssertionRuleRow[]
 }
 
 type ResponseField = {
@@ -108,6 +124,7 @@ const flows = ref<ApiFlow[]>([])
 const flowSteps = ref<FlowStepForm[]>([])
 const tasks = ref<TaskOptionRecord[]>([])
 const requestRuns = ref<ApiRequestRun[]>([])
+const historyItems = ref<ApiHistoryItem[]>([])
 const selectedEnvironmentId = ref<string | null>(null)
 const selectedRequestId = ref<string | null>(null)
 const selectedFlowId = ref<string | null>(null)
@@ -117,6 +134,15 @@ const runtimeVariablesText = ref('{}')
 const runSaveResponseBody = ref(false)
 const draggedStepIndex = ref<number | null>(null)
 const draggedResponseField = ref<ResponseField | null>(null)
+const loadingHistory = ref(false)
+const historyFilters = reactive({
+  taskId: null as string | null,
+  requestId: null as string | null,
+  flowId: null as string | null,
+  status: null as string | null,
+  dateFrom: '',
+  dateTo: '',
+})
 const selectedProjectId = computed(() => session.selectedProjectId)
 const selectedRequest = computed(() => requests.value.find((request) => request.id === selectedRequestId.value) ?? null)
 const selectedFlow = computed(() => flows.value.find((flow) => flow.id === selectedFlowId.value) ?? null)
@@ -146,6 +172,12 @@ const requestOptions = computed(() =>
   requestList.value.map((request) => ({
     label: `${request.method} ${request.name}`,
     value: request.id,
+  })),
+)
+const flowOptions = computed(() =>
+  flowList.value.map((flow) => ({
+    label: `FLOW ${flow.name}`,
+    value: flow.id,
   })),
 )
 const responseStatusColor = computed(() => {
@@ -222,6 +254,7 @@ const requestForm = reactive({
   authToken: '',
   authUsername: '',
   authPassword: '',
+  assertionRules: [] as AssertionRuleRow[],
   timeoutMs: 30000,
   storeResponseBody: false,
 })
@@ -260,6 +293,19 @@ const captureSourceOptions = [
   { label: 'Header', value: 'HEADER' },
   { label: 'Status code', value: 'STATUS' },
   { label: 'Raw text', value: 'TEXT' },
+]
+const assertionTypeOptions = [
+  { label: 'Status equals', value: 'STATUS_EQUALS' },
+  { label: 'JSON path exists', value: 'JSON_PATH_EXISTS' },
+  { label: 'JSON path equals', value: 'JSON_PATH_EQUALS' },
+  { label: 'Body contains', value: 'BODY_CONTAINS' },
+  { label: 'Header exists', value: 'HEADER_EXISTS' },
+  { label: 'Duration below', value: 'DURATION_BELOW' },
+]
+const historyStatusOptions = [
+  { label: 'Passed', value: 'PASSED' },
+  { label: 'Failed', value: 'FAILED' },
+  { label: 'Skipped', value: 'SKIPPED' },
 ]
 
 function parseJsonArray(value: string) {
@@ -400,6 +446,7 @@ function resetRequestForm() {
   requestForm.authToken = ''
   requestForm.authUsername = ''
   requestForm.authPassword = ''
+  requestForm.assertionRules = []
   requestForm.timeoutMs = 30000
   requestForm.storeResponseBody = false
   selectedRequestId.value = null
@@ -420,6 +467,7 @@ function setRequestForm(request: ApiRequest) {
   requestForm.bodyText = request.bodyText ?? ''
   requestForm.timeoutMs = request.timeoutMs
   requestForm.storeResponseBody = request.storeResponseBody
+  requestForm.assertionRules = assertionRulesFromJson(request.assertionRulesJson)
   authFromJson(request.authJson)
 }
 
@@ -455,6 +503,123 @@ function captureRulesFromJson(value: string): CaptureRuleRow[] {
   }))
 }
 
+function assertionRulesFromJson(value: string): AssertionRuleRow[] {
+  return parseJsonArray(value).map((row) => ({
+    type: typeof row?.type === 'string' ? row.type.toUpperCase() : 'STATUS_EQUALS',
+    label: typeof row?.label === 'string' ? row.label : '',
+    path: typeof row?.path === 'string' ? row.path : '',
+    expected: typeof row?.expected === 'string' ? row.expected : '',
+    header: typeof row?.header === 'string' ? row.header : '',
+    maxDurationMs: Number(row?.maxDurationMs || 0),
+    required: row?.required !== false,
+    enabled: row?.enabled !== false,
+  }))
+}
+
+function assertionHasInput(rule: AssertionRuleRow) {
+  if (rule.type === 'STATUS_EQUALS') {
+    return Boolean(rule.expected.trim())
+  }
+
+  if (rule.type === 'JSON_PATH_EXISTS') {
+    return Boolean(rule.path.trim())
+  }
+
+  if (rule.type === 'JSON_PATH_EQUALS') {
+    return Boolean(rule.path.trim())
+  }
+
+  if (rule.type === 'BODY_CONTAINS') {
+    return Boolean(rule.expected.trim())
+  }
+
+  if (rule.type === 'HEADER_EXISTS') {
+    return Boolean(rule.header.trim())
+  }
+
+  if (rule.type === 'DURATION_BELOW') {
+    return Number(rule.maxDurationMs || 0) > 0
+  }
+
+  return false
+}
+
+function assertionPayload(rules: AssertionRuleRow[]): AssertionRulePayload[] {
+  return rules.filter(assertionHasInput).map((rule) => ({
+    type: rule.type,
+    label: rule.label.trim(),
+    path: rule.path.trim(),
+    expected: rule.expected.trim(),
+    header: rule.header.trim(),
+    maxDurationMs: Number(rule.maxDurationMs || 0),
+    required: rule.required,
+    enabled: rule.enabled,
+  }))
+}
+
+function addAssertionRule(rules: AssertionRuleRow[]) {
+  rules.push({
+    type: 'STATUS_EQUALS',
+    label: '',
+    path: '',
+    expected: '200',
+    header: '',
+    maxDurationMs: 1000,
+    required: true,
+    enabled: true,
+  })
+}
+
+function removeAssertionRule(rules: AssertionRuleRow[], index: number) {
+  rules.splice(index, 1)
+}
+
+function assertionSummaryFromJson(value?: string | null): AssertionSummary {
+  try {
+    const parsed = JSON.parse(value || '{}') as AssertionSummary
+
+    return {
+      total: Number(parsed.total || 0),
+      passed: Number(parsed.passed || 0),
+      failed: Number(parsed.failed || 0),
+      requiredFailed: Number(parsed.requiredFailed || 0),
+      results: Array.isArray(parsed.results) ? parsed.results : [],
+    }
+  } catch {
+    return {
+      total: 0,
+      passed: 0,
+      failed: 0,
+      requiredFailed: 0,
+      results: [],
+    }
+  }
+}
+
+function assertionResultColor(passed: boolean) {
+  return passed ? 'green' : 'red'
+}
+
+function assertionSummaryColor(value?: string | null) {
+  const summary = assertionSummaryFromJson(value)
+
+  if (!summary.total) {
+    return 'default'
+  }
+
+  return summary.failed > 0 ? 'red' : 'green'
+}
+
+function assertionSummaryLabel(value?: string | null) {
+  const summary = assertionSummaryFromJson(value)
+
+  if (!summary.total) {
+    return 'Assertions 0'
+  }
+
+  return `Assertions ${summary.passed}/${summary.total}`
+}
+
 function flowStepFromApi(step: {
   id: string
   requestId: string | null
@@ -462,6 +627,7 @@ function flowStepFromApi(step: {
   sortOrder: number
   overrideJson: string
   captureRulesJson: string
+  assertionRulesJson: string
   continueOnFailure: boolean
 }): FlowStepForm {
   const override = parseJsonObject(step.overrideJson)
@@ -476,6 +642,7 @@ function flowStepFromApi(step: {
     overrideBodyText: typeof override.bodyText === 'string' ? override.bodyText : '',
     continueOnFailure: step.continueOnFailure,
     captureRules: captureRulesFromJson(step.captureRulesJson),
+    assertionRules: assertionRulesFromJson(step.assertionRulesJson),
   }
 }
 
@@ -490,6 +657,7 @@ function emptyFlowStep(): FlowStepForm {
     overrideBodyText: '',
     continueOnFailure: false,
     captureRules: [],
+    assertionRules: [],
   }
 }
 
@@ -553,6 +721,7 @@ async function refreshApiLab() {
     requests.value = []
     flows.value = []
     tasks.value = []
+    historyItems.value = []
     resetEnvironmentForm()
     resetRequestForm()
     resetFlowForm()
@@ -610,6 +779,8 @@ async function refreshApiLab() {
       setFlowForm(flowData[0])
       await loadFlowSteps(flowData[0].id)
     }
+
+    await loadHistory()
   } finally {
     loading.value = false
   }
@@ -617,6 +788,57 @@ async function refreshApiLab() {
 
 async function loadRuns(requestId: string) {
   requestRuns.value = await loadApiRequestRuns(requestId)
+}
+
+async function loadHistory() {
+  if (!selectedProjectId.value) {
+    historyItems.value = []
+    return
+  }
+
+  loadingHistory.value = true
+
+  try {
+    historyItems.value = await loadApiHistory({
+      projectId: selectedProjectId.value,
+      taskId: historyFilters.taskId,
+      requestId: historyFilters.requestId,
+      flowId: historyFilters.flowId,
+      status: historyFilters.status,
+      dateFrom: historyFilters.dateFrom,
+      dateTo: historyFilters.dateTo,
+    })
+  } finally {
+    loadingHistory.value = false
+  }
+}
+
+function clearHistoryFilters() {
+  historyFilters.taskId = null
+  historyFilters.requestId = null
+  historyFilters.flowId = null
+  historyFilters.status = null
+  historyFilters.dateFrom = ''
+  historyFilters.dateTo = ''
+  void loadHistory()
+}
+
+function historyTitle(item: ApiHistoryItem) {
+  if (item.kind === 'FLOW') {
+    return item.flow?.name ?? 'Flow run'
+  }
+
+  return item.request?.name ?? item.flowStep?.name ?? 'Request run'
+}
+
+function historySubtitle(item: ApiHistoryItem) {
+  const parts = [
+    item.kind === 'FLOW' ? 'FLOW' : item.request?.method,
+    item.task?.code,
+    new Date(item.createdAt).toLocaleString('vi-VN'),
+  ].filter(Boolean)
+
+  return parts.join(' · ')
 }
 
 async function loadFlowSteps(flowId: string) {
@@ -628,7 +850,10 @@ function selectRequest(request: ApiRequest) {
   selectedRequestId.value = request.id
   setRequestForm(request)
   currentResult.value = null
+  historyFilters.requestId = request.id
+  historyFilters.flowId = null
   void loadRuns(request.id)
+  void loadHistory()
 }
 
 function newRequest() {
@@ -642,7 +867,10 @@ function selectFlow(flow: ApiFlow) {
   selectedFlowId.value = flow.id
   setFlowForm(flow)
   currentFlowResult.value = null
+  historyFilters.flowId = flow.id
+  historyFilters.requestId = null
   void loadFlowSteps(flow.id)
+  void loadHistory()
 }
 
 function newFlow() {
@@ -710,6 +938,7 @@ async function submitRequest() {
       bodyType: requestForm.bodyType,
       bodyText: requestForm.bodyText,
       auth: requestAuthPayload(),
+      assertionRules: assertionPayload(requestForm.assertionRules),
       timeoutMs: requestForm.timeoutMs,
       storeResponseBody: requestForm.storeResponseBody,
     })
@@ -841,6 +1070,7 @@ async function saveFlowStepRow(step: FlowStepForm) {
           required: rule.required,
           secret: rule.secret,
         })),
+      assertionRules: assertionPayload(step.assertionRules),
       continueOnFailure: step.continueOnFailure,
     })
 
@@ -897,6 +1127,7 @@ async function dropStep(targetIndex: number) {
       sortOrder: step.sortOrder,
       override: flowStepOverridePayload(step),
       captureRules: step.captureRules,
+      assertionRules: assertionPayload(step.assertionRules),
       continueOnFailure: step.continueOnFailure,
     })
   }
@@ -977,6 +1208,7 @@ async function runCurrentRequest() {
       saveResponseBody: runSaveResponseBody.value,
     })
     await loadRuns(requestForm.id)
+    await loadHistory()
 
     if (currentResult.value.run.status === 'PASSED') {
       message.success('Request chạy thành công.')
@@ -1011,6 +1243,7 @@ async function runCurrentFlow() {
       runtimeVariables: runtime,
       saveResponseBody: runSaveResponseBody.value,
     })
+    await loadHistory()
 
     if (currentFlowResult.value.flowRun.status === 'PASSED') {
       message.success('Flow chạy thành công.')
@@ -1042,6 +1275,7 @@ async function saveCurrentResponse() {
     currentResult.value.run.responseBodySaved = true
     currentResult.value.response.savedResponseId = saved.id
     await loadRuns(requestForm.id)
+    await loadHistory()
     message.success('Đã lưu response.')
   } finally {
     savingResponse.value = false
@@ -1065,7 +1299,15 @@ async function applyCurlImport() {
   message.success('Đã import cURL vào request draft.')
 }
 
-watch(selectedProjectId, refreshApiLab)
+watch(selectedProjectId, () => {
+  historyFilters.taskId = null
+  historyFilters.requestId = null
+  historyFilters.flowId = null
+  historyFilters.status = null
+  historyFilters.dateFrom = ''
+  historyFilters.dateTo = ''
+  void refreshApiLab()
+})
 watch(selectedEnvironmentId, (environmentId) => {
   const environment = environments.value.find((item) => item.id === environmentId)
 
@@ -1251,6 +1493,46 @@ onMounted(refreshApiLab)
                 </template>
               </div>
             </a-tab-pane>
+            <a-tab-pane key="assertions" tab="Assertions">
+              <div class="api-lab-assertion-list">
+                <div v-for="(rule, index) in requestForm.assertionRules" :key="index" class="api-lab-assertion-row">
+                  <a-checkbox v-model:checked="rule.enabled" />
+                  <a-select v-model:value="rule.type" :options="assertionTypeOptions" />
+                  <a-input v-model:value="rule.label" placeholder="Tên rule" />
+                  <a-input
+                    v-if="rule.type === 'JSON_PATH_EXISTS' || rule.type === 'JSON_PATH_EQUALS'"
+                    v-model:value="rule.path"
+                    placeholder="$.data.id"
+                  />
+                  <a-input
+                    v-else-if="rule.type === 'HEADER_EXISTS'"
+                    v-model:value="rule.header"
+                    placeholder="Header name"
+                  />
+                  <a-input-number
+                    v-else-if="rule.type === 'DURATION_BELOW'"
+                    v-model:value="rule.maxDurationMs"
+                    :min="1"
+                    addon-after="ms"
+                  />
+                  <span v-else class="api-lab-muted">Response</span>
+                  <a-input
+                    v-if="rule.type === 'STATUS_EQUALS' || rule.type === 'JSON_PATH_EQUALS' || rule.type === 'BODY_CONTAINS'"
+                    v-model:value="rule.expected"
+                    placeholder="expected"
+                  />
+                  <span v-else class="api-lab-muted">-</span>
+                  <a-checkbox v-model:checked="rule.required">Required</a-checkbox>
+                  <a-button danger @click="removeAssertionRule(requestForm.assertionRules, index)">
+                    <template #icon><DeleteOutlined /></template>
+                  </a-button>
+                </div>
+                <a-button @click="addAssertionRule(requestForm.assertionRules)">
+                  <template #icon><PlusOutlined /></template>
+                  Thêm assertion
+                </a-button>
+              </div>
+            </a-tab-pane>
             <a-tab-pane key="options" tab="Options">
               <a-checkbox v-model:checked="requestForm.storeResponseBody">
                 Luôn lưu response body cho request này
@@ -1398,6 +1680,46 @@ onMounted(refreshApiLab)
                   </a-button>
                 </div>
               </a-tab-pane>
+              <a-tab-pane key="assertions" tab="Assertions">
+                <div class="api-lab-assertion-list">
+                  <div v-for="(rule, ruleIndex) in step.assertionRules" :key="ruleIndex" class="api-lab-assertion-row">
+                    <a-checkbox v-model:checked="rule.enabled" />
+                    <a-select v-model:value="rule.type" :options="assertionTypeOptions" />
+                    <a-input v-model:value="rule.label" placeholder="Tên rule" />
+                    <a-input
+                      v-if="rule.type === 'JSON_PATH_EXISTS' || rule.type === 'JSON_PATH_EQUALS'"
+                      v-model:value="rule.path"
+                      placeholder="$.data.id"
+                    />
+                    <a-input
+                      v-else-if="rule.type === 'HEADER_EXISTS'"
+                      v-model:value="rule.header"
+                      placeholder="Header name"
+                    />
+                    <a-input-number
+                      v-else-if="rule.type === 'DURATION_BELOW'"
+                      v-model:value="rule.maxDurationMs"
+                      :min="1"
+                      addon-after="ms"
+                    />
+                    <span v-else class="api-lab-muted">Response</span>
+                    <a-input
+                      v-if="rule.type === 'STATUS_EQUALS' || rule.type === 'JSON_PATH_EQUALS' || rule.type === 'BODY_CONTAINS'"
+                      v-model:value="rule.expected"
+                      placeholder="expected"
+                    />
+                    <span v-else class="api-lab-muted">-</span>
+                    <a-checkbox v-model:checked="rule.required">Required</a-checkbox>
+                    <a-button danger @click="removeAssertionRule(step.assertionRules, ruleIndex)">
+                      <template #icon><DeleteOutlined /></template>
+                    </a-button>
+                  </div>
+                  <a-button @click="addAssertionRule(step.assertionRules)">
+                    <template #icon><PlusOutlined /></template>
+                    Thêm assertion
+                  </a-button>
+                </div>
+              </a-tab-pane>
             </a-tabs>
 
             <a-space class="form-actions">
@@ -1485,8 +1807,23 @@ onMounted(refreshApiLab)
                 <a-tag :color="responseStatusColor">{{ currentResult.run.status }}</a-tag>
                 <a-tag>{{ currentResult.response?.httpStatus ?? 'No status' }}</a-tag>
                 <a-tag>{{ currentResult.response?.durationMs ?? currentResult.run.durationMs }}ms</a-tag>
+                <a-tag :color="assertionSummaryColor(currentResult.run.assertionSummaryJson)">
+                  {{ assertionSummaryLabel(currentResult.run.assertionSummaryJson) }}
+                </a-tag>
                 <a-tag v-if="currentResult.response?.truncated" color="orange">Truncated</a-tag>
               </a-space>
+              <div
+                v-if="assertionSummaryFromJson(currentResult.run.assertionSummaryJson).results?.length"
+                class="api-lab-assertion-tags"
+              >
+                <a-tag
+                  v-for="result in assertionSummaryFromJson(currentResult.run.assertionSummaryJson).results"
+                  :key="`${result.type}-${result.label}`"
+                  :color="assertionResultColor(result.passed)"
+                >
+                  {{ result.passed ? 'OK' : 'FAIL' }} · {{ result.label }}
+                </a-tag>
+              </div>
               <a-alert v-if="currentResult.run.errorMessage" type="error" show-icon :message="currentResult.run.errorMessage" />
               <a-button
                 v-if="currentResult.response && !currentResult.response.savedResponseId"
@@ -1523,6 +1860,9 @@ onMounted(refreshApiLab)
               <a-space wrap>
                 <a-tag :color="flowStatusColor">{{ currentFlowResult.flowRun.status }}</a-tag>
                 <a-tag>{{ currentFlowResult.flowRun.durationMs ?? 0 }}ms</a-tag>
+                <a-tag :color="assertionSummaryColor(currentFlowResult.flowRun.assertionSummaryJson)">
+                  {{ assertionSummaryLabel(currentFlowResult.flowRun.assertionSummaryJson) }}
+                </a-tag>
               </a-space>
               <a-alert
                 v-if="currentFlowResult.flowRun.errorMessage"
@@ -1552,7 +1892,22 @@ onMounted(refreshApiLab)
                     </a-tag>
                     <a-tag>{{ stepResult.run.httpStatus ?? 'No status' }}</a-tag>
                     <a-tag>{{ stepResult.run.durationMs ?? 0 }}ms</a-tag>
+                    <a-tag :color="assertionSummaryColor(stepResult.run.assertionSummaryJson)">
+                      {{ assertionSummaryLabel(stepResult.run.assertionSummaryJson) }}
+                    </a-tag>
                   </a-space>
+                  <div
+                    v-if="assertionSummaryFromJson(stepResult.run.assertionSummaryJson).results?.length"
+                    class="api-lab-assertion-tags"
+                  >
+                    <a-tag
+                      v-for="result in assertionSummaryFromJson(stepResult.run.assertionSummaryJson).results"
+                      :key="`${stepResult.run.id}-${result.type}-${result.label}`"
+                      :color="assertionResultColor(result.passed)"
+                    >
+                      {{ result.passed ? 'OK' : 'FAIL' }} · {{ result.label }}
+                    </a-tag>
+                  </div>
                   <a-alert v-if="stepResult.run.errorMessage" type="warning" show-icon :message="stepResult.run.errorMessage" />
                   <AppJsonCodeBlock :value="JSON.stringify(stepResult.capturedVariables, null, 2)" empty-text="Không có capture" />
                   <a-tabs v-if="stepResult.response" size="small">
@@ -1569,21 +1924,62 @@ onMounted(refreshApiLab)
           </a-space>
         </a-card>
 
-        <a-card v-if="activeLeftTab === 'requests'" class="settings-card" title="Lịch sử gần đây">
-          <a-list size="small" :data-source="requestRuns">
+        <a-card class="settings-card" title="History">
+          <div class="api-lab-history-filters">
+            <a-select
+              v-model:value="historyFilters.taskId"
+              allow-clear
+              show-search
+              :options="taskOptions"
+              placeholder="Task"
+            />
+            <a-select
+              v-model:value="historyFilters.requestId"
+              allow-clear
+              show-search
+              :options="requestOptions"
+              placeholder="Request"
+            />
+            <a-select
+              v-model:value="historyFilters.flowId"
+              allow-clear
+              show-search
+              :options="flowOptions"
+              placeholder="Flow"
+            />
+            <a-select
+              v-model:value="historyFilters.status"
+              allow-clear
+              :options="historyStatusOptions"
+              placeholder="Status"
+            />
+            <a-input v-model:value="historyFilters.dateFrom" type="date" placeholder="Từ ngày" />
+            <a-input v-model:value="historyFilters.dateTo" type="date" placeholder="Đến ngày" />
+            <a-space>
+              <a-button size="small" :loading="loadingHistory" @click="loadHistory">Lọc</a-button>
+              <a-button size="small" @click="clearHistoryFilters">Xóa lọc</a-button>
+            </a-space>
+          </div>
+          <a-list size="small" :data-source="historyItems" :loading="loadingHistory">
             <template #renderItem="{ item }">
-              <a-list-item>
+              <a-list-item class="api-lab-history-item">
                 <a-list-item-meta>
                   <template #title>
-                    <a-space>
+                    <a-space wrap>
+                      <a-tag :color="item.kind === 'FLOW' ? 'purple' : 'blue'">{{ item.kind }}</a-tag>
                       <a-tag :color="item.status === 'PASSED' ? 'green' : 'red'">{{ item.status }}</a-tag>
+                      <span>{{ historyTitle(item) }}</span>
                       <span>{{ item.httpStatus ?? 'No status' }}</span>
                       <span>{{ item.durationMs ?? 0 }}ms</span>
+                      <a-tag :color="assertionSummaryColor(item.assertionSummaryJson)">
+                        {{ assertionSummaryLabel(item.assertionSummaryJson) }}
+                      </a-tag>
                     </a-space>
                   </template>
                   <template #description>
-                    <span>{{ new Date(item.createdAt).toLocaleString('vi-VN') }}</span>
+                    <span>{{ historySubtitle(item) }}</span>
                     <a-tag v-if="item.responseBodySaved" color="blue">Đã lưu body</a-tag>
+                    <span v-if="item.errorMessage"> · {{ item.errorMessage }}</span>
                   </template>
                 </a-list-item-meta>
               </a-list-item>

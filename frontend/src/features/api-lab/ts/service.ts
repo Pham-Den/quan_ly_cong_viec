@@ -44,6 +44,7 @@ export type ApiRequest = {
   bodyType: string
   bodyText: string | null
   authJson: string
+  assertionRulesJson: string
   timeoutMs: number
   storeResponseBody: boolean
   sortOrder: number
@@ -88,6 +89,31 @@ export type CaptureRulePayload = {
   secret?: boolean
 }
 
+export type AssertionRulePayload = {
+  type: string
+  label?: string
+  path?: string
+  expected?: string
+  header?: string
+  maxDurationMs?: number
+  required?: boolean
+  enabled?: boolean
+}
+
+export type AssertionSummary = {
+  total: number
+  passed: number
+  failed: number
+  requiredFailed?: number
+  results?: Array<{
+    label: string
+    type: string
+    passed: boolean
+    required: boolean
+    message: string
+  }>
+}
+
 export type ApiFlowStep = {
   id: string
   flowId: string
@@ -112,6 +138,7 @@ export type ApiFlowRunResult = {
     id: string
     status: string
     durationMs: number | null
+    assertionSummaryJson: string
     capturedVariablesJson: string
     errorMessage: string | null
     startedAt: string
@@ -153,6 +180,7 @@ export type ApiRequestPayload = {
   bodyType: string
   bodyText?: string
   auth: Record<string, unknown>
+  assertionRules: AssertionRulePayload[]
   timeoutMs: number
   storeResponseBody: boolean
   sortOrder?: number
@@ -177,6 +205,8 @@ export type ApiRequestRun = {
   status: string
   httpStatus: number | null
   durationMs: number | null
+  assertionSummaryJson: string
+  capturedVariablesJson: string
   errorMessage: string | null
   responseBodySaved: boolean
   startedAt: string
@@ -199,6 +229,40 @@ export type CurlImportDraft = {
   headers: Array<{ key: string; value: string }>
   bodyType: string
   bodyText: string | null
+}
+
+export type ApiHistoryItem = {
+  kind: 'REQUEST' | 'FLOW'
+  id: string
+  status: string
+  httpStatus: number | null
+  durationMs: number | null
+  assertionSummaryJson: string
+  errorMessage: string | null
+  responseBodySaved: boolean
+  createdAt: string
+  task?: {
+    id: string
+    code: string
+    title: string
+  } | null
+  request?: {
+    id: string
+    name: string
+    method: string
+    url: string
+    collectionName: string
+  } | null
+  flow?: {
+    id: string
+    name: string
+    collectionName: string
+  } | null
+  flowStep?: {
+    id: string
+    name: string
+    sortOrder: number
+  } | null
 }
 
 export async function loadApiEnvironments(projectId: string) {
@@ -305,7 +369,7 @@ export async function saveApiFlowStep(payload: {
   sortOrder: number
   override: Record<string, unknown>
   captureRules: CaptureRulePayload[]
-  assertionRules?: unknown[]
+  assertionRules?: AssertionRulePayload[]
   continueOnFailure: boolean
 }) {
   const body = {
@@ -325,6 +389,46 @@ export async function saveApiFlowStep(payload: {
   }
 
   const { data } = await api.post<ApiFlowStep>(`/api/api-lab/flows/${payload.flowId}/steps`, body)
+
+  return data
+}
+
+export async function loadApiHistory(params: {
+  projectId: string
+  taskId?: string | null
+  requestId?: string | null
+  flowId?: string | null
+  status?: string | null
+  dateFrom?: string | null
+  dateTo?: string | null
+}) {
+  const query = new URLSearchParams({ projectId: params.projectId })
+
+  if (params.taskId) {
+    query.set('taskId', params.taskId)
+  }
+
+  if (params.requestId) {
+    query.set('requestId', params.requestId)
+  }
+
+  if (params.flowId) {
+    query.set('flowId', params.flowId)
+  }
+
+  if (params.status) {
+    query.set('status', params.status)
+  }
+
+  if (params.dateFrom) {
+    query.set('dateFrom', params.dateFrom)
+  }
+
+  if (params.dateTo) {
+    query.set('dateTo', params.dateTo)
+  }
+
+  const { data } = await api.get<ApiHistoryItem[]>(`/api/api-lab/history?${query.toString()}`)
 
   return data
 }

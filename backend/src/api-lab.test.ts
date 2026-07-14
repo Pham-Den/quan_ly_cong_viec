@@ -60,6 +60,7 @@ type ApiRequestRunResult = {
     id: string
     status: string
     httpStatus: number | null
+    assertionSummaryJson: string
     responseBodySaved: boolean
     errorMessage: string | null
   }
@@ -110,6 +111,15 @@ type CurlImportDraft = {
   headers: Array<{ key: string; value: string }>
   bodyType: string
   bodyText: string | null
+}
+
+type ApiHistoryItem = {
+  kind: 'REQUEST' | 'FLOW'
+  id: string
+  status: string
+  assertionSummaryJson: string
+  request: { id: string; name: string } | null
+  flow: { id: string; name: string } | null
 }
 
 type ApiFlow = {
@@ -658,6 +668,136 @@ describe('api lab foundation', () => {
       assert.equal(run.body.steps[0]?.run.status, 'FAILED')
       assert.equal(run.body.steps[1]?.run.status, 'SKIPPED')
       assert.match(run.body.steps[1]?.run.errorMessage ?? '', /bo qua/)
+    } finally {
+      await internalApi.close()
+    }
+  })
+
+  test('passes request assertions for status, JSON, body, header, and duration', async () => {
+    const internalApi = await startInternalApi((_incomingRequest, response) => {
+      response.setHeader('content-type', 'application/json')
+      response.setHeader('x-sample-id', 'sample-001')
+      response.end(JSON.stringify({ data: { id: 'sample-001' }, ok: true }))
+    })
+
+    try {
+      const token = await setupSession()
+      const project = await setupProject('ASSERT', token)
+      const environment = await createEnvironment(token, project.id, internalApi.baseUrl)
+      const apiRequest = await createApiRequest(token, {
+        projectId: project.id,
+        name: 'Assert success',
+        method: 'GET',
+        url: '{{baseUrl}}/assert',
+        assertionRules: [
+          { type: 'STATUS_EQUALS', expected: '200', label: 'status 200' },
+          { type: 'JSON_PATH_EXISTS', path: '$.data.id', label: 'id exists' },
+          { type: 'JSON_PATH_EQUALS', path: '$.data.id', expected: 'sample-001', label: 'id equals' },
+          { type: 'BODY_CONTAINS', expected: 'sample-001', label: 'body contains id' },
+          { type: 'HEADER_EXISTS', header: 'x-sample-id', label: 'header exists' },
+          { type: 'DURATION_BELOW', maxDurationMs: 5000, label: 'fast enough' },
+        ],
+      })
+      const run = await request<ApiRequestRunResult>(
+        'POST',
+        `/api/api-lab/requests/${apiRequest.id}/run`,
+        token,
+        { environmentId: environment.id },
+      )
+      const summary = JSON.parse(run.body.run.assertionSummaryJson) as { total: number; passed: number; failed: number }
+
+      assert.equal(run.response.statusCode, 200)
+      assert.equal(run.body.run.status, 'PASSED')
+      assert.equal(summary.total, 6)
+      assert.equal(summary.passed, 6)
+      assert.equal(summary.failed, 0)
+    } finally {
+      await internalApi.close()
+    }
+  })
+
+  test('fails a run when a required assertion fails while keeping response visible', async () => {
+    const internalApi = await startInternalApi((_incomingRequest, response) => {
+      response.setHeader('content-type', 'application/json')
+      response.end(JSON.stringify({ data: { id: 'actual-id' } }))
+    })
+
+    try {
+      const token = await setupSession()
+      const project = await setupProject('AFAIL', token)
+      const environment = await createEnvironment(token, project.id, internalApi.baseUrl)
+      const apiRequest = await createApiRequest(token, {
+        projectId: project.id,
+        name: 'Assert failure',
+        method: 'GET',
+        url: '{{baseUrl}}/assert-fail',
+        assertionRules: [
+          { type: 'JSON_PATH_EQUALS', path: '$.data.id', expected: 'expected-id', label: 'id must match', required: true },
+        ],
+      })
+      const run = await request<ApiRequestRunResult>(
+        'POST',
+        `/api/api-lab/requests/${apiRequest.id}/run`,
+        token,
+        { environmentId: environment.id },
+      )
+      const summary = JSON.parse(run.body.run.assertionSummaryJson) as { failed: number; requiredFailed: number }
+
+      assert.equal(run.response.statusCode, 200)
+      assert.equal(run.body.run.status, 'FAILED')
+      assert.equal(summary.failed, 1)
+      assert.equal(summary.requiredFailed, 1)
+      assert.match(run.body.run.errorMessage ?? '', /khong bang expected-id/)
+      assert.match(run.body.response?.bodyPreview ?? '', /actual-id/)
+    } finally {
+      await internalApi.close()
+    }
+  })
+
+  test('filters API run history by request, status, and date', async () => {
+    const internalApi = await startInternalApi((_incomingRequest, response) => {
+      response.setHeader('content-type', 'application/json')
+      response.end(JSON.stringify({ ok: true }))
+    })
+
+    try {
+      const token = await setupSession()
+      const project = await setupProject('HIST', token)
+      const environment = await createEnvironment(token, project.id, internalApi.baseUrl)
+      const passingRequest = await createApiRequest(token, {
+        projectId: project.id,
+        name: 'History pass',
+        method: 'GET',
+        url: '{{baseUrl}}/history-pass',
+        assertionRules: [{ type: 'STATUS_EQUALS', expected: '200', label: 'status 200' }],
+      })
+      const failingRequest = await createApiRequest(token, {
+        projectId: project.id,
+        name: 'History fail',
+        method: 'GET',
+        url: '{{baseUrl}}/history-fail',
+        assertionRules: [{ type: 'STATUS_EQUALS', expected: '201', label: 'status 201' }],
+      })
+
+      await request<ApiRequestRunResult>('POST', `/api/api-lab/requests/${passingRequest.id}/run`, token, {
+        environmentId: environment.id,
+      })
+      await request<ApiRequestRunResult>('POST', `/api/api-lab/requests/${failingRequest.id}/run`, token, {
+        environmentId: environment.id,
+      })
+
+      const today = new Date().toISOString().slice(0, 10)
+      const failedHistory = await request<ApiHistoryItem[]>(
+        'GET',
+        `/api/api-lab/history?projectId=${project.id}&status=FAILED&requestId=${failingRequest.id}&dateFrom=${today}&dateTo=${today}`,
+        token,
+      )
+
+      assert.equal(failedHistory.response.statusCode, 200)
+      assert.equal(failedHistory.body.length, 1)
+      assert.equal(failedHistory.body[0]?.kind, 'REQUEST')
+      assert.equal(failedHistory.body[0]?.request?.id, failingRequest.id)
+      assert.equal(failedHistory.body[0]?.status, 'FAILED')
     } finally {
       await internalApi.close()
     }

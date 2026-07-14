@@ -882,6 +882,7 @@ body {
 
 .api-lab-flow-steps,
 .api-lab-capture-list,
+.api-lab-assertion-list,
 .api-lab-flow-results {
   display: grid;
   gap: 12px;
@@ -924,6 +925,30 @@ body {
   grid-template-columns: 120px minmax(100px, 0.25fr) minmax(130px, 0.45fr) auto auto 36px;
   gap: 8px;
   align-items: center;
+}
+
+.api-lab-assertion-row {
+  display: grid;
+  grid-template-columns: 24px 150px minmax(110px, 0.25fr) minmax(120px, 0.3fr) minmax(120px, 0.3fr) auto 36px;
+  gap: 8px;
+  align-items: center;
+}
+
+.api-lab-assertion-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.api-lab-history-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.api-lab-history-item {
+  align-items: start !important;
 }
 
 .api-lab-muted {
@@ -1010,7 +1035,9 @@ body {
   .api-lab-variant-row,
   .api-lab-flow-step-head,
   .api-lab-flow-override,
-  .api-lab-capture-row {
+  .api-lab-capture-row,
+  .api-lab-assertion-row,
+  .api-lab-history-filters {
     grid-template-columns: 1fr;
   }
 

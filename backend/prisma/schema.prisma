@@ -350,6 +350,7 @@ model ApiRequest {
   bodyType          String   @default("NONE")
   bodyText          String?  @db.LongText
   authJson          String   @default("{}") @db.Text
+  assertionRulesJson String   @default("[]") @db.Text
   timeoutMs         Int      @default(30000)
   storeResponseBody Boolean  @default(false)
   sortOrder         Int      @default(0)
