@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import assert from 'node:assert/strict'
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { after, before, beforeEach, describe, test } from 'node:test'
 
 import type { AppEnv } from './env.js'
@@ -52,6 +53,34 @@ type ApiRequest = {
   id: string
   name: string
   taskId: string | null
+}
+
+type ApiRequestRunResult = {
+  run: {
+    id: string
+    status: string
+    httpStatus: number | null
+    responseBodySaved: boolean
+    errorMessage: string | null
+  }
+  response: {
+    httpStatus: number | null
+    durationMs: number
+    headers: Record<string, string>
+    bodyPreview: string
+    originalSize: number
+    truncated: boolean
+    savedResponseId: string | null
+  } | null
+}
+
+type CurlImportDraft = {
+  method: string
+  url: string
+  query: Array<{ key: string; value: string }>
+  headers: Array<{ key: string; value: string }>
+  bodyType: string
+  bodyText: string | null
 }
 
 type ApiFlow = {
@@ -138,6 +167,55 @@ async function createTask(token: string, projectId: string, title: string) {
   assert.equal(task.response.statusCode, 200)
 
   return task.body
+}
+
+async function startInternalApi(
+  handler: (request: IncomingMessage, response: ServerResponse) => void | Promise<void>,
+) {
+  const server = createServer((request, response) => {
+    void handler(request, response)
+  })
+
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+  const address = server.address()
+
+  assert.ok(address && typeof address === 'object')
+
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}`,
+    close: () =>
+      new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()))
+        server.closeAllConnections()
+      }),
+  }
+}
+
+async function createEnvironment(token: string, projectId: string, baseUrl: string) {
+  const environment = await request<ApiEnvironment>('POST', '/api/api-lab/environments', token, {
+    projectId,
+    name: 'local',
+    environmentType: 'LOCAL',
+    baseUrl,
+    variables: [
+      {
+        key: 'token',
+        secret: true,
+        variants: [{ name: 'admin', value: 'secret-token' }],
+      },
+    ],
+  })
+  assert.equal(environment.response.statusCode, 200)
+
+  return environment.body
+}
+
+async function createApiRequest(token: string, payload: Record<string, unknown>) {
+  const apiRequest = await request<ApiRequest>('POST', '/api/api-lab/requests', token, payload)
+  assert.equal(apiRequest.response.statusCode, 200)
+
+  return apiRequest.body
 }
 
 before(async () => {
@@ -240,5 +318,167 @@ describe('api lab foundation', () => {
 
     assert.equal(apiRequest.response.statusCode, 400)
     assert.match(apiRequest.body.message, /Task khong thuoc du an/)
+  })
+
+  test('imports a cURL command into a request draft', async () => {
+    const token = await setupSession()
+    const draft = await request<CurlImportDraft>('POST', '/api/api-lab/import-curl', token, {
+      curl:
+        "curl -X POST 'https://api.internal.test/users?active=1' -H 'Content-Type: application/json' -H 'X-Team: core' --data-raw '{\"name\":\"Khanh\"}'",
+    })
+
+    assert.equal(draft.response.statusCode, 200)
+    assert.equal(draft.body.method, 'POST')
+    assert.equal(draft.body.url, 'https://api.internal.test/users')
+    assert.deepEqual(draft.body.query, [{ key: 'active', value: '1' }])
+    assert.deepEqual(draft.body.headers, [
+      { key: 'Content-Type', value: 'application/json' },
+      { key: 'X-Team', value: 'core' },
+    ])
+    assert.equal(draft.body.bodyType, 'JSON')
+    assert.equal(draft.body.bodyText, '{"name":"Khanh"}')
+  })
+
+  test('runs a saved request with environment, task, and runtime variables without saving response body', async () => {
+    const internalApi = await startInternalApi((incomingRequest, response) => {
+      response.setHeader('content-type', 'application/json')
+      response.end(
+        JSON.stringify({
+          url: incomingRequest.url,
+          authorization: incomingRequest.headers.authorization,
+        }),
+      )
+    })
+
+    try {
+      const token = await setupSession()
+      const project = await setupProject('RUN', token)
+      const task = await createTask(token, project.id, 'Chay request noi bo')
+      const environment = await createEnvironment(token, project.id, internalApi.baseUrl)
+      const apiRequest = await createApiRequest(token, {
+        projectId: project.id,
+        taskId: task.id,
+        name: 'Echo task',
+        method: 'GET',
+        url: '{{baseUrl}}/echo/{{task.code}}',
+        query: [{ key: 'runtime', value: '{{requestId}}' }],
+        headers: [{ key: 'authorization', value: 'Bearer {{token}}' }],
+      })
+      const run = await request<ApiRequestRunResult>(
+        'POST',
+        `/api/api-lab/requests/${apiRequest.id}/run`,
+        token,
+        {
+          environmentId: environment.id,
+          variableVariants: { token: 'admin' },
+          runtimeVariables: { requestId: 'abc-123' },
+        },
+      )
+
+      assert.equal(run.response.statusCode, 200)
+      assert.equal(run.body.run.status, 'PASSED')
+      assert.equal(run.body.run.httpStatus, 200)
+      assert.equal(run.body.run.responseBodySaved, false)
+      assert.equal(run.body.response?.savedResponseId, null)
+      assert.match(run.body.response?.bodyPreview ?? '', new RegExp(task.code))
+      assert.match(run.body.response?.bodyPreview ?? '', /abc-123/)
+      assert.doesNotMatch(run.body.response?.bodyPreview ?? '', /secret-token/)
+      assert.match(run.body.response?.bodyPreview ?? '', /\*\*\*\*\*\*\*\*/)
+      assert.equal(await prisma.apiSavedResponse.count(), 0)
+    } finally {
+      await internalApi.close()
+    }
+  })
+
+  test('stores explicitly saved responses with truncation and secret masking', async () => {
+    const internalApi = await startInternalApi((_incomingRequest, response) => {
+      response.setHeader('content-type', 'text/plain')
+      response.end(`secret-token-${'x'.repeat(210_000)}`)
+    })
+
+    try {
+      const token = await setupSession()
+      const project = await setupProject('SAVE', token)
+      const environment = await createEnvironment(token, project.id, internalApi.baseUrl)
+      const apiRequest = await createApiRequest(token, {
+        projectId: project.id,
+        name: 'Large response',
+        method: 'GET',
+        url: '{{baseUrl}}/large',
+      })
+      const run = await request<ApiRequestRunResult>(
+        'POST',
+        `/api/api-lab/requests/${apiRequest.id}/run`,
+        token,
+        {
+          environmentId: environment.id,
+          saveResponseBody: true,
+        },
+      )
+
+      assert.equal(run.response.statusCode, 200)
+      assert.equal(run.body.run.responseBodySaved, true)
+      assert.ok(run.body.response?.truncated)
+      assert.ok(run.body.response?.savedResponseId)
+
+      const savedResponse = await prisma.apiSavedResponse.findUniqueOrThrow({
+        where: { id: run.body.response?.savedResponseId ?? '' },
+      })
+
+      assert.equal(savedResponse.truncated, true)
+      assert.doesNotMatch(savedResponse.bodyText ?? '', /secret-token/)
+      assert.match(savedResponse.bodyText ?? '', /\*\*\*\*\*\*\*\*/)
+    } finally {
+      await internalApi.close()
+    }
+  })
+
+  test('stores failed run metadata for invalid URLs', async () => {
+    const token = await setupSession()
+    const project = await setupProject('BAD', token)
+    const apiRequest = await createApiRequest(token, {
+      projectId: project.id,
+      name: 'Bad URL',
+      method: 'GET',
+      url: '/relative-without-base-url',
+    })
+    const run = await request<ApiRequestRunResult>('POST', `/api/api-lab/requests/${apiRequest.id}/run`, token)
+
+    assert.equal(run.response.statusCode, 200)
+    assert.equal(run.body.run.status, 'FAILED')
+    assert.equal(run.body.run.httpStatus, null)
+    assert.match(run.body.run.errorMessage ?? '', /URL API khong hop le/)
+  })
+
+  test('stores failed run metadata when a request times out', async () => {
+    const internalApi = await startInternalApi(async (_incomingRequest, response) => {
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      response.end('late')
+    })
+
+    try {
+      const token = await setupSession()
+      const project = await setupProject('SLOW', token)
+      const environment = await createEnvironment(token, project.id, internalApi.baseUrl)
+      const apiRequest = await createApiRequest(token, {
+        projectId: project.id,
+        name: 'Slow API',
+        method: 'GET',
+        url: '{{baseUrl}}/slow',
+        timeoutMs: 1_000,
+      })
+      const run = await request<ApiRequestRunResult>(
+        'POST',
+        `/api/api-lab/requests/${apiRequest.id}/run`,
+        token,
+        { environmentId: environment.id, timeoutMs: 50 },
+      )
+
+      assert.equal(run.response.statusCode, 200)
+      assert.equal(run.body.run.status, 'FAILED')
+      assert.match(run.body.run.errorMessage ?? '', /timeout/i)
+    } finally {
+      await internalApi.close()
+    }
   })
 })

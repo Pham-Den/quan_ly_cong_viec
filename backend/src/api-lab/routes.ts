@@ -3,6 +3,15 @@ import type { FastifyInstance, FastifyReply } from 'fastify'
 import { createAuthGuard } from '../auth/guard.js'
 import type { AppPrismaClient } from '../db.js'
 import type { AppEnv } from '../env.js'
+import { parseCurlCommand } from './curl.js'
+import {
+  buildResolvedRequest,
+  buildVariableContext,
+  executeResolvedRequest,
+  maskHeaders,
+  maskKnownSecrets,
+  recordFromUnknown,
+} from './runner.js'
 
 type ApiLabRoutesContext = {
   env: AppEnv
@@ -16,6 +25,7 @@ type Params = {
   requestId?: string
   flowId?: string
   stepId?: string
+  runId?: string
 }
 
 type VariantInput = {
@@ -82,6 +92,27 @@ type ApiFlowStepBody = {
   captureRules?: unknown
   assertionRules?: unknown
   continueOnFailure?: unknown
+}
+
+type RunRequestBody = {
+  environmentId?: unknown
+  variableVariants?: unknown
+  runtimeVariables?: unknown
+  saveResponseBody?: unknown
+  timeoutMs?: unknown
+}
+
+type CurlImportBody = {
+  curl?: unknown
+}
+
+type SaveResponseBody = {
+  statusCode?: unknown
+  headers?: unknown
+  bodyText?: unknown
+  contentType?: unknown
+  originalSize?: unknown
+  truncated?: unknown
 }
 
 const environmentTypes = new Set(['LOCAL', 'DEV', 'UAT', 'PROD', 'CUSTOM'])
@@ -325,6 +356,29 @@ async function ensureApiFlowStep(
   return step
 }
 
+async function ensureApiRequestRun(
+  prisma: AppPrismaClient,
+  runId: string,
+  userId: string,
+  reply: FastifyReply,
+) {
+  const run = await prisma.apiRequestRun.findFirst({
+    where: {
+      id: runId,
+      project: {
+        OR: [{ ownerId: userId }, { ownerId: null }],
+      },
+    },
+  })
+
+  if (!run) {
+    reply.code(404).send({ message: 'Khong tim thay luot chay API.' })
+    return null
+  }
+
+  return run
+}
+
 async function ensureRequestInProject(
   prisma: AppPrismaClient,
   requestId: string | null,
@@ -348,6 +402,32 @@ async function ensureRequestInProject(
   }
 
   return apiRequest
+}
+
+async function ensureEnvironmentInProject(
+  prisma: AppPrismaClient,
+  environmentId: string | null,
+  projectId: string,
+  reply: FastifyReply,
+) {
+  if (!environmentId) {
+    return null
+  }
+
+  const environment = await prisma.apiEnvironment.findFirst({
+    where: {
+      id: environmentId,
+      projectId,
+    },
+    include: environmentInclude(),
+  })
+
+  if (!environment) {
+    reply.code(400).send({ message: 'Environment API khong thuoc du an cua request.' })
+    return false
+  }
+
+  return environment
 }
 
 function normalizeVariables(value: unknown) {
@@ -405,10 +485,16 @@ async function replaceEnvironmentVariables(
   }
 
   const variables = normalizeVariables(variablesValue)
+  const existingVariables = await prisma.apiEnvironmentVariable.findMany({
+    where: { environmentId },
+    include: { variants: true },
+  })
 
   await prisma.apiEnvironmentVariable.deleteMany({ where: { environmentId } })
 
   for (const variable of variables) {
+    const existingVariable = existingVariables.find((item) => item.key === variable.key)
+
     await prisma.apiEnvironmentVariable.create({
       data: {
         environmentId,
@@ -417,7 +503,16 @@ async function replaceEnvironmentVariables(
         description: variable.description,
         sortOrder: variable.sortOrder,
         variants: {
-          create: variable.variants,
+          create: variable.variants.map((variant) => {
+            const existingVariant = existingVariable?.variants.find((item) => item.name === variant.name)
+            const shouldKeepExistingSecret =
+              variable.secret && existingVariant && (!variant.value || variant.value === '********')
+
+            return {
+              ...variant,
+              value: shouldKeepExistingSecret ? existingVariant.value : variant.value,
+            }
+          }),
         },
       },
     })
@@ -576,6 +671,21 @@ function stepPayload(
 
 export function registerApiLabRoutes(app: FastifyInstance, context: ApiLabRoutesContext) {
   const requireAuth = createAuthGuard(context)
+
+  app.post('/api/api-lab/import-curl', { preHandler: requireAuth }, async (request, reply) => {
+    const body = bodyAs<CurlImportBody>(request.body)
+    const command = text(body.curl)
+
+    if (!command) {
+      return reply.code(400).send({ message: 'Can nhap lenh cURL.' })
+    }
+
+    try {
+      return parseCurlCommand(command)
+    } catch {
+      return reply.code(400).send({ message: 'Lenh cURL khong hop le hoac thieu URL.' })
+    }
+  })
 
   app.get('/api/api-lab/environments', { preHandler: requireAuth }, async (request, reply) => {
     const userId = request.authUser?.id ?? ''
@@ -835,6 +945,194 @@ export function registerApiLabRoutes(app: FastifyInstance, context: ApiLabRoutes
     await context.prisma.apiRequest.delete({ where: { id: apiRequest.id } })
 
     return { ok: true }
+  })
+
+  app.post('/api/api-lab/requests/:requestId/run', { preHandler: requireAuth }, async (request, reply) => {
+    const userId = request.authUser?.id ?? ''
+    const requestId = paramsAs(request.params).requestId ?? ''
+    const apiRequest = await ensureApiRequest(context.prisma, requestId, userId, reply)
+
+    if (!apiRequest) {
+      return
+    }
+
+    const body = bodyAs<RunRequestBody>(request.body)
+    const environmentId = nullableText(body.environmentId)
+    const environment = await ensureEnvironmentInProject(context.prisma, environmentId, apiRequest.projectId, reply)
+
+    if (environment === false) {
+      return
+    }
+
+    const task = await ensureTaskInProject(context.prisma, apiRequest.taskId, apiRequest.projectId, reply)
+
+    if (task === false) {
+      return
+    }
+
+    const startedAt = new Date()
+    const runtimeVariables = recordFromUnknown(body.runtimeVariables)
+    const variableVariants = recordFromUnknown(body.variableVariants)
+    const variableContext = buildVariableContext(environment, task, runtimeVariables, variableVariants)
+    const shouldSaveResponse = booleanValue(body.saveResponseBody, apiRequest.storeResponseBody)
+
+    try {
+      const resolvedRequest = buildResolvedRequest(
+        apiRequest,
+        variableContext.values,
+        body.timeoutMs === undefined ? undefined : Math.max(1, numberValue(body.timeoutMs, apiRequest.timeoutMs)),
+      )
+      const result = await executeResolvedRequest(resolvedRequest)
+      const finishedAt = new Date()
+      const maskedHeaders = maskHeaders(result.headers, variableContext.secretValues)
+      const maskedBodyPreview = maskKnownSecrets(result.bodyPreview, variableContext.secretValues)
+      const responseBodySaved = shouldSaveResponse && (maskedBodyPreview.length > 0 || result.httpStatus !== null)
+      const run = await context.prisma.apiRequestRun.create({
+        data: {
+          projectId: apiRequest.projectId,
+          taskId: apiRequest.taskId,
+          environmentId,
+          requestId: apiRequest.id,
+          status: result.status,
+          httpStatus: result.httpStatus,
+          durationMs: result.durationMs,
+          assertionSummaryJson: JSON.stringify({ total: 0, passed: 0, failed: 0 }),
+          capturedVariablesJson: '{}',
+          errorMessage: result.errorMessage,
+          responseBodySaved,
+          startedAt,
+          finishedAt,
+        },
+      })
+      const savedResponse = responseBodySaved
+        ? await context.prisma.apiSavedResponse.create({
+            data: {
+              requestRunId: run.id,
+              statusCode: result.httpStatus,
+              headersJson: JSON.stringify(maskedHeaders),
+              bodyText: maskedBodyPreview,
+              contentType: result.headers['content-type'] ?? null,
+              originalSize: result.originalSize,
+              truncated: result.truncated,
+            },
+          })
+        : null
+
+      return {
+        run,
+        response: {
+          httpStatus: result.httpStatus,
+          durationMs: result.durationMs,
+          headers: maskedHeaders,
+          bodyPreview: maskedBodyPreview,
+          originalSize: result.originalSize,
+          truncated: result.truncated,
+          savedResponseId: savedResponse?.id ?? null,
+        },
+      }
+    } catch (error) {
+      const finishedAt = new Date()
+      const run = await context.prisma.apiRequestRun.create({
+        data: {
+          projectId: apiRequest.projectId,
+          taskId: apiRequest.taskId,
+          environmentId,
+          requestId: apiRequest.id,
+          status: 'FAILED',
+          durationMs: finishedAt.getTime() - startedAt.getTime(),
+          assertionSummaryJson: JSON.stringify({ total: 0, passed: 0, failed: 0 }),
+          capturedVariablesJson: '{}',
+          errorMessage:
+            error instanceof Error && error.message === 'INVALID_URL'
+              ? 'URL API khong hop le.'
+              : error instanceof Error
+                ? error.message
+                : 'Khong goi duoc API.',
+          responseBodySaved: false,
+          startedAt,
+          finishedAt,
+        },
+      })
+
+      return {
+        run,
+        response: null,
+      }
+    }
+  })
+
+  app.get('/api/api-lab/requests/:requestId/runs', { preHandler: requireAuth }, async (request, reply) => {
+    const userId = request.authUser?.id ?? ''
+    const requestId = paramsAs(request.params).requestId ?? ''
+    const apiRequest = await ensureApiRequest(context.prisma, requestId, userId, reply)
+
+    if (!apiRequest) {
+      return
+    }
+
+    return context.prisma.apiRequestRun.findMany({
+      where: { requestId: apiRequest.id },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      include: {
+        savedResponse: {
+          select: {
+            id: true,
+            statusCode: true,
+            originalSize: true,
+            truncated: true,
+            contentType: true,
+            createdAt: true,
+          },
+        },
+      },
+    })
+  })
+
+  app.post('/api/api-lab/request-runs/:runId/save-response', { preHandler: requireAuth }, async (request, reply) => {
+    const userId = request.authUser?.id ?? ''
+    const runId = paramsAs(request.params).runId ?? ''
+    const run = await ensureApiRequestRun(context.prisma, runId, userId, reply)
+
+    if (!run) {
+      return
+    }
+
+    const body = bodyAs<SaveResponseBody>(request.body)
+    const headersJson = jsonObjectString(body.headers)
+    const bodyText = text(body.bodyText)
+
+    if (!bodyText && headersJson === '{}') {
+      return reply.code(400).send({ message: 'Khong co response de luu.' })
+    }
+
+    const savedResponse = await context.prisma.apiSavedResponse.upsert({
+      where: { requestRunId: run.id },
+      create: {
+        requestRunId: run.id,
+        statusCode: numberValue(body.statusCode, run.httpStatus ?? 0) || null,
+        headersJson,
+        bodyText,
+        contentType: nullableText(body.contentType),
+        originalSize: numberValue(body.originalSize, bodyText.length),
+        truncated: booleanValue(body.truncated, false),
+      },
+      update: {
+        statusCode: numberValue(body.statusCode, run.httpStatus ?? 0) || null,
+        headersJson,
+        bodyText,
+        contentType: nullableText(body.contentType),
+        originalSize: numberValue(body.originalSize, bodyText.length),
+        truncated: booleanValue(body.truncated, false),
+      },
+    })
+
+    await context.prisma.apiRequestRun.update({
+      where: { id: run.id },
+      data: { responseBodySaved: true },
+    })
+
+    return savedResponse
   })
 
   app.get('/api/api-lab/flows', { preHandler: requireAuth }, async (request, reply) => {

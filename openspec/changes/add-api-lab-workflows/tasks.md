@@ -16,14 +16,14 @@
 
 ## 3. Request Runner
 
-- [ ] 3.1 Implement variable resolution for environment variables, task variables, and runtime variables using `{{variableName}}`.
-- [ ] 3.2 Implement backend outbound HTTP execution with method, URL, query, headers, body, auth metadata, timeout, and response size limit.
-- [ ] 3.3 Store request run metadata by default: response status, duration, assertion summary, captured variables, error reason, and truncation metadata when applicable.
-- [ ] 3.4 Keep response body ephemeral by default and store it only when the user explicitly saves it, attaches it to a task with body storage enabled, or enables response storage for that request/flow.
-- [ ] 3.5 Mask secret values in stored run logs, saved response bodies, and returned run details.
-- [ ] 3.6 Add cURL import parser for method, URL, query parameters, headers, and body.
-- [ ] 3.7 Add backend tests for variable resolution, cURL import, successful run, timeout failure, invalid URL failure, response-save opt-in, response truncation, and secret masking.
-- [ ] 3.8 Stop for user review before building the API Lab UI.
+- [x] 3.1 Implement variable resolution for environment variables, task variables, and runtime variables using `{{variableName}}`.
+- [x] 3.2 Implement backend outbound HTTP execution with method, URL, query, headers, body, auth metadata, timeout, and response size limit.
+- [x] 3.3 Store request run metadata by default: response status, duration, assertion summary, captured variables, error reason, and truncation metadata when applicable.
+- [x] 3.4 Keep response body ephemeral by default and store it only when the user explicitly saves it, attaches it to a task with body storage enabled, or enables response storage for that request/flow.
+- [x] 3.5 Mask secret values in stored run logs, saved response bodies, and returned run details.
+- [x] 3.6 Add cURL import parser for method, URL, query parameters, headers, and body.
+- [x] 3.7 Add backend tests for variable resolution, cURL import, successful run, timeout failure, invalid URL failure, response-save opt-in, response truncation, and secret masking.
+- [x] 3.8 Stop for user review before building the API Lab UI.
 
 ## 4. API Lab Menu And Single Request UI
 

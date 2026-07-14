@@ -1,7 +1,9 @@
+import { apiLabFeature } from './api-lab'
 import { systemManagerFeature } from './system-manager'
 import type { AppFeature } from './types'
 
 export const enabledFeatures: AppFeature[] = [
+  apiLabFeature,
   systemManagerFeature,
 ]
 
