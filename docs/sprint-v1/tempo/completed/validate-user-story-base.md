@@ -1,13 +1,14 @@
 ---
-status: DRAFT
+status: APPROVED
 version: v1
 sprint: 1
 phase: product
 cycle: base
 command: validate user story
 created: 2026-07-18
-updated: 2026-07-18 11:24
-approved_by:
+updated: 2026-07-18 11:33
+approved_by: khanh-pham
+approved_at: 2026-07-18T04:33:31Z
 ---
 
 # Validate User Story — Base
