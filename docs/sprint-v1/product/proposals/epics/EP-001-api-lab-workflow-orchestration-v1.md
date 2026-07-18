@@ -5,7 +5,7 @@ sprint: 1
 phase: product
 sprint_id: sprint-v1
 created: 2026-07-18
-updated: 2026-07-18 11:05
+updated: 2026-07-18 11:20
 approved_by:
 applied_to_living: false
 ---
@@ -32,6 +32,10 @@ applied_to_living: false
 - **Đối tượng hưởng lợi:** Developer/Integration Engineer, QA/Tester và System Administrator.
 - **Tính cấp thiết:** Giảm thao tác lỗi-prone và tạo khả năng tái lập/điều tra chuỗi API.
 
+#### Vấn đề cần giải quyết
+
+Người dùng hiện phải chuyển thủ công dữ liệu giữa các API, tự giữ đúng Host/environment/credential và đối chiếu nhiều response rời rạc khi chuỗi lỗi. API Lab và System Manager chưa có một ownership boundary thống nhất, nên thay đổi Host/API có thể làm hỏng workflow mà người dùng không nhận biết trước.
+
 #### Giá trị mang lại
 
 - Người dùng cấu hình một lần và chạy lại chuỗi API theo environment.
@@ -43,7 +47,7 @@ applied_to_living: false
 - [ ] 100% Must Have FR map tới ít nhất một Must Have US và có AC quan sát được.
 - [ ] Người dùng tạo và chạy thành công workflow ba API trong ≤ 10 phút ở usability acceptance session.
 - [ ] Workflow tối đa 20 bước chạy đúng thứ tự; step sau không bắt đầu trước khi step trước thành công.
-- [ ] Credential/secret không xuất hiện raw trong UI, log, history hoặc telemetry kiểm thử.
+- [ ] Host credential mặc định và mọi field/path được khai báo trong `sensitive_fields` không xuất hiện raw trong UI, log, history hoặc telemetry; field chưa cấu hình sensitive vẫn hiển thị/lưu nguyên giá trị và được quản lý như rủi ro cấu hình.
 - [ ] Xóa dependency hoặc đổi HTTP method API chuyển mọi workflow liên quan sang DISABLED và không làm mất history còn retention.
 - [ ] Host được bật lại không tự bật workflow; workflow chỉ READY sau khi user review, validation sạch và enable thủ công.
 
@@ -55,6 +59,11 @@ applied_to_living: false
 | Depends-on | API Lab collection/folder | Giữ cách tổ chức hiện tại |
 | Respects | BR-001 đến BR-011 | Business rules và lifecycle trong PRD proposal |
 | Deferred | Parallel, loop | `[scheduled v2]` |
+
+#### Edge cases & câu hỏi mở
+
+- **Edge cases đã chốt:** Host hoạt động lại không auto-enable workflow; API đổi HTTP method làm workflow liên quan DISABLED; mapping chỉ đi từ step trước sang step sau; rerun dùng latest workflow/environment tại thời điểm rerun.
+- **Câu hỏi mở:** Không có câu hỏi nghiệp vụ cản trở epic v1. Baseline KPI và owner/SLA nội bộ tiếp tục được quản lý tại `RISK-OPEN-001` và `RISK-OPEN-002` trong PRD proposal.
 
 #### Product Traceability Map
 
@@ -190,7 +199,7 @@ applied_to_living: false
 - **Mô tả:** Hệ thống phải mask đúng credential và request/response field/path nằm trong cấu hình `sensitive_fields` trước khi hiển thị/lưu log/history/telemetry; không tự mask field ngoài cấu hình.
 - **Phạm vi:** Standalone API execution và workflow execution; Host credential có sensitive config mặc định.
 - **Covered by US:** US-003, US-007, US-010.
-- **Verifies KPI:** Không lộ secret raw trong acceptance evidence.
+- **Verifies KPI:** Host credential và field/path thuộc `sensitive_fields` không lộ raw trong acceptance evidence.
 - **Ghi chú:** Tuân BR-001.
 
 <!-- ID: US-001 -->
@@ -257,7 +266,7 @@ applied_to_living: false
 
 <!-- ID: AC-006 -->
 <!-- US: US-002 -->
-**AC-006 (Happy Path)** Chạy cùng một API lần lượt ở DEV và UAT → execution details hiển thị đúng environment đã chọn và sử dụng value tương ứng, trong khi credential có sensitive config hiển thị `••••••••`.
+**AC-006 (Happy Path)** Chọn UAT và chạy API “Lấy giao dịch” → execution details hiển thị environment UAT, dùng giá trị UAT của `tenant_id` và hiển thị credential thuộc sensitive config là `••••••••`.
 
 <!-- ID: AC-032 -->
 <!-- US: US-002 -->
@@ -299,6 +308,10 @@ applied_to_living: false
 <!-- US: US-003 -->
 **AC-009 (Edge)** Response có `token` nằm trong `sensitive_fields` và `customer_name` không nằm trong cấu hình → preview/log/history hiển thị token là `••••••••` nhưng giữ nguyên `customer_name`; hệ thống không tự mask field ngoài cấu hình.
 
+<!-- ID: AC-041 -->
+<!-- US: US-003 -->
+**AC-041 (Edge)** API độc lập bắt đầu khi environment có `tenant_id=C-001`, sau đó giá trị được sửa thành `C-002` trước khi API trả kết quả → execution hiện tại vẫn hiển thị request resolved bằng snapshot `C-001`; execution mới dùng `C-002`.
+
 | Khía cạnh | Nội dung |
 |---|---|
 | **Assumption** | API đích dùng HTTP và response JSON cho các case mapping v1 |
@@ -333,11 +346,15 @@ applied_to_living: false
 
 <!-- ID: AC-012 -->
 <!-- US: US-004 -->
-**AC-012 (Error)** Người dùng chọn chế độ parallel hoặc loop trong v1 → tùy chọn không xuất hiện trong editor và scope note hiển thị “Parallel và loop được lên kế hoạch cho v2.”
+**AC-012 (Edge)** Mở workflow editor trong phase 1 → editor không hiển thị tùy chọn parallel/loop và scope note hiển thị “Parallel và loop được lên kế hoạch cho v2.”
 
 <!-- ID: AC-034 -->
 <!-- US: US-004 -->
-**AC-034 (Happy Path)** Thêm một API vào workflow → hệ thống tự sinh `step_key` kỹ thuật duy nhất; người dùng đổi tên API và label của step → `step_key` và mọi expression đang tham chiếu key đó không thay đổi, đồng thời UI không cho sửa key.
+**AC-034 (Happy Path)** Thêm một API vào workflow → hệ thống hiển thị `step_key` kỹ thuật duy nhất trong field chỉ đọc và không cung cấp thao tác sửa key.
+
+<!-- ID: AC-038 -->
+<!-- US: US-004 -->
+**AC-038 (Edge)** Đổi label của step đã được các step sau tham chiếu → `step_key` và mọi expression đang dùng key đó vẫn giữ nguyên sau khi lưu và tải lại workflow.
 
 | Khía cạnh | Nội dung |
 |---|---|
@@ -365,7 +382,7 @@ applied_to_living: false
 
 <!-- ID: AC-013 -->
 <!-- US: US-005 -->
-**AC-013 (Happy Path)** Step có key hệ thống `step_01` trả `{ "data": { "customer": { "id": "C-001" } } }`; Step 3 map `${{step_01.data.customer.id}}` vào path → Step 3 nhận `C-001` dù Step 2 nằm giữa.
+**AC-013 (Happy Path)** Kéo biến Customer ID có giá trị `C-001` từ step nguồn `step_01` vào path của Step 3 → editor hiển thị expression `${{step_01.data.customer.id}}` và resolved request của Step 3 hiển thị `C-001` dù Step 2 nằm giữa.
 
 <!-- ID: AC-014 -->
 <!-- US: US-005 -->
@@ -377,7 +394,7 @@ applied_to_living: false
 
 <!-- ID: AC-035 -->
 <!-- US: US-005 -->
-**AC-035 (Happy Path + Error)** Người dùng kéo field `data.customer.id` từ response schema của `step_01` vào body của Step 3 → editor tạo `${{step_01.data.customer.id}}`; nếu kéo field của Step 3 hoặc một step đứng sau vào Step 2 thì editor từ chối và hiển thị “Chỉ được ánh xạ dữ liệu từ bước đứng trước; mapping ngược có thể tạo vòng lặp.”
+**AC-035 (Error)** Kéo biến của Step 3 vào input Step 2 → editor từ chối lưu mapping và hiển thị “Chỉ được ánh xạ dữ liệu từ bước đứng trước; mapping ngược có thể tạo vòng lặp.”
 
 | Khía cạnh | Nội dung |
 |---|---|
@@ -419,6 +436,10 @@ applied_to_living: false
 <!-- US: US-006 -->
 **AC-033 (Error)** Persistence/import phát hiện hai step có cùng `step_key` kỹ thuật dù key không thể sửa từ UI → validation hiển thị hai vị trí xung đột với thông báo “Khóa bước bị trùng. Hãy lưu lại hoặc liên hệ quản trị viên.”, chặn execution và không overwrite biến; hệ thống không tự đổi key vì key là bất biến.
 
+<!-- ID: AC-042 -->
+<!-- US: US-006 -->
+**AC-042 (Error)** Chạy validation khi Step 2 đang tham chiếu biến của Step 3 → validation gắn lỗi vào Step 2, hiển thị “Chỉ được tham chiếu bước đứng trước.” và giữ nút “Chạy workflow” ở trạng thái disabled.
+
 | Khía cạnh | Nội dung |
 |---|---|
 | **Assumption** | Validation cấu hình không cần gọi API đích |
@@ -445,11 +466,11 @@ applied_to_living: false
 
 <!-- ID: AC-019 -->
 <!-- US: US-007 -->
-**AC-019 (Happy Path)** Workflow ba step đều thành công → step 2 bắt đầu sau step 1 SUCCEEDED, step 3 bắt đầu sau step 2 SUCCEEDED, toàn workflow hiển thị SUCCEEDED và mỗi step có duration/input/output mask đúng `sensitive_fields`.
+**AC-019 (Happy Path)** Execution ba step đều thành công → step 2 bắt đầu sau step 1 SUCCEEDED, step 3 bắt đầu sau step 2 SUCCEEDED, execution hiển thị SUCCEEDED và mỗi step có duration/input/output mask đúng `sensitive_fields`.
 
 <!-- ID: AC-020 -->
 <!-- US: US-007 -->
-**AC-020 (Error)** Step 2 chuyển FAILED sau khi hết retry → Step 3 giữ trạng thái “Chưa chạy”, workflow hiển thị “Thất bại tại bước 2.” và không gửi request Step 3.
+**AC-020 (Error)** Step 2 chuyển FAILED sau khi hết retry → Step 3 giữ trạng thái “Chưa chạy”, execution hiển thị “Thất bại tại bước 2.” và không gửi request Step 3.
 
 <!-- ID: AC-021 -->
 <!-- US: US-007 -->
@@ -458,6 +479,10 @@ applied_to_living: false
 <!-- ID: AC-031 -->
 <!-- US: US-007 -->
 **AC-031 (Edge)** Execution bắt đầu bằng latest workflow version v5 rồi workflow được lưu thành v6 trong lúc chạy → execution hiện tại hoàn tất toàn bộ step theo v5; execution mới sau đó resolve v6.
+
+<!-- ID: AC-043 -->
+<!-- US: US-007 -->
+**AC-043 (Edge)** Workflow execution bắt đầu với `tenant_id=C-001`, sau đó environment được sửa thành `C-002` trong lúc chạy → mọi step còn lại của execution hiện tại tiếp tục hiển thị resolved input từ snapshot `C-001`; execution mới dùng `C-002`.
 
 | Khía cạnh | Nội dung |
 |---|---|
@@ -485,15 +510,15 @@ applied_to_living: false
 
 <!-- ID: AC-022 -->
 <!-- US: US-008 -->
-**AC-022 (Happy Path)** Step cấu hình retry 2 lần, API trả 503 lần đầu và thành công lần hai → chỉ API step đó được gọi lại, step SUCCEEDED, history ghi `attempts: 2`, các step trước không chạy lại.
+**AC-022 (Happy Path)** Step cấu hình retry 2 lần và gặp một lỗi tạm thời thuộc nhóm được retry trước khi thành công → chỉ step đó được gọi lại, execution detail hiển thị step SUCCEEDED với “Số lần gọi: 2”, các step trước không chạy lại.
 
 <!-- ID: AC-023 -->
 <!-- US: US-008 -->
-**AC-023 (Error)** Step cấu hình retry 2 lần và cả ba attempt đều timeout → step FAILED sau attempt thứ ba, history ghi `retry_count: 2`, workflow dừng và không chạy lại step trước.
+**AC-023 (Error)** Step cấu hình retry 2 lần và cả ba attempt đều timeout → step FAILED sau attempt thứ ba, history ghi `retry_count: 2`, execution dừng và không chạy lại step trước.
 
 <!-- ID: AC-024 -->
 <!-- US: US-008 -->
-**AC-024 (Edge)** API trả HTTP 400 dù step cấu hình retry 5 lần → không có request lần hai, step chuyển FAILED với lý do “Lỗi không thuộc nhóm được retry.” và workflow dừng.
+**AC-024 (Error)** API gặp lỗi validation không thuộc nhóm được retry dù step cấu hình retry 5 lần → không có lần gọi thứ hai, step hiển thị FAILED với lý do “Lỗi không thuộc nhóm được retry.” và execution dừng.
 
 | Khía cạnh | Nội dung |
 |---|---|
@@ -533,11 +558,19 @@ applied_to_living: false
 
 <!-- ID: AC-036 -->
 <!-- US: US-009 -->
-**AC-036 (Happy Path)** Đổi HTTP method của API từ `GET` sang `POST` khi API đang được hai workflow dùng → dialog liệt kê đúng hai workflow và yêu cầu xác nhận; sau xác nhận, cả hai workflow chuyển DISABLED để người dùng review request/mapping contract, validate và enable lại thủ công.
+**AC-036 (Happy Path)** Chọn đổi HTTP method của API đang được hai workflow dùng → dialog liệt kê đúng hai workflow và hiển thị “Các workflow này sẽ bị vô hiệu hóa nếu bạn xác nhận thay đổi method.”
+
+<!-- ID: AC-039 -->
+<!-- US: US-009 -->
+**AC-039 (Happy Path)** Xác nhận đổi HTTP method trong impact dialog → hai workflow được liệt kê chuyển DISABLED và nút “Chạy workflow” của chúng bị disabled cho đến khi review, validation sạch và enable lại.
 
 <!-- ID: AC-037 -->
 <!-- US: US-009 -->
-**AC-037 (Edge)** Host chuyển INACTIVE làm workflow DISABLED rồi được bật lại ACTIVE → workflow vẫn DISABLED và không thể chạy; sau khi người dùng review, validation sạch và chọn “Bật workflow”, workflow mới chuyển READY.
+**AC-037 (Edge)** Kích hoạt lại Host ACTIVE sau khi Host từng làm workflow chuyển DISABLED → workflow vẫn DISABLED, nút “Chạy workflow” vẫn disabled và UI hiển thị yêu cầu review/validate trước khi bật lại.
+
+<!-- ID: AC-040 -->
+<!-- US: US-009 -->
+**AC-040 (Happy Path)** Chọn “Bật workflow” sau khi Host đã ACTIVE, người dùng đã review và validation sạch → workflow chuyển READY và nút “Chạy workflow” được bật.
 
 | Khía cạnh | Nội dung |
 |---|---|
@@ -589,6 +622,6 @@ applied_to_living: false
 
 - [x] `PROD-1`: 10/10 Must US có persona, AC, scope, out-of-scope, testability và FR trace.
 - [x] `PROD-4`: 12/12 Must FR map tới ít nhất một Must US.
-- [x] 37 AC có observable signal/exact copy, một trigger và không chứa protocol contract.
+- [x] 43 AC có observable signal/exact copy, một trigger và không chứa protocol contract.
 - [x] Business rule/lifecycle references khớp PRD proposal.
 - [x] Deferred parallel/loop không bị trộn vào hành vi v1.

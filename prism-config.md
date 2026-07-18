@@ -49,7 +49,7 @@ id_counters:
   EP: 1
   FR: 12
   US: 10
-  AC: 37
+  AC: 43
   BR: 11
   GLOSS: 10
   PERSONA: 3
