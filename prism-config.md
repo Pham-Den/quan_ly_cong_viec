@@ -49,8 +49,8 @@ id_counters:
   EP: 1
   FR: 12
   US: 10
-  AC: 30
-  BR: 8
+  AC: 37
+  BR: 11
   GLOSS: 10
   PERSONA: 3
   MR: 1
