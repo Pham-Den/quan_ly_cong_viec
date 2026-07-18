@@ -1,0 +1,132 @@
+# testcase.schema.yaml — v2.2
+# Schema for test case artifact (TSV format, 16 columns)
+# Used by: qa-core/05, 06, 07
+# AI: validate output before saving file and before marking DONE
+# Source of truth: references/tc-template.tsv — schema must match template header
+
+schema_version: "2.2"
+format: "TSV — Tab-Separated Values"
+
+columns:
+  - name: STT
+    type: string
+    required: true
+    pattern: "^\\d+$"
+    example: "1"
+    note: "Consecutive integers starting at 1. Do NOT use TC-001 format."
+
+  - name: Summary
+    type: string
+    required: true
+    min_length: 10
+    max_length: 200
+
+  - name: Test Level
+    type: enum
+    required: true
+    values: [component, integration, e2e]
+    note: "Lowercase only. Do not use 'unit'."
+
+  - name: Precondition
+    type: string
+    required: true
+    note: "Must not be empty — write 'None' if there is no precondition."
+
+  - name: Test Data
+    type: string
+    required: false
+    note: "Write 'N/A' if no special data is needed. No placeholders allowed."
+
+  - name: Step summary
+    type: string
+    required: true
+    min_length: 20
+
+  - name: Expected result
+    type: string
+    required: true
+    min_length: 10
+    forbidden_phrases:
+      - "hoạt động đúng"
+      - "hiển thị bình thường"
+      - "thành công chung chung"
+      - "works correctly"
+      - "displays correctly"
+      - "successfully"
+    note: "Must be verifiable and specific — no vague descriptions."
+
+  - name: Priority
+    type: enum
+    required: true
+    values: [High, Medium, Low]
+    note: "High=Critical/Blocker, Medium=Normal, Low=Nice-to-have. Do NOT use P1/P2/P3."
+
+  - name: Story Linkages
+    type: string
+    required: true
+    note: "ID of US/ticket/AC. Example: US-001, JIRA-123, AC-01"
+
+  - name: Test Type
+    type: enum
+    required: true
+    values: [Functional, Regression, Exploratory, Non-Functional, SIT, UAT, Smoke, Sanity]
+
+  - name: Smoke
+    type: enum
+    required: true
+    values: [Y, N]
+    rule: "TC with Priority=High must have Smoke=Y. Exception must be noted in Trace: HighPriority-NoSmoke: <reason>"
+
+  - name: Auto
+    type: enum
+    required: true
+    values: [Y, N]
+    rule: "Default Y. Auto=N requires a reason in Trace column. File-level target: ≥80% Auto=Y."
+
+  - name: Phụ thuộc TC
+    type: string
+    required: false
+    note: "TC ID that must run first. Write '—' if none."
+
+  - name: Component
+    type: string
+    required: true
+    note: "Format: {ProjectAbbr}-{FeatureFolder}. Example: FDP-User Identity and Access Control"
+
+  - name: Trace
+    type: string
+    required: true
+    note: "Rule ID / AC ID from requirements document. Must be traceable back to a requirement."
+
+  - name: Technique
+    type: string
+    required: true
+    note: "Testing technique applied. Use '—' if no special technique. Valid values: see references/tc-type-taxonomy.md"
+
+validation_rules:
+  - "TSV header must have exactly 16 columns in the order defined above"
+  - "Each data row must have exactly 16 tab-separated values"
+  - "STT must be consecutive integers starting at 1 — do not use TC-001 format"
+  - "Every AC/BR in the requirement must have at least 1 TC with a corresponding Trace"
+  - "TC with Priority=High must have Smoke=Y — exception must include reason in Trace (HighPriority-NoSmoke: <reason>)"
+  - "Expected result must not contain forbidden_phrases"
+  - "Story Linkages must point to an ID present in the input requirements document"
+  - "Trace field must not be empty"
+  - "Technique must not be empty — use '—' if no special technique applies"
+  - "Component must not be empty"
+  - "Auto=N requires a reason in the Trace column (e.g. Manual-UX, Manual-VB-DragDrop, Manual-HW)"
+  - "File-level Auto=Y percentage must be ≥80%"
+  - "Priority values must be High/Medium/Low — P1/P2/P3 format is invalid"
+  - "Smoke values must be Y/N — Yes/No format is invalid"
+  - "Test Level values must be lowercase: component/integration/e2e"
+
+coverage_requirements:
+  required_groups:
+    - "Happy path (normal flow)"
+    - "Negative / Invalid input"
+    - "Boundary Value"
+    - "Authorization / Access control"
+    - "Error handling / System error"
+  smoke_coverage_min_pct: 20
+  auto_coverage_min_pct: 80
+  min_tc_per_ac: 1

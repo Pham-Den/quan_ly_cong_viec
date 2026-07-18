@@ -1,0 +1,35 @@
+# TEMPLATE — Replace with your Auth0 OAuth2 credentials.
+# Obtain client_id and client_secret from your Auth0 tenant dashboard.
+
+Auth0_DEV:
+    ESB_API:
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    ESB_YOUR_PARTNER:
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+        audience : ESB_API
+
+Auth0_QC:
+    ESB_API:
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    ESB_YOUR_PARTNER:
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+        audience : ESB_API
+
+Auth0_UAT:
+    ESB_API:
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    ESB_YOUR_PARTNER:
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+        audience : ESB_API
+    YOUR_OTHER_APP_API:
+        client_id : <YOUR_CLIENT_ID>
+        client_secret : <YOUR_CLIENT_SECRET>
+        audience : https://your-auth-api.example.com
+        organization : <YOUR_ORG_ID>
+        grant_type : http://auth0.com/oauth/grant-type/password-realm

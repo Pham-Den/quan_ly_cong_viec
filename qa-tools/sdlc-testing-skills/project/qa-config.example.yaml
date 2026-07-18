@@ -1,0 +1,81 @@
+# ============================================================
+# QA CONFIG — EXAMPLE / TEMPLATE
+# Copy this file to qa-config.yaml and fill in your project details.
+# Full schema with all optional fields: references/qa-config-schema.yaml
+# ============================================================
+
+project:
+  name: My Project                  # ← replace
+  code: MYP                         # ← 2–4 char prefix, dùng trong TC IDs (e.g. MYP-LOGIN-1)
+  sprint: Sprint-1                  # ← sprint hiện tại (e.g. S1, Sprint-1)
+  sprint_start: yyyy-mm-dd          # ← ngày bắt đầu sprint (inclusive)
+  sprint_end: yyyy-mm-dd            # ← ngày kết thúc sprint (inclusive)
+  release_date: yyyy-mm-dd          # ← ngày go-live mục tiêu
+  timezone: Asia/Ho_Chi_Minh        # ← timezone của team
+  domain: <mô tả domain>            # ← ví dụ: fintech, e-commerce, AI platform
+
+# ── WORKING CALENDAR ────────────────────────────────────────
+# Used by: skill 02 (Master TP), skill 03 (Sprint TP) — tính available hours
+working_calendar:
+  hours_per_weekday: 7              # Thứ 2–6 (full day)
+  hours_per_saturday: 3.5           # Thứ 7 = nửa ngày = 0.5 × hours_per_weekday
+  hours_per_sunday: 0               # CN nghỉ
+  holiday_overrides: []             # Ngày lễ trừ thủ công, ví dụ: ['2026-04-30']
+  sprint_working_days: <số ngày>    # Tính từ sprint_start/end: full days + thứ 7 × 0.5 − nghỉ lễ
+  # Công thức capacity/người = sprint_working_days × allocation_pct/100 × hours_per_weekday
+
+# ── TEAM ────────────────────────────────────────────────────
+# Used by: skill 02, 03 — capacity planning và sign-off
+# allocation_pct: % thời gian làm việc dành cho sprint này (0–100)
+team:
+  qc_lead:
+    name: QC Lead Name              # ← replace
+    allocation_pct: 50              # ← % thời gian dành cho sprint này
+  qc_engineers:
+    - name: QE 1 Name
+      allocation_pct: 100
+    - name: QE 2 Name
+      allocation_pct: 100
+  dev_lead: Dev Lead Name           # ← optional
+  pm: PM/PO Name                    # ← optional
+
+# ── SCOPE ───────────────────────────────────────────────────
+scope:
+  modules:
+    - module-a                      # ← liệt kê modules của dự án
+    - module-b
+
+# ── ENVIRONMENTS ────────────────────────────────────────────
+environments:
+  staging:
+    base_url: https://staging.example.internal
+  uat:
+    base_url: https://uat.example.internal
+
+# ── TOOLS ───────────────────────────────────────────────────
+tools:
+  automation: robot-framework       # robot-framework | playwright | cypress | pytest
+  performance: k6                   # k6 | jmeter | locust | none
+  security: owasp-zap               # owasp-zap | none
+
+# ── OUTPUT PATHS ─────────────────────────────────────────────
+output_paths:
+  test_cases:
+    functional: testing-output/test-cases/functional
+    sit: testing-output/test-cases/sit
+    review: testing-output/test-cases/review
+  reports:
+    daily: testing-output/reports/daily
+    sprint: testing-output/reports/sprint
+    gate: testing-output/reports/gate
+
+# ── GOVERNANCE ──────────────────────────────────────────────
+governance:
+  mode: standard                    # lightweight | standard | enterprise
+
+# ── EXIT CRITERIA ────────────────────────────────────────────
+exit_criteria:
+  pass_rate_min: 95                 # % pass rate tối thiểu để proceed to deploy
+  s1_s2_open_max: 0                 # số bug S1/S2 open tối đa khi ship
+  security_critical_max: 0
+  perf_p95_ms_max: 500              # ngưỡng latency P95 (ms)

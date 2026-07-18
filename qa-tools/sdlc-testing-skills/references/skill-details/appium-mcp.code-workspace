@@ -1,0 +1,26 @@
+{
+	"folders": [
+		{
+			"path": "../../../appium-mcp"
+		},
+		{
+			"path": "../../../mobile-scriptlab"
+		},
+		{
+			"path": "../../../keystone-test"
+		},
+		{
+			"path": "../../../prism-framework"
+		},
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../fdp-testing-skill"
+		},
+		{
+			"path": "../../../ai-platform-testing"
+		}
+	],
+	"settings": {}
+}

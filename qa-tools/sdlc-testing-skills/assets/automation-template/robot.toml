@@ -1,0 +1,16 @@
+# ====================== CẤU HÌNH CHUNG ======================
+output-dir = "Report"           # Thư mục chứa report, log, output
+timestamp-outputs = true        #Tùy chọn - log sẽ được gen theo lần chạy, ví dụ : log-20260617-103045.html, report-20260617-103045.html - tránh bị ghè đè 
+
+# ====================== BIẾN MẶC ĐỊNH ======================
+[variables]
+ENV = "QC"
+
+# ====================== TẮT CẢNH BÁO NAMING ======================
+[tool.robotcode-analyze.modifiers]
+# Tắt cảnh báo case convention
+ignore = ["keyword-name-case-convention", "keyword-not-following-case-convention", "name18-wrong-case-in-keyword-call"]
+
+# ====================== LISTENER ======================
+[listeners]
+"Libs/listener.py" = []

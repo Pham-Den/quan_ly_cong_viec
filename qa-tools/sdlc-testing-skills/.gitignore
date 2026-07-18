@@ -1,0 +1,27 @@
+﻿# Runtime data â€” do not commit
+.env
+.env.local
+.env.secrets
+testing-output/
+
+# Project-local config â€” each team keeps their own; do not commit
+# Copy from project/qa-config.example.yaml to get started
+project/qa-config.yaml
+project/session-state.yaml
+project/audit-log.md
+docs/confluence/
+docs/jira/
+.venv/
+__pycache__/
+*.pyc
+.claude/settings.local.json
+.gitignore.bak
+
+# Robot Framework output â€” luÃ´n dÃ¹ng --outputdir, khÃ´ng commit á»Ÿ root
+output.xml
+log.html
+report.html
+<<<<<<< HEAD
+=======
+/.playwright_screenshots
+>>>>>>> 80dbed2f54ac3b66dca61d090ff2523e9be1edac

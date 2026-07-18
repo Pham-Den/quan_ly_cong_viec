@@ -1,0 +1,14 @@
+app_qc:
+  APP_DEV : your-app-qc.apk
+  APP_DEV_SERVICE : your-service-qc.apk
+  YOUR_OTHER_APP_PACKAGE : com.yourcompany.yoursecondapp.QC
+  YOUR_SERVICE_PACKAGE: com.yourcompany.yourthirdapp.qc
+  YOUR_APP_PACKAGE: com.yourcompany.yourapp.QC
+app_uat:
+  APP_DEV : your-app-uat.apk
+  APP_DEV_SERVICE: your-service-uat.apk
+  YOUR_OTHER_APP_PACKAGE : com.yourcompany.yoursecondapp.UAT
+  YOUR_SERVICE_PACKAGE: com.yourcompany.yourthirdapp.uat
+  YOUR_APP_PACKAGE: com.yourcompany.yourapp.UAT
+app_prd:
+  YOUR_APP_PACKAGE: com.yourcompany.yourapp

@@ -1,0 +1,138 @@
+# TEMPLATE — Replace with your OAuth2 client credentials.
+# Obtain client_id and client_secret from your AuthOM / OpenID Connect provider admin panel.
+
+AuthOM_DEV:
+    YOUR_APP_PARTNER:
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+
+AuthOM_QC:
+    YOUR_APP_PARTNER:
+        # Your main app partner client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    AUTOMATION_M2M:
+        # Automation M2M client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    OPS_FIREBASE:
+        # Ops platform client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    CMS_YOUR_APP:
+        # Your app CMS Web Admin
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    CORE_B2B_ADMIN:
+        # Core B2B Admin
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_SERVICE_PARTNER_CLIENT:
+        # Your service partner client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_SERVICE_CLIENT:
+        # Your service client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_WMS_PARTNER_CLIENT:
+        # WMS Partner Client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_TMS_PORTAL:
+        # TMS EasyAdmin Portal
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_DC_PORTAL:
+        # DC Portal
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_PARTNER:
+        # Third-party partner client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_SCM_SERVICE:
+        # SCM Service
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    ESB_INTERNAL:
+        # ESB internal client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_TMS_BFF:
+        # TMS BFF client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_TMS_SERVICE:
+        # TMS service client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_OTHER_APP_M2M:
+        # Other app M2M client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_CDP:
+        # CDP client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+
+AuthOM_UAT:
+    YOUR_APP_PARTNER:
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    OPS_FIREBASE:
+        # Ops platform client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    CMS_YOUR_APP:
+        # Your app CMS Web Admin
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    CORE_B2B_ADMIN:
+        # Core B2B Admin
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_SERVICE_PARTNER_CLIENT:
+        # Your service partner client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_SERVICE_CLIENT:
+        # Your service client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_WMS_PARTNER_CLIENT:
+        # WMS Partner Client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_TMS_PORTAL:
+        # TMS EasyAdmin Portal
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_DC_PORTAL:
+        # DC Portal
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_PARTNER:
+        # Third-party partner client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_SCM_SERVICE:
+        # SCM Service
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    ESB_INTERNAL:
+        # ESB internal client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_TMS_BFF:
+        # TMS BFF client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_TMS_SERVICE:
+        # TMS service client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
+    YOUR_OTHER_APP_M2M:
+        # Other app M2M client
+        client_id: <YOUR_CLIENT_ID>
+        client_secret: <YOUR_CLIENT_SECRET>
