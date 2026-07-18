@@ -49,14 +49,14 @@ id_counters:
   EP: 1
   FR: 12
   US: 10
-  AC: 43
-  BR: 11
+  AC: 59
+  BR: 12
   GLOSS: 10
   PERSONA: 3
   MR: 1
   # Design
-  SCREEN: 0
-  DS-COMP: 0
+  SCREEN: 8
+  DS-COMP: 11
   # Architecture
   ARCH: 0
   ARCH-COMP: 0
