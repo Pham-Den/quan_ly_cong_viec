@@ -813,6 +813,23 @@ def source_matches_pack(source: Path, pack: str) -> bool:
     return pack_dir_matches(pd, pack)
 
 
+def collect_change_pack_dirs(project_root: Path, sprint_n: int) -> list[Path]:
+    """Return canonical change-pack directories for a sprint.
+
+    Pack identity is directory-owned, not delta-owned.  In particular, a legal
+    Plan-only pack has no mergeable delta returned by ``collect_delta_files`` but
+    must still be resolvable by pack-scoped diagnostic commands.
+    """
+    changes_dir = project_root / "docs" / f"sprint-v{sprint_n}" / "changes"
+    if not changes_dir.is_dir():
+        return []
+    return sorted(
+        d
+        for d in changes_dir.iterdir()
+        if d.is_dir() and CHANGE_PACK_DIR_RE.match(d.name)
+    )
+
+
 def winner_matches_acceptance(winner: Path, expected: str) -> bool:
     """True only when `expected` is the winner's EXACT source token — the full pack id
     (`v1.2.0-fix`) or a proposal's filename stem, i.e. the value the block message prints.
@@ -938,8 +955,11 @@ def run_overlap_check(
 
     scope = "" if pack is None else f" involving pack '{pack}'"
     if pack is not None:
-        matched_packs = {pack_dir_of(s) for s in sources if source_matches_pack(s, pack)}
-        matched_packs.discard(None)
+        matched_packs = {
+            d.name
+            for d in collect_change_pack_dirs(root, sprint_n)
+            if pack_dir_matches(d.name, pack)
+        }
         if not matched_packs:
             sys.stderr.write(
                 f"ERROR: --pack '{pack}' matched no change pack in sprint-v{sprint_n}\n"
@@ -953,10 +973,11 @@ def run_overlap_check(
                 f"{', '.join(sorted(matched_packs))}; use the full pack id.\n"
             )
             return 2
+        resolved_pack = next(iter(matched_packs))
         overlaps = {
             aid: hits
             for aid, hits in overlaps.items()
-            if any(source_matches_pack(s, pack) for s, _ops in hits)
+            if any(pack_dir_of(s) == resolved_pack for s, _ops in hits)
         }
 
     blockers = format_overlap_blockers(overlaps, root, accepted)
@@ -1182,16 +1203,7 @@ def run_pack_structure_check(root: Path, sprint_n: int, pack: str | None = None)
 
     Exit 0 = structure OK; 1 = finding(s); 2 = `pack` matched no pack OR is ambiguous.
     """
-    changes_dir = root / "docs" / f"sprint-v{sprint_n}" / "changes"
-    pack_dirs = (
-        sorted(
-            d
-            for d in changes_dir.iterdir()
-            if d.is_dir() and CHANGE_PACK_DIR_RE.match(d.name)
-        )
-        if changes_dir.is_dir()
-        else []
-    )
+    pack_dirs = collect_change_pack_dirs(root, sprint_n)
     scope = "" if pack is None else f" for pack '{pack}'"
     if pack is not None:
         matched = [d for d in pack_dirs if pack_dir_matches(d.name, pack)]

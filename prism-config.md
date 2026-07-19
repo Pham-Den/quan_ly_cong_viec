@@ -71,7 +71,7 @@ id_counters:
   # Testing
   TC: 75
   # Bug (sprint-independent defect record; ORIGIN-1 bug lane)
-  BUG: 0
+  BUG: 1
 
 # Quality profile — schema v2
 # Read by phase prompts and validate commands. Missing fields fall back to defaults
