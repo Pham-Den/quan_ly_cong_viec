@@ -1,10 +1,11 @@
 ---
-status: ACTIVE
+status: APPROVED
 command: validate architecture
 cycle: base
 sprint: 1
-created: 2026-07-18
-updated: 2026-07-19 11:08
+timestamp_utc: 2026-07-19T04:08:00Z
+latest_conclusion: clean
+approved_at: 2026-07-19T04:17:51Z
 ---
 
 # Validate Architecture — base

@@ -1,12 +1,12 @@
 ---
-status: DRAFT
+status: APPROVED
 version: v1
 sprint: 1
 phase: architecture
 sprint_id: sprint-v1
 created: 2026-07-18
-updated: 2026-07-19 11:05
-approved_by:
+updated: 2026-07-19 11:17
+approved_by: khanh-pham
 applied_to_living: false
 ---
 
