@@ -58,16 +58,16 @@ id_counters:
   SCREEN: 8
   DS-COMP: 11
   # Architecture
-  ARCH: 0
-  ARCH-COMP: 0
-  NFR: 0
-  SEQ: 0
-  ENT: 0
-  ADR: 0
-  FLOW: 0
-  API: 0
-  EVT: 0
-  PR: 0
+  ARCH: 1
+  ARCH-COMP: 8
+  NFR: 9
+  SEQ: 6
+  ENT: 21
+  ADR: 8
+  FLOW: 3
+  API: 23
+  EVT: 1
+  PR: 8
   # Testing
   TC: 0
   # Bug (sprint-independent defect record; ORIGIN-1 bug lane)
