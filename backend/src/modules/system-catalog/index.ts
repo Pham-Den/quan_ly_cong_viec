@@ -1,4 +1,6 @@
-// CODE-1: Sprint v1 · TG-01 Shared Contracts · NFR-004 · API-002/021/022 · PR-002
+// Sprint: v1 | Feature: NFR-004 | Task Group: 01 Shared contracts
+// Contract: API-002/021/022 ApprovedAddressSetRegistry | Project: PR-002
+// Pack: v1.7.20-canonical-task-group-headings
 export type ApprovedAddressSetRequest = {
   approvalRef: string
   hostId: string

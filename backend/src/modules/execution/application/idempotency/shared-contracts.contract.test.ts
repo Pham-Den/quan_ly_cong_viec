@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
+import fc from 'fast-check'
 
 import {
   IDEMPOTENCY_RESPONSE_MAX_BYTES,
@@ -11,6 +12,7 @@ import {
   type ExecutionResponseSchemaReader,
   type IdempotencyRecordRepository,
   type IdempotencyScope,
+  type JsonValue,
   type StoredIdempotencyRecord,
 } from '../../index.js'
 import {
@@ -118,7 +120,9 @@ function setup() {
   return { transactions, unitOfWork, records, clock, coordinator }
 }
 
-// CODE-1: Sprint v1 · TG-01 Shared Contracts · TC-061/067 · NFR-003/004 · PR-002/004/005/008
+// Sprint: v1 | Feature: NFR-003/NFR-004 | Task Group: 01 Shared contracts
+// Contract: TC-061/067 | Project: PR-002/004/005/008
+// Pack: v1.7.20-canonical-task-group-headings
 describe('caller-owned UnitOfWork contract', () => {
   test('rejects a nested transaction and keeps the outer transaction usable', async () => {
     const { unitOfWork } = setup()
@@ -230,34 +234,26 @@ describe('IdempotencyCoordinator contract', () => {
     assert.deepEqual((await execute()).body, { call: 2 })
   })
 
-  test('[PBT] replays a deterministic corpus of JSON values without semantic drift', async () => {
-    const { coordinator, unitOfWork } = setup()
-    const corpus = Array.from({ length: 40 }, (_, index) => ({
-      index,
-      active: index % 2 === 0,
-      nullable: index % 3 === 0 ? null : `value-${index}-\u0111\u1ecbnh`,
-      nested: [index, index / 10, { key: `k-${index}` }],
-    }))
-
-    for (const [index, body] of corpus.entries()) {
-      const generatedScope = { ...scope, idempotencyKey: `generated-${index}` }
-      let handlerCalls = 0
-      const execute = () =>
-        unitOfWork.execute((transaction) =>
-          coordinator.execute(
-            { scope: generatedScope, requestHash: `hash-${index}` },
-            transaction,
-            async () => {
+  test('[PBT] preserves arbitrary JSON values across committed replay', async () => {
+    await fc.assert(
+      fc.asyncProperty(fc.jsonValue(), async (body) => {
+        const { coordinator, unitOfWork } = setup()
+        const replayBody = body as JsonValue
+        let handlerCalls = 0
+        const execute = () =>
+          unitOfWork.execute((transaction) =>
+            coordinator.execute({ scope, requestHash: 'property-hash' }, transaction, async () => {
               handlerCalls += 1
-              return { statusCode: 200, body }
-            },
-          ),
-        )
+              return { statusCode: 200, body: replayBody }
+            }),
+          )
 
-      assert.deepEqual((await execute()).body, body)
-      assert.deepEqual((await execute()).body, body)
-      assert.equal(handlerCalls, 1)
-    }
+        assert.deepEqual((await execute()).body, replayBody)
+        assert.deepEqual((await execute()).body, replayBody)
+        assert.equal(handlerCalls, 1)
+      }),
+      { seed: 20_260_719, numRuns: 100 },
+    )
   })
 })
 

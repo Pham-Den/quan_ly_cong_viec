@@ -1,4 +1,6 @@
-// CODE-1: Sprint v1 · TG-01 Shared Contracts · FR-006/007 · ARCH-COMP-005 · PR-005
+// Sprint: v1 | Feature: FR-006/FR-007 | Task Group: 01 Shared contracts
+// Contract: ARCH-COMP-005 ExecutionResponseSchemaReader | Project: PR-005
+// Pack: v1.7.20-canonical-task-group-headings
 export type MaskedResponseField = {
   path: string
   type: 'null' | 'boolean' | 'number' | 'string' | 'array' | 'object'

@@ -1,6 +1,8 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 
-// CODE-1: Sprint v1 · TG-01 Shared Contracts · API-004–007/009/011/021/022 · PR-008
+// Sprint: v1 | Feature: NFR-003 | Task Group: 01 Shared contracts
+// Contract: API-004–007/009/011/021/022 | Project: PR-008
+// Pack: v1.7.20-canonical-task-group-headings
 export type UnitOfWork = {
   readonly transactionId: string
 }

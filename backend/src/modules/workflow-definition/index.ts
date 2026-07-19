@@ -1,6 +1,8 @@
 import type { UnitOfWork } from '../../shared/unit-of-work/index.js'
 
-// CODE-1: Sprint v1 · TG-01 Shared Contracts · FR-011 · API-005/007/011/021/022 · PR-004
+// Sprint: v1 | Feature: FR-011 | Task Group: 01 Shared contracts
+// Contract: API-005/007/011/021/022 WorkflowImpactService | Project: PR-004
+// Pack: v1.7.20-canonical-task-group-headings
 export type WorkflowDisableReason =
   | 'API_DELETED'
   | 'API_METHOD_CHANGED'

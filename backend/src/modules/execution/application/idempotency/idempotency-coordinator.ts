@@ -1,6 +1,8 @@
 import type { UnitOfWork } from '../../../../shared/unit-of-work/index.js'
 
-// CODE-1: Sprint v1 · TG-01 Shared Contracts · NFR-003/004 · API-004–007/009/011/021/022 · PR-005/008
+// Sprint: v1 | Feature: NFR-003/NFR-004 | Task Group: 01 Shared contracts
+// Contract: API-004–007/009/011/021/022 | Project: PR-005/008
+// Pack: v1.7.20-canonical-task-group-headings
 export const IDEMPOTENCY_TTL_HOURS = 24
 export const IDEMPOTENCY_RESPONSE_MAX_BYTES = 65_536
 
