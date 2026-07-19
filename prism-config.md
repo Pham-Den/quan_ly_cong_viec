@@ -69,7 +69,7 @@ id_counters:
   EVT: 1
   PR: 8
   # Testing
-  TC: 0
+  TC: 75
   # Bug (sprint-independent defect record; ORIGIN-1 bug lane)
   BUG: 0
 
