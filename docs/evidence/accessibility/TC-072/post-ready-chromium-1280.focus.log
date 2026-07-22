@@ -1,0 +1,6 @@
+{
+  "fixture": "post-ready",
+  "hook": "auth-restart-required",
+  "focusedTag": "H2",
+  "focusedText": "Cần bắt đầu đăng nhập lại"
+}

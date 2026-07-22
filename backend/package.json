@@ -17,7 +17,9 @@
     "db:import-mysql": "DATABASE_URL=\"$(tsx src/db/print-database-url.ts)\" tsx src/db/migration/import-mysql-data.ts",
     "db:verify-migration": "DATABASE_URL=\"$(tsx src/db/print-database-url.ts)\" tsx src/db/migration/verify-migrated-data.ts",
     "prisma:generate": "DATABASE_URL=\"$(tsx src/db/print-database-url.ts)\" prisma generate",
-    "prisma:validate": "DATABASE_URL=\"$(tsx src/db/print-database-url.ts)\" prisma validate"
+    "prisma:validate": "node --import tsx scripts/validate-prisma-schema.ts",
+    "errors:check": "node --import tsx scripts/generate-errors.ts --check --catalog errors.yml --typescript-out src/shared/errors/generated.ts --openapi-out src/shared/errors/openapi.generated.json",
+    "self-test:foundation": "node --import tsx scripts/self-test-foundation.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.1.0",

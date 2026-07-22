@@ -1,0 +1,6 @@
+{
+  "fixture": "navigation-error",
+  "hook": "auth-restart-error",
+  "focusedTag": "H2",
+  "focusedText": "Không thể bắt đầu phiên đăng nhập mới."
+}

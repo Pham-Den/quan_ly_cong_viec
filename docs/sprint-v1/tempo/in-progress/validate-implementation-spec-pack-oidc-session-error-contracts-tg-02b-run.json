@@ -1,0 +1,231 @@
+{
+  "findings": [
+    {
+      "severity": "info",
+      "rule": "VI-2",
+      "message": "CODE-1 marker facts (changed-files): 17/45 code files carry a marker; without marker: .prism/core/tools/test_validate_living_truth.py, backend/prisma/migrations/20260719190000_identity_session/migration.sql, backend/prisma/schema.prisma, backend/scripts/generate-errors.ts, backend/scripts/self-test-foundation.ts, backend/src/auth/guard.ts, backend/src/modules/identity/application/index.ts, backend/src/modules/identity/delivery/index.ts, backend/src/modules/identity/domain/index.ts, backend/src/modules/identity/index.ts, backend/src/modules/identity/infrastructure/index.ts, backend/src/platform/audit/index.ts, backend/src/platform/observability/index.ts, backend/src/server.ts, backend/src/shared/errors/generated.ts, backend/src/shared/errors/index.ts, backend/test/compose/config/foundation.env.example, backend/test/compose/fixtures/foundation-schema.sql, backend/test/compose/fixtures/iam-fake.mjs, backend/test/compose/fixtures/key-provider-fake.mjs — grading (meaningful vs trivial, CODE-2) is the LLM pass's job"
+    },
+    {
+      "severity": "warn",
+      "rule": "VI-3",
+      "message": "technique-evidence tables exist but none reference this task group's declared test files or code_ownership_zones — ensure the CODE-3a table for THIS task group was emitted"
+    },
+    {
+      "severity": "warn",
+      "rule": "VI-3",
+      "message": "technique-evidence table references a test file that does not exist: error-catalog.contract.test.ts — evidence is fabricated or stale (found only in another task group's table — flag it there)"
+    },
+    {
+      "severity": "warn",
+      "rule": "VI-3",
+      "message": "technique-evidence table references a test file that does not exist: error-observability.contract.test.ts — evidence is fabricated or stale (found only in another task group's table — flag it there)"
+    },
+    {
+      "severity": "warn",
+      "rule": "VI-3",
+      "message": "technique-evidence table references a test file that does not exist: identity.contract.test.ts — evidence is fabricated or stale (found only in another task group's table — flag it there)"
+    },
+    {
+      "severity": "warn",
+      "rule": "VI-3",
+      "message": "technique-evidence table references a test file that does not exist: identity.persistence.integration.test.ts — evidence is fabricated or stale (found only in another task group's table — flag it there)"
+    },
+    {
+      "severity": "warn",
+      "rule": "VI-3",
+      "message": "technique-evidence table references a test file that does not exist: same — evidence is fabricated or stale (found only in another task group's table — flag it there)"
+    },
+    {
+      "severity": "warn",
+      "rule": "VI-3",
+      "message": "technique-evidence table references a test file that does not exist: self-test-foundation.ts — evidence is fabricated or stale (found only in another task group's table — flag it there)"
+    },
+    {
+      "severity": "warn",
+      "rule": "VI-3",
+      "message": "task-group user stories not referenced in any evidence-table AC column: US-001"
+    },
+    {
+      "severity": "info",
+      "rule": "VI-5",
+      "message": "validation command passed in 8.3s: npm run typecheck"
+    }
+  ],
+  "facts": {
+    "change_set": {
+      "meta": {
+        "source": "git",
+        "head": "20f7266922f7e15e6b534387fbf662250f908990",
+        "diff_base": "HEAD",
+        "delta_hash": "126575eeb2c9",
+        "delta_hash_scope": "whole-tree (not the § Target Fingerprint value)"
+      },
+      "files": [
+        ".prism/core/tools/__pycache__/seal_sprint.cpython-312.pyc",
+        ".prism/core/tools/__pycache__/validate_living_truth.cpython-312.pyc",
+        ".prism/core/tools/test_validate_living_truth.py",
+        ".prism/core/tools/validate_living_truth.py",
+        "backend/errors.yml",
+        "backend/package.json",
+        "backend/prisma/migrations/20260719190000_identity_session/migration.sql",
+        "backend/prisma/schema.prisma",
+        "backend/scripts/generate-errors.ts",
+        "backend/scripts/self-test-foundation.ts",
+        "backend/src/app.ts",
+        "backend/src/auth/guard.ts",
+        "backend/src/modules/identity/application/identity-service.ts",
+        "backend/src/modules/identity/application/index.ts",
+        "backend/src/modules/identity/delivery/identity-plugin.ts",
+        "backend/src/modules/identity/delivery/index.ts",
+        "backend/src/modules/identity/domain/identity.ts",
+        "backend/src/modules/identity/domain/index.ts",
+        "backend/src/modules/identity/identity.contract.test.ts",
+        "backend/src/modules/identity/identity.persistence.integration.test.ts",
+        "backend/src/modules/identity/index.ts",
+        "backend/src/modules/identity/infrastructure/identity-crypto.ts",
+        "backend/src/modules/identity/infrastructure/index.ts",
+        "backend/src/modules/identity/infrastructure/prisma-identity-repositories.ts",
+        "backend/src/platform/audit/audit.ts",
+        "backend/src/platform/audit/index.ts",
+        "backend/src/platform/observability/index.ts",
+        "backend/src/platform/observability/observability.ts",
+        "backend/src/server.ts",
+        "backend/src/shared/errors/error-catalog.contract.test.ts",
+        "backend/src/shared/errors/error-observability.contract.test.ts",
+        "backend/src/shared/errors/generated.ts",
+        "backend/src/shared/errors/generator.ts",
+        "backend/src/shared/errors/index.ts",
+        "backend/src/shared/errors/openapi.generated.json",
+        "backend/test/compose/config/foundation.env.example",
+        "backend/test/compose/fixtures/foundation-schema.sql",
+        "backend/test/compose/fixtures/iam-fake.mjs",
+        "backend/test/compose/fixtures/key-provider-fake.mjs",
+        "backend/test/compose/foundation.compose.yml",
+        "docs/bugs/BUG-002-candidate-pack-plan-delta-filter/bug-report.md",
+        "docs/sprint-v1/changes/v1.7.21-oidc-session-error-contracts/architecture-delta-v1.7.21-oidc-session-error-contracts.md",
+        "docs/sprint-v1/changes/v1.7.21-oidc-session-error-contracts/assets/c4-identity-session-delta.drawio",
+        "docs/sprint-v1/changes/v1.7.21-oidc-session-error-contracts/assets/identity-session-data-flow.drawio",
+        "docs/sprint-v1/changes/v1.7.21-oidc-session-error-contracts/change-request.md",
+        "docs/sprint-v1/changes/v1.7.21-oidc-session-error-contracts/generated/effective-test-cases-preview-v1.7.21.md",
+        "docs/sprint-v1/changes/v1.7.21-oidc-session-error-contracts/generated/test-cases-export-manifest-vX.json",
+        "docs/sprint-v1/changes/v1.7.21-oidc-session-error-contracts/generated/test-cases-functional-vX.tsv",
+        "docs/sprint-v1/changes/v1.7.21-oidc-session-error-contracts/generated/test-cases-sit-vX.tsv",
+        "docs/sprint-v1/changes/v1.7.21-oidc-session-error-contracts/impact-matrix.md",
+        "docs/sprint-v1/changes/v1.7.21-oidc-session-error-contracts/plan-delta-v1.7.21-oidc-session-error-contracts.md",
+        "docs/sprint-v1/changes/v1.7.21-oidc-session-error-contracts/testing-delta-v1.7.21-oidc-session-error-contracts.md",
+        "docs/sprint-v1/implementation/tg-02-identity-persistence.md",
+        "docs/sprint-v1/implementation/tg-02b-identity-delivery.md",
+        "docs/sprint-v1/implementation/tg-03-error-catalog.md",
+        "docs/sprint-v1/implementation/tg-03b-runtime-composition.md",
+        "docs/sprint-v1/tempo/in-progress/foundation-no-dotenv.override.yml",
+        "docs/sprint-v1/tempo/in-progress/validate-architecture-pack-oidc-session-error-contracts.md",
+        "docs/sprint-v1/tempo/in-progress/validate-implementation-quality-pack-oidc-session-error-contracts.md",
+        "docs/sprint-v1/tempo/in-progress/validate-implementation-spec-pack-oidc-session-error-contracts-tg-02-run.json",
+        "docs/sprint-v1/tempo/in-progress/validate-implementation-spec-pack-oidc-session-error-contracts-tg-02.json",
+        "docs/sprint-v1/tempo/in-progress/validate-implementation-spec-pack-oidc-session-error-contracts-tg-02b.json",
+        "docs/sprint-v1/tempo/in-progress/validate-implementation-spec-pack-oidc-session-error-contracts-tg-03.json",
+        "docs/sprint-v1/tempo/in-progress/validate-implementation-spec-pack-oidc-session-error-contracts-tg-03b.json",
+        "docs/sprint-v1/tempo/in-progress/validate-implementation-spec-pack-oidc-session-error-contracts.md",
+        "docs/sprint-v1/tempo/in-progress/validate-plan-pack-oidc-session-error-contracts.md",
+        "docs/sprint-v1/tempo/in-progress/validate-test-pack-oidc-session-error-contracts.md",
+        "frontend/src/core/api/client.ts",
+        "frontend/src/core/api/correlation.ts",
+        "frontend/src/core/api/index.ts",
+        "frontend/src/core/observability/index.ts",
+        "frontend/src/core/observability/sentry.ts",
+        "frontend/src/main.ts",
+        "frontend/src/router/index.ts",
+        "frontend/src/services/api.ts",
+        "frontend/src/stores/session.ts",
+        "frontend/src/views/auth/LoginView.vue",
+        "frontend/src/views/auth/SetupView.vue",
+        "prism-config.md",
+        "study/README.md",
+        "study/learning-roadmap.md",
+        "study/practice-templates.md",
+        "study/project-lab.md"
+      ]
+    },
+    "task_group": "TG-02B",
+    "degraded": false,
+    "vi1_declared": {
+      "add": [
+        "backend/src/modules/identity/identity.contract.test.ts"
+      ],
+      "modify": []
+    },
+    "vi2_marker_coverage": {
+      "changed_code_files": 45,
+      "inventory": "changed-files",
+      "with_marker": 17,
+      "without_marker": [
+        ".prism/core/tools/test_validate_living_truth.py",
+        "backend/prisma/migrations/20260719190000_identity_session/migration.sql",
+        "backend/prisma/schema.prisma",
+        "backend/scripts/generate-errors.ts",
+        "backend/scripts/self-test-foundation.ts",
+        "backend/src/auth/guard.ts",
+        "backend/src/modules/identity/application/index.ts",
+        "backend/src/modules/identity/delivery/index.ts",
+        "backend/src/modules/identity/domain/index.ts",
+        "backend/src/modules/identity/index.ts",
+        "backend/src/modules/identity/infrastructure/index.ts",
+        "backend/src/platform/audit/index.ts",
+        "backend/src/platform/observability/index.ts",
+        "backend/src/server.ts",
+        "backend/src/shared/errors/generated.ts",
+        "backend/src/shared/errors/index.ts",
+        "backend/test/compose/config/foundation.env.example",
+        "backend/test/compose/fixtures/foundation-schema.sql",
+        "backend/test/compose/fixtures/iam-fake.mjs",
+        "backend/test/compose/fixtures/key-provider-fake.mjs",
+        "frontend/src/core/api/correlation.ts",
+        "frontend/src/core/api/index.ts",
+        "frontend/src/core/observability/index.ts",
+        "frontend/src/main.ts",
+        "frontend/src/router/index.ts",
+        "frontend/src/stores/session.ts",
+        "frontend/src/views/auth/LoginView.vue",
+        "frontend/src/views/auth/SetupView.vue"
+      ]
+    },
+    "vi3_evidence": {
+      "tables": [
+        "docs/sprint-v1/implementation/tg-01-shared-contracts.md",
+        "docs/sprint-v1/implementation/tg-02-identity-persistence.md",
+        "docs/sprint-v1/implementation/tg-02b-identity-delivery.md",
+        "docs/sprint-v1/implementation/tg-03-error-catalog.md",
+        "docs/sprint-v1/implementation/tg-03b-runtime-composition.md"
+      ],
+      "relevant_tables": [],
+      "referenced_test_files": [
+        "backend/src/modules/execution/application/idempotency/shared-contracts.contract.test.ts",
+        "error-catalog.contract.test.ts",
+        "error-observability.contract.test.ts",
+        "identity.contract.test.ts",
+        "identity.persistence.integration.test.ts",
+        "same",
+        "self-test-foundation.ts"
+      ],
+      "us_covered": [],
+      "us_uncovered": [
+        "US-001"
+      ]
+    },
+    "vi4_validate_file": {
+      "file": "docs/sprint-v1/tempo/in-progress/validate-implementation-spec-pack-oidc-session-error-contracts.md",
+      "conclusion": "issues-found",
+      "declared_blockers": 1,
+      "blocker_finding_rows": 9
+    },
+    "vi5_runs": [
+      {
+        "cmd": "npm run typecheck",
+        "exit": 0,
+        "seconds": 8.3,
+        "tail": "\n> quan-ly-cong-viec@0.1.0 typecheck\n> npm --workspaces --if-present run typecheck\n\n\n> frontend@0.0.0 typecheck\n> vue-tsc -b --noEmit\n\n\n> backend@0.1.0 typecheck\n> tsc -p tsconfig.json --noEmit\n\n"
+      }
+    ]
+  },
+  "blockers": 0
+}

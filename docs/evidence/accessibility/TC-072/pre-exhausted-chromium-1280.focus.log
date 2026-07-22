@@ -1,0 +1,6 @@
+{
+  "fixture": "pre-exhausted",
+  "hook": "auth-callback-retry-exhausted",
+  "focusedTag": "H2",
+  "focusedText": "Không thể hoàn tất đăng nhập."
+}

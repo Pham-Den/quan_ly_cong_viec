@@ -1,0 +1,32 @@
+{
+  "schema": "prism.tc072.callback-recovery-evidence.v1",
+  "executed_at": "2026-07-20",
+  "environment": "local",
+  "playwright_version": "1.61.1",
+  "browser": "chromium",
+  "browser_version": "149.0.7827.55",
+  "viewport": "1280x720",
+  "zoom": "100%",
+  "image_digest": "sha256:3999da7d81b8b2701d6d45dd90059f462d238bfea2d035ddb350898948aeaf8d",
+  "scope": "SCREEN-009 login-entry/callback-processing/callback-recovery/callback-invalid plus DS-COMP-012 seven-state recovery",
+  "result": "12 passed, 0 failed",
+  "evidence": [
+    "screen-009-login-entry-chromium-1280.png",
+    "screen-009-callback-processing-chromium-1280.png",
+    "screen-009-callback-invalid-chromium-1280.png",
+    "pre-wait-chromium-1280.png",
+    "pre-wait-chromium-1280.focus.log",
+    "pre-ready-chromium-1280.png",
+    "pre-ready-chromium-1280.focus.log",
+    "pre-exhausted-chromium-1280.png",
+    "pre-exhausted-chromium-1280.focus.log",
+    "post-wait-chromium-1280.png",
+    "post-wait-chromium-1280.focus.log",
+    "post-ready-chromium-1280.png",
+    "post-ready-chromium-1280.focus.log",
+    "navigation-error-chromium-1280.png",
+    "navigation-error-chromium-1280.focus.log",
+    "invalid-contract-chromium-1280.png",
+    "invalid-contract-chromium-1280.focus.log"
+  ]
+}

@@ -1,0 +1,25 @@
+// Sprint: v1 | Feature: NFR-004/NFR-008 | Task Group: 02C Browser session cutover
+// Contract: DS-COMP-012, MSG-046/047/048 | Pack: v1.7.21-oidc-session-error-contracts
+export const AUTH_MESSAGES = {
+  MSG_047: 'Dịch vụ lưu phiên đăng nhập tạm thời gián đoạn. Bạn có thể thử hoàn tất đăng nhập thêm một lần.',
+  callbackRetryHeading: 'Cần thử lại callback đăng nhập',
+  callbackRetryExhaustedHeading: 'Không thể hoàn tất đăng nhập.',
+  callbackRetryExhausted: 'Callback đăng nhập đã thử lại một lần nhưng vẫn thất bại.',
+  callbackRetryWaiting: (seconds: number) => `Bạn có thể thử lại sau ${seconds} giây.`,
+  callbackRetryReady: 'Bạn có thể thử hoàn tất đăng nhập.',
+  MSG_046: 'Dịch vụ xác thực tạm thời gián đoạn nên phiên đăng nhập chưa được tạo. Hãy bắt đầu đăng nhập lại.',
+  postClaimHeading: 'Cần bắt đầu đăng nhập lại',
+  postClaimWaiting: (seconds: number) => `Bạn có thể đăng nhập lại sau ${seconds} giây.`,
+  postClaimReady: 'Bạn có thể bắt đầu đăng nhập lại.',
+  MSG_048: 'Không thể xác minh cách khôi phục đăng nhập an toàn. Hãy bắt đầu đăng nhập lại.',
+  invalidContractHeading: 'Không thể xác minh cách khôi phục đăng nhập.',
+  navigationError: 'Không thể bắt đầu phiên đăng nhập mới.',
+  loginHeading: 'Đăng nhập',
+  loginSubtext: 'Tiếp tục qua hệ thống định danh tập trung',
+  retryCallback: 'Thử hoàn tất đăng nhập',
+  returnToLogin: 'Quay lại đăng nhập',
+  startLoginAgain: 'Bắt đầu đăng nhập lại',
+  retryLogin: 'Thử lại đăng nhập',
+  loginAgain: 'Đăng nhập lại',
+  loginWithIam: 'Đăng nhập với Central IAM',
+} as const

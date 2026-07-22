@@ -1,10 +1,59 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "debian-openssl-1.1.x"]
 }
 
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
+}
+
+/// Sprint: v1 | Feature: NFR-004/NFR-010 | Task Group: 02 Identity persistence
+/// Contract: ENT-022, PR-001 | Pack: v1.7.21-oidc-session-error-contracts
+/// One-time OIDC Authorization Code + PKCE state.
+model OidcLoginState {
+  id                     String    @id @db.Char(36)
+  stateSha256            Bytes     @unique(map: "uq_ols_state_hash") @map("state_sha256") @db.Binary(32)
+  nonceSha256            Bytes     @map("nonce_sha256") @db.Binary(32)
+  pkceVerifierCiphertext Bytes     @map("pkce_verifier_ciphertext") @db.VarBinary(1024)
+  pkceVerifierNonce      Bytes     @map("pkce_verifier_nonce") @db.Binary(12)
+  pkceVerifierTag        Bytes     @map("pkce_verifier_tag") @db.Binary(16)
+  pkceVerifierKeyId      String    @map("pkce_verifier_key_id") @db.VarChar(128)
+  returnTo               String    @map("return_to") @db.VarChar(2048)
+  createdAt              DateTime  @map("created_at") @db.DateTime(3)
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+  expiresAt              DateTime  @map("expires_at") @db.DateTime(3)
+  consumedAt             DateTime? @map("consumed_at") @db.DateTime(3)
+
+  @@index([expiresAt, consumedAt], map: "ix_ols_expiry")
+  @@map("oidc_login_states")
+}
+
+/// Sprint: v1 | Feature: NFR-004/NFR-010 | Task Group: 02 Identity persistence
+/// Contract: ENT-023, PR-001 | Pack: v1.7.21-oidc-session-error-contracts
+/// Opaque, server-side Central-IAM session projection.
+model AuthSession {
+  id                  String    @id @db.Char(36)
+  sessionTokenSha256  Bytes     @unique(map: "uq_as_token") @map("session_token_sha256") @db.Binary(32)
+  subjectId           String    @map("subject_id") @db.VarChar(191)
+  actorProjectionJson Json      @map("actor_projection_json")
+  mfaAssuranceJson    Json      @map("mfa_assurance_json")
+  csrfTokenSha256     Bytes     @map("csrf_token_sha256") @db.Binary(32)
+  csrfTokenCiphertext Bytes     @map("csrf_token_ciphertext") @db.VarBinary(1024)
+  csrfTokenNonce      Bytes     @map("csrf_token_nonce") @db.Binary(12)
+  csrfTokenTag        Bytes     @map("csrf_token_tag") @db.Binary(16)
+  csrfTokenKeyId      String    @map("csrf_token_key_id") @db.VarChar(128)
+  absoluteExpiresAt   DateTime  @map("absolute_expires_at") @db.DateTime(3)
+  lastActivityAt      DateTime  @map("last_activity_at") @db.DateTime(3)
+  invalidatedAt       DateTime? @map("invalidated_at") @db.DateTime(3)
+  invalidationReason  String?   @map("invalidation_reason") @db.VarChar(32)
+  revision            BigInt    @default(1) @db.UnsignedBigInt
+  createdAt           DateTime  @map("created_at") @db.DateTime(3)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([subjectId, invalidatedAt, absoluteExpiresAt], map: "ix_as_subject_active")
+  @@index([absoluteExpiresAt, invalidatedAt], map: "ix_as_expiry")
+  @@map("auth_sessions")
 }
 
 model User {

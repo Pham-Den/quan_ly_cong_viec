@@ -1,0 +1,11 @@
+services:
+  backend:
+    volumes:
+      - type: bind
+        source: /dev/null
+        target: /workspace/.env
+        read_only: true
+      - type: bind
+        source: /dev/null
+        target: /workspace/backend/.env
+        read_only: true

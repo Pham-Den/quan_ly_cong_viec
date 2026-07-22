@@ -1,0 +1,6 @@
+{
+  "fixture": "invalid-contract",
+  "hook": "auth-callback-recovery-invalid",
+  "focusedTag": "H2",
+  "focusedText": "Không thể xác minh cách khôi phục đăng nhập."
+}

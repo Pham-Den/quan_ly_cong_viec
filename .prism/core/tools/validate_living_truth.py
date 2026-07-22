@@ -54,6 +54,9 @@ INLINE_ASSUMPTION_RE = re.compile(
     r"^>\s*Assumption:\s*.+\s+/\s*Validate:\s*.+\s+/\s*Change trigger:\s*.+",
     re.IGNORECASE,
 )
+MERGEABLE_DELTA_FILENAME_RE = re.compile(
+    r"^(product|design|architecture|testing)-delta-.+\.md$"
+)
 
 
 @dataclass(frozen=True)
@@ -62,6 +65,20 @@ class Finding:
     rule: str
     path: str
     message: str
+
+
+def candidate_pack_mergeable_deltas(pack_dir: Path) -> list[Path]:
+    """Return only Living-Truth mergeable deltas from one candidate pack.
+
+    Plan absorption documents deliberately use ``plan-delta-*`` naming but are
+    sprint-scoped work-process artifacts. They are validated by the Plan gate,
+    never by proposal structure or Living Truth composition.
+    """
+    return sorted(
+        path
+        for path in pack_dir.iterdir()
+        if path.is_file() and MERGEABLE_DELTA_FILENAME_RE.match(path.name)
+    )
 
 
 def _rel(path: Path, root: Path) -> str:
@@ -880,7 +897,7 @@ def main() -> int:
             # would then report a misleading "Must FR untraced" (LTV-COV) when the real fault is a
             # malformed delta (VP-7). Surface that structural blocker here instead.
             from effective_truth import validate_source_contracts  # noqa: E402
-            pack_deltas = sorted(pack_dir.glob("*-delta-*.md"))
+            pack_deltas = candidate_pack_mergeable_deltas(pack_dir)
             src_blockers = validate_source_contracts(root, None, pack_deltas)
             if src_blockers:
                 sys.stderr.write(

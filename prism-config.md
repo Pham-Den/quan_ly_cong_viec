@@ -58,20 +58,20 @@ id_counters:
   SCREEN: 8
   DS-COMP: 11
   # Architecture
-  ARCH: 1
+  ARCH: 3
   ARCH-COMP: 8
-  NFR: 9
+  NFR: 10
   SEQ: 6
-  ENT: 21
+  ENT: 23
   ADR: 8
   FLOW: 3
-  API: 23
+  API: 24
   EVT: 1
   PR: 8
   # Testing
   TC: 75
   # Bug (sprint-independent defect record; ORIGIN-1 bug lane)
-  BUG: 1
+  BUG: 2
 
 # Quality profile — schema v2
 # Read by phase prompts and validate commands. Missing fields fall back to defaults

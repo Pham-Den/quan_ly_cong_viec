@@ -1,0 +1,5869 @@
+{
+  "components": {
+    "schemas": {
+      "ACCESS_DENIED": {
+        "description": "actor cannot access scoped Host/resource",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "ACCESS_DENIED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ADMISSION_TRANSACTION_FAILED": {
+        "description": "execution/idempotency/job admission failed",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "ADMISSION_TRANSACTION_FAILED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "API_DEFINITION_INVALID": {
+        "description": "saved API version cannot execute",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "API_DEFINITION_INVALID"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "API_NOT_ACTIVE": {
+        "description": "API lifecycle blocks run",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "API_NOT_ACTIVE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "API_NOT_DELETABLE": {
+        "description": "API cannot enter delete transition",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "API_NOT_DELETABLE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "API_NOT_FOUND": {
+        "description": "API absent in Host Workspace",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "API_NOT_FOUND"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "API_OR_HOST_NOT_FOUND": {
+        "description": "API or owning Host absent",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "API_OR_HOST_NOT_FOUND"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "API_STATE_CONFLICT": {
+        "description": "API lifecycle state disallows action",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "API_STATE_CONFLICT"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "API_TOMBSTONE_NOT_FOUND": {
+        "description": "undoable deletion record absent",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "API_TOMBSTONE_NOT_FOUND"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "API_UNDO_FAILED": {
+        "description": "restore transaction failed and fail-closed recovery runs",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "API_UNDO_FAILED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "API_UNDO_WINDOW_EXPIRED": {
+        "description": "server-authoritative 10-second undo deadline elapsed",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "API_UNDO_WINDOW_EXPIRED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "API_VERSION_OR_BINDING_NOT_FOUND": {
+        "description": "API version or Environment binding absent",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "API_VERSION_OR_BINDING_NOT_FOUND"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "AUTH_REQUIRED": {
+        "description": "no or expired authenticated session",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "AUTH_REQUIRED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "CALLBACK_REPLAYED": {
+        "description": "OIDC callback state/code was already consumed",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "CALLBACK_REPLAYED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "CLAIM_MAPPING_INVALID": {
+        "description": "required identity claim mapping invalid",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "CLAIM_MAPPING_INVALID"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "CSRF_INVALID": {
+        "description": "missing, expired or mismatched CSRF token",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "CSRF_INVALID"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "DEFINITION_SCHEMA_INVALID": {
+        "description": "saved definition cannot be validated structurally",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "DEFINITION_SCHEMA_INVALID"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "DELETE_TRANSACTION_FAILED": {
+        "description": "API delete/disable transaction failed",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "DELETE_TRANSACTION_FAILED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "DUPLICATE_SIBLING": {
+        "description": "sibling name already exists",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "DUPLICATE_SIBLING"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "DUPLICATE_STEP_KEY": {
+        "description": "immutable Step key duplicated",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "DUPLICATE_STEP_KEY"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ENABLE_TRANSACTION_FAILED": {
+        "description": "recovery enable transaction failed",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "ENABLE_TRANSACTION_FAILED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ENVIRONMENT_DELETE_FAILED": {
+        "description": "Environment binding/value/audit delete transaction failed",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "ENVIRONMENT_DELETE_FAILED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ENVIRONMENT_INCOMPLETE": {
+        "description": "required Environment value is missing",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "ENVIRONMENT_INCOMPLETE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ENVIRONMENT_PRECONDITION_FAILED": {
+        "description": "create/update precondition does not match Environment existence",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "ENVIRONMENT_PRECONDITION_FAILED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ENVIRONMENT_REVISION_CONFLICT": {
+        "description": "admission binding revision changed",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "ENVIRONMENT_REVISION_CONFLICT"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "EXECUTION_NOT_FOUND_OR_EXPIRED": {
+        "description": "Execution absent or outside retention",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "EXECUTION_NOT_FOUND_OR_EXPIRED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "EXECUTION_PROJECTION_CONFLICT": {
+        "description": "requested projection/ETag conflicts with state",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "EXECUTION_PROJECTION_CONFLICT"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "GLOBAL_LOGOUT_UNSUPPORTED": {
+        "description": "all-session logout unsupported by IAM",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "GLOBAL_LOGOUT_UNSUPPORTED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "HISTORY_QUERY_CONFLICT": {
+        "description": "filters identify incompatible query scopes",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "HISTORY_QUERY_CONFLICT"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "HOST_CONTEXT_CONFLICT": {
+        "description": "selected Host context changed",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "HOST_CONTEXT_CONFLICT"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "HOST_INACTIVE": {
+        "description": "Host lifecycle blocks run",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "HOST_INACTIVE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "HOST_NOT_FOUND": {
+        "description": "logical Host absent",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "HOST_NOT_FOUND"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "HOST_OR_ENVIRONMENT_NOT_FOUND": {
+        "description": "Host or Environment binding absent",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "HOST_OR_ENVIRONMENT_NOT_FOUND"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "HOST_OR_RESOURCE_NOT_FOUND": {
+        "description": "Host or selected resource absent in scope",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "HOST_OR_RESOURCE_NOT_FOUND"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "HOST_OR_WORKSPACE_NOT_FOUND": {
+        "description": "Host or Workspace absent",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "HOST_OR_WORKSPACE_NOT_FOUND"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "HOST_TRANSITION_FAILED": {
+        "description": "Host lifecycle/disable transaction failed",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "HOST_TRANSITION_FAILED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "IDEMPOTENCY_KEY_REUSED": {
+        "description": "same scoped key used with a different payload hash",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "IDEMPOTENCY_KEY_REUSED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "IDEMPOTENCY_RESPONSE_TOO_LARGE": {
+        "description": "projected successful response exceeds 65,536 bytes; coordinator rolls back before commit",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "IDEMPOTENCY_RESPONSE_TOO_LARGE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "IMPACT_SCAN_FAILED": {
+        "description": "Host/API dependency scan failed",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "IMPACT_SCAN_FAILED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "IMPACT_TOKEN_INVALID": {
+        "description": "impact token absent, expired, mismatched or stale",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "IMPACT_TOKEN_INVALID"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "IMPACT_TOKEN_REQUIRED": {
+        "description": "contract-changing action lacks impact token",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "IMPACT_TOKEN_REQUIRED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INTERNAL_ERROR": {
+        "description": "redacted unexpected internal failure",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INTERNAL_ERROR"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_BODY": {
+        "description": "API request body invalid for selected type",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_BODY"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_COMMAND": {
+        "description": "unsupported resource command or missing command discriminator",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_COMMAND"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_DATE_RANGE": {
+        "description": "history range invalid or exceeds 30 days",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_DATE_RANGE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_FIELDS": {
+        "description": "field-selection name not allowlisted",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_FIELDS"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_FILTER": {
+        "description": "filter value/name invalid",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_FILTER"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_HOST_TRANSITION": {
+        "description": "proposed Host lifecycle transition invalid",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_HOST_TRANSITION"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_INCLUDE": {
+        "description": "execution expansion not allowlisted",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_INCLUDE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_LIFECYCLE_TRANSITION": {
+        "description": "requested Workflow transition invalid",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_LIFECYCLE_TRANSITION"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_MAPPING": {
+        "description": "mapping namespace/path/direction invalid",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_MAPPING"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_METHOD": {
+        "description": "HTTP method invalid or not allowlisted",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_METHOD"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_NAME": {
+        "description": "resource name invalid",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_NAME"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_PAGE": {
+        "description": "page/pageSize outside contract",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_PAGE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_PATH": {
+        "description": "API path is not a valid relative path",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_PATH"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_QUERY_COMBINATION": {
+        "description": "query parameters are semantically incompatible",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_QUERY_COMBINATION"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_REQUEST": {
+        "description": "malformed syntax, identifier or body envelope",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_REQUEST"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_RETRY": {
+        "description": "retry count/base delay invalid",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_RETRY"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_RETURN_URL": {
+        "description": "login return URL is not same-origin/allowlisted",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_RETURN_URL"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_SENSITIVE_PATH": {
+        "description": "sensitive path syntax/uniqueness invalid",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_SENSITIVE_PATH"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_SORT": {
+        "description": "sort field/direction not allowlisted",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_SORT"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_TARGET": {
+        "description": "resource command target type/location invalid",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_TARGET"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_TARGET_CIDR_SET": {
+        "description": "target CIDR set is absent, empty, malformed, duplicated, excludes current base-URL resolution, or its ref/Host/Environment/hash does not match the signed Approved Address Set manifest",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_TARGET_CIDR_SET"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_TIMEOUT": {
+        "description": "timeout outside 1–300 seconds",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_TIMEOUT"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_URL": {
+        "description": "Environment base URL violates HTTPS/format policy",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_URL"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_VARIABLE_SCHEMA": {
+        "description": "variable schema key/shape/uniqueness invalid",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_VARIABLE_SCHEMA"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "INVALID_WORKFLOW_NAME": {
+        "description": "Workflow name invalid",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "INVALID_WORKFLOW_NAME"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "KEY_PROVIDER_UNAVAILABLE": {
+        "description": "secret-manager key operation unavailable/timed out; Retry-After required",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id",
+              "details"
+            ],
+            "properties": {
+              "code": {
+                "const": "KEY_PROVIDER_UNAVAILABLE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object",
+                "required": [
+                  "retry_after_seconds"
+                ],
+                "properties": {
+                  "retry_after_seconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 86400
+                  },
+                  "recovery_action": {
+                    "type": "string",
+                    "enum": [
+                      "RESTART_LOGIN"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "LATEST_STATE_INVALID": {
+        "description": "latest definition/Environment is not rerunnable",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "LATEST_STATE_INVALID"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "LOGIN_ALREADY_ACTIVE": {
+        "description": "login initiation conflicts with active login state",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "LOGIN_ALREADY_ACTIVE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "LOGOUT_IN_PROGRESS": {
+        "description": "logout already executing for session",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "LOGOUT_IN_PROGRESS"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "MISSING_REQUIRED_VALUE": {
+        "description": "required Environment value missing",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "MISSING_REQUIRED_VALUE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "OIDC_CALLBACK_INVALID": {
+        "description": "callback parameters/state are malformed",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "OIDC_CALLBACK_INVALID"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "OIDC_CONFIG_INVALID": {
+        "description": "IAM issuer/client/redirect configuration invalid",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "OIDC_CONFIG_INVALID"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "OIDC_TOKEN_REJECTED": {
+        "description": "IAM token exchange/validation rejected identity",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "OIDC_TOKEN_REJECTED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "POLL_RATE_LIMIT_EXCEEDED": {
+        "description": "execution polling rate exceeded; Retry-After required",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id",
+              "details"
+            ],
+            "properties": {
+              "code": {
+                "const": "POLL_RATE_LIMIT_EXCEEDED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object",
+                "required": [
+                  "retry_after_seconds"
+                ],
+                "properties": {
+                  "retry_after_seconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 86400
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "RATE_LIMIT_EXCEEDED": {
+        "description": "actor/route request rate exceeded; Retry-After required",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id",
+              "details"
+            ],
+            "properties": {
+              "code": {
+                "const": "RATE_LIMIT_EXCEEDED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object",
+                "required": [
+                  "retry_after_seconds"
+                ],
+                "properties": {
+                  "retry_after_seconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 86400
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "RECOVERY_REVISION_CONFLICT": {
+        "description": "recovery session revision is stale",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "RECOVERY_REVISION_CONFLICT"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "REPORT_STALE": {
+        "description": "report does not match current saved version",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "REPORT_STALE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "RESOURCE_NOT_EMPTY": {
+        "description": "non-empty resource cannot be removed by command",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "RESOURCE_NOT_EMPTY"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "RESOURCE_OR_PARENT_NOT_FOUND": {
+        "description": "command target or parent absent",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "RESOURCE_OR_PARENT_NOT_FOUND"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "RESTORE_COLLISION": {
+        "description": "original tree location/name cannot be restored safely",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "RESTORE_COLLISION"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "REVIEW_STALE": {
+        "description": "recovery review no longer matches current definition",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "REVIEW_STALE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "REVISION_CONFLICT": {
+        "description": "optimistic revision is stale",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "REVISION_CONFLICT"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "SCHEMA_IN_USE": {
+        "description": "schema key removal would orphan Environment values",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "SCHEMA_IN_USE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "SERVICE_UNAVAILABLE": {
+        "description": "required dependency, bulkhead or process capacity is transiently unavailable; Retry-After required",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id",
+              "details"
+            ],
+            "properties": {
+              "code": {
+                "const": "SERVICE_UNAVAILABLE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object",
+                "required": [
+                  "retry_after_seconds"
+                ],
+                "properties": {
+                  "retry_after_seconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 86400
+                  },
+                  "recovery_action": {
+                    "type": "string",
+                    "enum": [
+                      "RESTART_LOGIN"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "SESSION_CLAIMS_INVALID": {
+        "description": "stored actor or MFA claims cannot produce the exact versioned session projection",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "SESSION_CLAIMS_INVALID"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "SESSION_NOT_FOUND": {
+        "description": "authenticated session record absent",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "SESSION_NOT_FOUND"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "SESSION_STATE_CONFLICT": {
+        "description": "session projection changed unexpectedly",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "SESSION_STATE_CONFLICT"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "SESSION_STATE_NOT_FOUND": {
+        "description": "OIDC callback session state absent/expired",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "SESSION_STATE_NOT_FOUND"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "SESSION_STORE_UNAVAILABLE": {
+        "description": "server-side session store unavailable; Retry-After required",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id",
+              "details"
+            ],
+            "properties": {
+              "code": {
+                "const": "SESSION_STORE_UNAVAILABLE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object",
+                "required": [
+                  "retry_after_seconds"
+                ],
+                "properties": {
+                  "retry_after_seconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 86400
+                  },
+                  "recovery_action": {
+                    "type": "string",
+                    "enum": [
+                      "RESTART_LOGIN"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "SNAPSHOT_INVALID": {
+        "description": "immutable run snapshot cannot be created",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "SNAPSHOT_INVALID"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "SOURCE_NOT_RERUNNABLE": {
+        "description": "source Execution type/state cannot rerun",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "SOURCE_NOT_RERUNNABLE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "SOURCE_OR_LATEST_DEFINITION_OR_BINDING_NOT_FOUND": {
+        "description": "rerun source/latest definition/binding absent",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "SOURCE_OR_LATEST_DEFINITION_OR_BINDING_NOT_FOUND"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "STEP_LIMIT_EXCEEDED": {
+        "description": "Workflow has more than 20 Steps",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "STEP_LIMIT_EXCEEDED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "TREE_CYCLE": {
+        "description": "move would create an ancestry cycle",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "TREE_CYCLE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "VALIDATION_ERRORS_EXIST": {
+        "description": "current report contains Error findings",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "VALIDATION_ERRORS_EXIST"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "VALIDATION_REPORT_FAILED": {
+        "description": "validation report persistence failed",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "VALIDATION_REPORT_FAILED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "VERSION_NOT_CURRENT": {
+        "description": "validation target is not current saved version",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "VERSION_NOT_CURRENT"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "VERSION_NOT_IN_WORKFLOW": {
+        "description": "requested version belongs to another Workflow",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "VERSION_NOT_IN_WORKFLOW"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "VERSION_TRANSACTION_FAILED": {
+        "description": "immutable version transaction failed",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "VERSION_TRANSACTION_FAILED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "WARNING_ACK_REQUIRED": {
+        "description": "current report has Warning findings without confirmation",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "WARNING_ACK_REQUIRED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "WORKFLOW_CAPACITY_REACHED": {
+        "description": "20 Workflow executions already active; Retry-After required",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id",
+              "details"
+            ],
+            "properties": {
+              "code": {
+                "const": "WORKFLOW_CAPACITY_REACHED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object",
+                "required": [
+                  "retry_after_seconds"
+                ],
+                "properties": {
+                  "retry_after_seconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 86400
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "WORKFLOW_NOT_READY": {
+        "description": "Workflow lifecycle blocks run",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "WORKFLOW_NOT_READY"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "WORKFLOW_OR_API_VERSION_NOT_FOUND": {
+        "description": "Workflow or referenced API version absent",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "WORKFLOW_OR_API_VERSION_NOT_FOUND"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "WORKFLOW_OR_REPORT_NOT_FOUND": {
+        "description": "Workflow or validation report absent",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "WORKFLOW_OR_REPORT_NOT_FOUND"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "WORKFLOW_OR_VERSION_NOT_FOUND": {
+        "description": "Workflow or requested version absent",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "WORKFLOW_OR_VERSION_NOT_FOUND"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "WORKFLOW_REVISION_CONFLICT": {
+        "description": "Workflow optimistic revision is stale",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "WORKFLOW_REVISION_CONFLICT"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "WORKFLOW_STATE_CONFLICT": {
+        "description": "Workflow lifecycle state disallows read/action",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "WORKFLOW_STATE_CONFLICT"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "WORKFLOW_VERSION_REPORT_OR_BINDING_NOT_FOUND": {
+        "description": "Workflow version, report or binding absent",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "WORKFLOW_VERSION_REPORT_OR_BINDING_NOT_FOUND"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "WORKSPACE_STATE_CONFLICT": {
+        "description": "Workspace state changed during query/mutation",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "request_id",
+              "trace_id"
+            ],
+            "properties": {
+              "code": {
+                "const": "WORKSPACE_STATE_CONFLICT"
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "x-api-lab-endpoint-errors": {
+    "API-001": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/HOST_OR_RESOURCE_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/HOST_CONTEXT_CONFLICT"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_QUERY_COMBINATION"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INTERNAL_ERROR"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-002": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          },
+          {
+            "$ref": "#/components/schemas/CSRF_INVALID"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/HOST_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ENVIRONMENT_PRECONDITION_FAILED"
+          },
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_KEY_REUSED"
+          },
+          {
+            "$ref": "#/components/schemas/REVISION_CONFLICT"
+          },
+          {
+            "$ref": "#/components/schemas/SCHEMA_IN_USE"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_RESPONSE_TOO_LARGE"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_TARGET_CIDR_SET"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_URL"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_VARIABLE_SCHEMA"
+          },
+          {
+            "$ref": "#/components/schemas/MISSING_REQUIRED_VALUE"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INTERNAL_ERROR"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/KEY_PROVIDER_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-003": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/HOST_OR_WORKSPACE_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/WORKSPACE_STATE_CONFLICT"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_FIELDS"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_FILTER"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_SORT"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INTERNAL_ERROR"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-004": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_COMMAND"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          },
+          {
+            "$ref": "#/components/schemas/CSRF_INVALID"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RESOURCE_OR_PARENT_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/DUPLICATE_SIBLING"
+          },
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_KEY_REUSED"
+          },
+          {
+            "$ref": "#/components/schemas/RESOURCE_NOT_EMPTY"
+          },
+          {
+            "$ref": "#/components/schemas/REVISION_CONFLICT"
+          },
+          {
+            "$ref": "#/components/schemas/TREE_CYCLE"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_RESPONSE_TOO_LARGE"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_METHOD"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_NAME"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_TARGET"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INTERNAL_ERROR"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-005": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          },
+          {
+            "$ref": "#/components/schemas/CSRF_INVALID"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/API_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/API_STATE_CONFLICT"
+          },
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_KEY_REUSED"
+          },
+          {
+            "$ref": "#/components/schemas/IMPACT_TOKEN_INVALID"
+          },
+          {
+            "$ref": "#/components/schemas/REVISION_CONFLICT"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/API_NOT_DELETABLE"
+          },
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_RESPONSE_TOO_LARGE"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/DELETE_TRANSACTION_FAILED"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-006": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          },
+          {
+            "$ref": "#/components/schemas/CSRF_INVALID"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/API_TOMBSTONE_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/API_STATE_CONFLICT"
+          },
+          {
+            "$ref": "#/components/schemas/API_UNDO_WINDOW_EXPIRED"
+          },
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_KEY_REUSED"
+          },
+          {
+            "$ref": "#/components/schemas/REVISION_CONFLICT"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_RESPONSE_TOO_LARGE"
+          },
+          {
+            "$ref": "#/components/schemas/RESTORE_COLLISION"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/API_UNDO_FAILED"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-007": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          },
+          {
+            "$ref": "#/components/schemas/CSRF_INVALID"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/API_OR_HOST_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_KEY_REUSED"
+          },
+          {
+            "$ref": "#/components/schemas/IMPACT_TOKEN_INVALID"
+          },
+          {
+            "$ref": "#/components/schemas/IMPACT_TOKEN_REQUIRED"
+          },
+          {
+            "$ref": "#/components/schemas/REVISION_CONFLICT"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_RESPONSE_TOO_LARGE"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_BODY"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_METHOD"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_PATH"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_SENSITIVE_PATH"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_TIMEOUT"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/VERSION_TRANSACTION_FAILED"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-008": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/WORKFLOW_OR_VERSION_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/WORKFLOW_STATE_CONFLICT"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/VERSION_NOT_IN_WORKFLOW"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INTERNAL_ERROR"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-009": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          },
+          {
+            "$ref": "#/components/schemas/CSRF_INVALID"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/WORKFLOW_OR_API_VERSION_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_KEY_REUSED"
+          },
+          {
+            "$ref": "#/components/schemas/WORKFLOW_REVISION_CONFLICT"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/DUPLICATE_STEP_KEY"
+          },
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_RESPONSE_TOO_LARGE"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_MAPPING"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_RETRY"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_WORKFLOW_NAME"
+          },
+          {
+            "$ref": "#/components/schemas/STEP_LIMIT_EXCEEDED"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/VERSION_TRANSACTION_FAILED"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-010": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          },
+          {
+            "$ref": "#/components/schemas/CSRF_INVALID"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/WORKFLOW_OR_VERSION_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RECOVERY_REVISION_CONFLICT"
+          },
+          {
+            "$ref": "#/components/schemas/VERSION_NOT_CURRENT"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/DEFINITION_SCHEMA_INVALID"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/VALIDATION_REPORT_FAILED"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-011": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          },
+          {
+            "$ref": "#/components/schemas/CSRF_INVALID"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/WORKFLOW_OR_REPORT_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_KEY_REUSED"
+          },
+          {
+            "$ref": "#/components/schemas/REPORT_STALE"
+          },
+          {
+            "$ref": "#/components/schemas/REVIEW_STALE"
+          },
+          {
+            "$ref": "#/components/schemas/VALIDATION_ERRORS_EXIST"
+          },
+          {
+            "$ref": "#/components/schemas/WARNING_ACK_REQUIRED"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_RESPONSE_TOO_LARGE"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_LIFECYCLE_TRANSITION"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ENABLE_TRANSACTION_FAILED"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-012": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          },
+          {
+            "$ref": "#/components/schemas/CSRF_INVALID"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/API_VERSION_OR_BINDING_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/API_NOT_ACTIVE"
+          },
+          {
+            "$ref": "#/components/schemas/ENVIRONMENT_INCOMPLETE"
+          },
+          {
+            "$ref": "#/components/schemas/ENVIRONMENT_REVISION_CONFLICT"
+          },
+          {
+            "$ref": "#/components/schemas/HOST_INACTIVE"
+          },
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_KEY_REUSED"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/API_DEFINITION_INVALID"
+          },
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_RESPONSE_TOO_LARGE"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ADMISSION_TRANSACTION_FAILED"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-013": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          },
+          {
+            "$ref": "#/components/schemas/CSRF_INVALID"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/WORKFLOW_VERSION_REPORT_OR_BINDING_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ENVIRONMENT_REVISION_CONFLICT"
+          },
+          {
+            "$ref": "#/components/schemas/HOST_INACTIVE"
+          },
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_KEY_REUSED"
+          },
+          {
+            "$ref": "#/components/schemas/REPORT_STALE"
+          },
+          {
+            "$ref": "#/components/schemas/WARNING_ACK_REQUIRED"
+          },
+          {
+            "$ref": "#/components/schemas/WORKFLOW_NOT_READY"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_RESPONSE_TOO_LARGE"
+          },
+          {
+            "$ref": "#/components/schemas/SNAPSHOT_INVALID"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          },
+          {
+            "$ref": "#/components/schemas/WORKFLOW_CAPACITY_REACHED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ADMISSION_TRANSACTION_FAILED"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-014": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/EXECUTION_NOT_FOUND_OR_EXPIRED"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/EXECUTION_PROJECTION_CONFLICT"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_INCLUDE"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/POLL_RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INTERNAL_ERROR"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-015": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/HOST_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/HISTORY_QUERY_CONFLICT"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_DATE_RANGE"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_FIELDS"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_FILTER"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_PAGE"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_SORT"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INTERNAL_ERROR"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-016": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          },
+          {
+            "$ref": "#/components/schemas/CSRF_INVALID"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SOURCE_OR_LATEST_DEFINITION_OR_BINDING_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_KEY_REUSED"
+          },
+          {
+            "$ref": "#/components/schemas/LATEST_STATE_INVALID"
+          },
+          {
+            "$ref": "#/components/schemas/WARNING_ACK_REQUIRED"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_RESPONSE_TOO_LARGE"
+          },
+          {
+            "$ref": "#/components/schemas/SOURCE_NOT_RERUNNABLE"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          },
+          {
+            "$ref": "#/components/schemas/WORKFLOW_CAPACITY_REACHED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ADMISSION_TRANSACTION_FAILED"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-017": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_RETURN_URL"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/LOGIN_ALREADY_ACTIVE"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/OIDC_CONFIG_INVALID"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INTERNAL_ERROR"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/KEY_PROVIDER_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-018": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/OIDC_CALLBACK_INVALID"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/OIDC_TOKEN_REJECTED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SESSION_STATE_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CALLBACK_REPLAYED"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CLAIM_MAPPING_INVALID"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INTERNAL_ERROR"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/KEY_PROVIDER_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-019": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CSRF_INVALID"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": []
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/GLOBAL_LOGOUT_UNSUPPORTED"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INTERNAL_ERROR"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-020": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SESSION_STATE_CONFLICT"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SESSION_CLAIMS_INVALID"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INTERNAL_ERROR"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/KEY_PROVIDER_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-021": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          },
+          {
+            "$ref": "#/components/schemas/CSRF_INVALID"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/HOST_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/REVISION_CONFLICT"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_HOST_TRANSITION"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IMPACT_SCAN_FAILED"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-022": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          },
+          {
+            "$ref": "#/components/schemas/CSRF_INVALID"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/HOST_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_KEY_REUSED"
+          },
+          {
+            "$ref": "#/components/schemas/IMPACT_TOKEN_INVALID"
+          },
+          {
+            "$ref": "#/components/schemas/IMPACT_TOKEN_REQUIRED"
+          },
+          {
+            "$ref": "#/components/schemas/REVISION_CONFLICT"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_RESPONSE_TOO_LARGE"
+          },
+          {
+            "$ref": "#/components/schemas/INVALID_HOST_TRANSITION"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/HOST_TRANSITION_FAILED"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    },
+    "API-023": {
+      "400": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/INVALID_REQUEST"
+          }
+        ]
+      },
+      "401": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AUTH_REQUIRED"
+          }
+        ]
+      },
+      "403": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ACCESS_DENIED"
+          },
+          {
+            "$ref": "#/components/schemas/CSRF_INVALID"
+          }
+        ]
+      },
+      "404": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/HOST_OR_ENVIRONMENT_NOT_FOUND"
+          }
+        ]
+      },
+      "409": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_KEY_REUSED"
+          },
+          {
+            "$ref": "#/components/schemas/REVISION_CONFLICT"
+          }
+        ]
+      },
+      "422": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/IDEMPOTENCY_RESPONSE_TOO_LARGE"
+          }
+        ]
+      },
+      "429": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RATE_LIMIT_EXCEEDED"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "500": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ENVIRONMENT_DELETE_FAILED"
+          }
+        ]
+      },
+      "503": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SERVICE_UNAVAILABLE"
+          },
+          {
+            "$ref": "#/components/schemas/SESSION_STORE_UNAVAILABLE"
+          }
+        ],
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      }
+    }
+  }
+}

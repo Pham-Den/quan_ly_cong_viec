@@ -1,53 +1,9 @@
-import cors from '@fastify/cors'
-import Fastify from 'fastify'
-
-import { registerApiLabRoutes } from './api-lab/routes.js'
-import { registerAuthRoutes } from './auth/routes.js'
-import { registerBranchRoutes } from './branches/routes.js'
-import { createPrismaClient } from './db.js'
 import type { AppEnv } from './env.js'
-import { registerPlanningRoutes } from './planning/routes.js'
-import { registerSystemManagerRoutes } from './system-manager/routes.js'
-import { registerTimelineRoutes } from './timeline/routes.js'
-import { registerVisibilityRoutes } from './visibility/routes.js'
-import { registerWorkspaceRoutes } from './workspace/routes.js'
-import { registerWorkflowRoutes } from './workflow/routes.js'
+import { buildApplication } from './app.js'
+
+// Sprint: v1 | Feature: NFR-004/NFR-006 | Task Group: 03B Runtime composition
+// Contract: ARCH-COMP-001/007, PR-001/006 | Pack: v1.7.21-oidc-session-error-contracts
 
 export function buildServer(env: AppEnv) {
-  const app = Fastify({
-    logger: process.env.NODE_ENV !== 'test',
-  })
-  const prisma = createPrismaClient(env.databaseUrl)
-
-  app.register(cors, {
-    origin: env.frontendOrigin,
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Authorization', 'Content-Type'],
-  })
-
-  app.addHook('onClose', async () => {
-    await prisma.$disconnect()
-  })
-
-  app.get('/health', async () => ({
-    ok: true,
-    service: 'quan-ly-cong-viec-api',
-  }))
-
-  app.get('/api/meta', async () => ({
-    app: 'quan_ly_cong_viec',
-    apiVersion: '0.1.0',
-  }))
-
-  registerAuthRoutes(app, { env, prisma })
-  registerWorkspaceRoutes(app, { env, prisma })
-  registerPlanningRoutes(app, { env, prisma })
-  registerBranchRoutes(app, { env, prisma })
-  registerTimelineRoutes(app, { env, prisma })
-  registerVisibilityRoutes(app, { env, prisma })
-  registerWorkflowRoutes(app, { env, prisma })
-  registerApiLabRoutes(app, { env, prisma })
-  registerSystemManagerRoutes(app, { env, prisma })
-
-  return app
+  return buildApplication(env)
 }

@@ -1,0 +1,49 @@
+<mxfile host="app.diagrams.net" version="24.7.17">
+  <diagram id="c1-identity-delta" name="System Context — Identity Delta">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" page="1" pageWidth="1169" pageHeight="827"><root>
+      <mxCell id="0"/><mxCell id="1" parent="0"/>
+      <mxCell id="user-c1" value="User&#xa;pre-authentication and authenticated" style="shape=mxgraph.c4.person2;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="40" y="180" width="170" height="90" as="geometry"/></mxCell>
+      <mxCell id="system-c1" value="API Lab System&#xa;workflow orchestration" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="310" y="180" width="220" height="90" as="geometry"/></mxCell>
+      <mxCell id="iam-c1" value="Central IAM&#xa;external identity authority" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="650" y="90" width="220" height="80" as="geometry"/></mxCell>
+      <mxCell id="keys-c1" value="Secret Manager&#xa;external key authority" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="650" y="280" width="220" height="80" as="geometry"/></mxCell>
+      <mxCell id="e1-c1" value="Starts login; uses authenticated API Lab" style="edgeStyle=orthogonalEdgeStyle;jumpStyle=arc;" edge="1" parent="1" source="user-c1" target="system-c1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e2-c1" value="OIDC authorize/status" style="edgeStyle=orthogonalEdgeStyle;jumpStyle=arc;" edge="1" parent="1" source="system-c1" target="iam-c1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e3-c1" value="Key handles by reference" style="edgeStyle=orthogonalEdgeStyle;jumpStyle=arc;" edge="1" parent="1" source="system-c1" target="keys-c1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    </root></mxGraphModel>
+  </diagram>
+  <diagram id="c2-identity-delta" name="Container — Identity Delta">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" page="1" pageWidth="1169" pageHeight="827"><root>
+      <mxCell id="0"/><mxCell id="1" parent="0"/>
+      <mxCell id="spa" value="Browser-hosted Vue SPA&#xa;/auth/callback UI; no readable session-cookie storage" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="40" y="180" width="180" height="80" as="geometry"/></mxCell>
+      <mxCell id="api" value="Fastify API&#xa;Identity Adapter" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="300" y="180" width="200" height="80" as="geometry"/></mxCell>
+      <mxCell id="iam" value="Central IAM&#xa;identity authority" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="600" y="40" width="190" height="80" as="geometry"/></mxCell>
+      <mxCell id="keys" value="Secret Manager&#xa;key handles" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="600" y="180" width="190" height="80" as="geometry"/></mxCell>
+      <mxCell id="db" value="MySQL&#xa;ENT-022 / ENT-023" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;" vertex="1" parent="1"><mxGeometry x="600" y="320" width="190" height="90" as="geometry"/></mxCell>
+      <mxCell id="e1" value="Axios callback/session routes; browser automatically sends HttpOnly cookie" style="edgeStyle=orthogonalEdgeStyle;jumpStyle=arc;" edge="1" parent="1" source="spa" target="api"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e2" value="authorize/token/status" style="edgeStyle=orthogonalEdgeStyle;jumpStyle=arc;" edge="1" parent="1" source="api" target="iam"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e3" value="key by ID" style="edgeStyle=orthogonalEdgeStyle;jumpStyle=arc;" edge="1" parent="1" source="api" target="keys"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e4" value="Identity repositories" style="edgeStyle=orthogonalEdgeStyle;jumpStyle=arc;" edge="1" parent="1" source="api" target="db"><mxGeometry relative="1" as="geometry"/></mxCell>
+    </root></mxGraphModel>
+  </diagram>
+  <diagram id="c3-identity-delta" name="Component — Identity Delta">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" page="1" pageWidth="1169" pageHeight="827"><root>
+      <mxCell id="0"/><mxCell id="1" parent="0"/>
+      <mxCell id="identity" value="Identity Adapter&#xa;requireActor / requireCsrf / API-017–020" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="60" y="160" width="240" height="100" as="geometry"/></mxCell>
+      <mxCell id="stateRepo" value="OidcLoginStateRepository" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="390" y="50" width="220" height="70" as="geometry"/></mxCell>
+      <mxCell id="sessionRepo" value="AuthSessionRepository" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="390" y="150" width="220" height="70" as="geometry"/></mxCell>
+      <mxCell id="iamPort" value="CentralIamStatusPort" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="390" y="250" width="220" height="70" as="geometry"/></mxCell>
+      <mxCell id="keyPort" value="IdentityKeyPort" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="390" y="350" width="220" height="70" as="geometry"/></mxCell>
+      <mxCell id="mysql" value="MySQL&#xa;ENT-022 / ENT-023" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;" vertex="1" parent="1"><mxGeometry x="760" y="80" width="190" height="80" as="geometry"/></mxCell>
+      <mxCell id="centralIam" value="Central IAM&#xa;external authority" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="760" y="230" width="190" height="70" as="geometry"/></mxCell>
+      <mxCell id="secretManager" value="Secret Manager&#xa;external key authority" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="760" y="350" width="190" height="70" as="geometry"/></mxCell>
+      <mxCell id="e1" value="create/consume login state" style="edgeStyle=orthogonalEdgeStyle;jumpStyle=arc;" edge="1" parent="1" source="identity" target="stateRepo"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e2" value="resolve/refresh/invalidate session" style="edgeStyle=orthogonalEdgeStyle;jumpStyle=arc;" edge="1" parent="1" source="identity" target="sessionRepo"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e3" value="verify authoritative IAM status" style="edgeStyle=orthogonalEdgeStyle;jumpStyle=arc;" edge="1" parent="1" source="identity" target="iamPort"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e4" value="encrypt/decrypt by key ID" style="edgeStyle=orthogonalEdgeStyle;jumpStyle=arc;" edge="1" parent="1" source="identity" target="keyPort"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e5" value="Identity repository adapter" style="edgeStyle=orthogonalEdgeStyle;jumpStyle=arc;" edge="1" parent="1" source="stateRepo" target="mysql"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e6" value="Session repository adapter" style="edgeStyle=orthogonalEdgeStyle;jumpStyle=arc;" edge="1" parent="1" source="sessionRepo" target="mysql"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e7" value="Central-IAM adapter" style="edgeStyle=orthogonalEdgeStyle;jumpStyle=arc;" edge="1" parent="1" source="iamPort" target="centralIam"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e8" value="Secret-manager adapter" style="edgeStyle=orthogonalEdgeStyle;jumpStyle=arc;" edge="1" parent="1" source="keyPort" target="secretManager"><mxGeometry relative="1" as="geometry"/></mxCell>
+    </root></mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,6 @@
+{
+  "fixture": "pre-ready",
+  "hook": "auth-callback-retry-required",
+  "focusedTag": "H2",
+  "focusedText": "Cần thử lại callback đăng nhập"
+}

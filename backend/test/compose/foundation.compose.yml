@@ -1,0 +1,114 @@
+name: api-lab-foundation-self-test
+
+# Sprint: v1 | Feature: NFR-004/NFR-006/NFR-010 | Task Group: 03C CODE-10 harness
+# Contract: API-017–020/024, CODE-10 | Pack: v1.7.21-oidc-session-error-contracts
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: quan_ly_cong_viec_foundation
+    volumes:
+      - ./fixtures/foundation-schema.sql:/docker-entrypoint-initdb.d/001-foundation-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  iam-fake:
+    image: node:22-alpine
+    command: ["node", "/fixtures/iam-fake.mjs"]
+    volumes:
+      - ./fixtures:/fixtures:ro
+    ports:
+      - "4101:4101"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4101/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+
+  key-provider-fake:
+    image: node:22-alpine
+    command: ["node", "/fixtures/key-provider-fake.mjs"]
+    volumes:
+      - ./fixtures:/fixtures:ro
+    ports:
+      - "4102:4102"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4102/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+
+  backend:
+    image: node:22-bookworm-slim
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    working_dir: /workspace
+    environment:
+      NODE_ENV: test
+      BACKEND_HOST: 0.0.0.0
+      BACKEND_PORT: "4000"
+      FRONTEND_ORIGIN: http://localhost:5173
+      DATABASE_URL: mysql://root@mysql:3306/quan_ly_cong_viec_foundation
+      CENTRAL_IAM_ISSUER: http://iam-fake:4101
+      OIDC_CLIENT_ID: api-lab-local
+      OIDC_REDIRECT_URI: http://localhost:5173/auth/callback
+      OIDC_AUDIENCE: api-lab-local
+      OIDC_LOGIN_STATE_TTL_MINUTES: "10"
+      SESSION_IDLE_TIMEOUT_MINUTES: "15"
+      SESSION_ACTIVITY_WRITE_MIN_SECONDS: "60"
+      IAM_LOGIN_TIMEOUT_MS: "5000"
+      IAM_LOGIN_RETRY_MAX: "3"
+      IAM_STATUS_TIMEOUT_MS: "2000"
+      IAM_POSITIVE_STATUS_CACHE_SECONDS: "0"
+      OIDC_STATE_KEY_ID: secret-ref://oidc-state
+      SESSION_CSRF_KEY_ID: secret-ref://session-csrf
+      KEY_PROVIDER_BASE_URL: http://key-provider-fake:4102
+      FOUNDATION_TEST_MODE: "true"
+    command:
+      - sh
+      - -ec
+      - >-
+        npm ci &&
+        npm --workspace backend run prisma:generate &&
+        npm --workspace backend run dev
+    volumes:
+      - ../../..:/workspace
+      - /dev/null:/workspace/.env:ro
+      - /dev/null:/workspace/backend/.env:ro
+    tmpfs:
+      - "/workspace/node_modules:rw,exec,uid=${LOCAL_UID:-1000},gid=${LOCAL_GID:-1000},mode=0755"
+      - "/workspace/backend/node_modules:rw,exec,uid=${LOCAL_UID:-1000},gid=${LOCAL_GID:-1000},mode=0755"
+    ports:
+      - "4000:4000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      iam-fake:
+        condition: service_healthy
+      key-provider-fake:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 3s
+      timeout: 2s
+      retries: 40
+      start_period: 30s
+
+  foundation-self-test:
+    image: node:22-bookworm-slim
+    working_dir: /workspace
+    environment:
+      FOUNDATION_BACKEND_URL: http://backend:4000
+      FOUNDATION_IAM_URL: http://iam-fake:4101
+      FOUNDATION_KEY_PROVIDER_URL: http://key-provider-fake:4102
+    command: ["node", "--import", "tsx", "backend/scripts/self-test-foundation.ts", "--happy", "--error-cases", "iam,key,store"]
+    volumes:
+      - ../../..:/workspace
+    depends_on:
+      backend:
+        condition: service_healthy
+    profiles: ["self-test"]
